@@ -95,8 +95,8 @@ void SimNode::Step() {
     mjtNum q_e = q_des_[i] - mj_data_->qpos[7 + i];
     mjtNum qdot_e = qdot_des_[i] - mj_data_->qvel[6 + i];
 
-    // mj_data_->ctrl[i] = kp_[i] * q_e + kd_[i] * qdot_e + tau_ff_[i];
-    mj_data_->ctrl[i] = 0.0;
+    mj_data_->ctrl[i] = kp_[i] * q_e + kd_[i] * qdot_e + tau_ff_[i];
+    // mj_data_->ctrl[i] = 0.0;
   }
 
   // Step the simulation
@@ -122,7 +122,6 @@ void SimNode::LowCmdHandler(LowCmdMsg::SharedPtr message) {
     tau_ff_[i] = static_cast<mjtNum>(message->motor_cmd[i].tau);
     kp_[i] = static_cast<mjtNum>(message->motor_cmd[i].kp);
     kd_[i] = static_cast<mjtNum>(message->motor_cmd[i].kd);
-    std::cout << i << std::endl;
   }
 }
 

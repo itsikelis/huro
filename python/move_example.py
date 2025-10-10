@@ -155,7 +155,6 @@ class MoveExample(Node):
 
         low_cmd.crc = Crc(low_cmd)
         self.lowcmd_pub.publish(low_cmd)
-        print("Published")
         # self.get_logger().info("Published low_cmd")
 
     def low_state_handler(self, msg: LowState):
@@ -179,9 +178,12 @@ class MoveExample(Node):
 
 
 def main(args=None):
-    print("HELLO")
     rclpy.init(args=args)
     node = MoveExample()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()
