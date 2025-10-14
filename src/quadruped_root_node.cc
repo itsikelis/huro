@@ -77,8 +77,6 @@ void QuadrupedRootNode::LowStateHandler(LowStateMsg::SharedPtr message) {
     jointstate_msg.effort.push_back(message->motor_state[i].tau_est);
   }
 
-  std::cout << jointstate_msg.position[0] << std::endl;
-
   jointstate_pub_->publish(jointstate_msg);
 }
 

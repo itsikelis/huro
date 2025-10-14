@@ -7,8 +7,8 @@ from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
-urdf_file_name = "go2/go2.urdf"
-rviz_config_file_name = "go2.rviz"
+urdf = "go2/go2.urdf"
+rviz_config = "go2.rviz"
 
 
 def generate_launch_description():

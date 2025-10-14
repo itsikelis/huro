@@ -104,5 +104,4 @@ HumanoidRootNode::GenerateTransformMsg(OdometryMsg::SharedPtr message) {
 
   return tf;
 }
-
 } // namespace huro
