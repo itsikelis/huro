@@ -1,4 +1,4 @@
-// Copyright 2025 Ioannis Tsikelis
+// Copyright 2025 Ioannis Tsikelissim_node
 
 #ifndef HURO_SIM_NODE_H_
 #define HURO_SIM_NODE_H_
@@ -11,16 +11,16 @@
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <unitree_go/msg/low_cmd.hpp>
+#include <unitree_go/msg/low_state.hpp>
+#include <unitree_go/msg/motor_cmd.hpp>
 #include <unitree_go/msg/sport_mode_state.hpp>
-#include <unitree_hg/msg/low_cmd.hpp>
-#include <unitree_hg/msg/low_state.hpp>
-#include <unitree_hg/msg/motor_cmd.hpp>
 
 namespace huro {
 class SimNode : public rclcpp::Node {
 public:
-  using LowCmdMsg = unitree_hg::msg::LowCmd;
-  using LowStateMsg = unitree_hg::msg::LowState;
+  using LowCmdMsg = unitree_go::msg::LowCmd;
+  using LowStateMsg = unitree_go::msg::LowState;
   using OdometryMsg = unitree_go::msg::SportModeState;
 
 public:
@@ -48,11 +48,11 @@ protected:
   mjModel *mj_model_;
   mjData *mj_data_;
 
-  std::array<double, 29> q_des_;
-  std::array<double, 29> qdot_des_;
-  std::array<double, 29> tau_ff_;
-  std::array<double, 29> kp_;
-  std::array<double, 29> kd_;
+  std::array<double, 12> q_des_;
+  std::array<double, 12> qdot_des_;
+  std::array<double, 12> tau_ff_;
+  std::array<double, 12> kp_;
+  std::array<double, 12> kd_;
 };
 } // namespace huro
 #endif // HURO_SIM_NODE_H_
