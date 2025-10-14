@@ -1,5 +1,5 @@
 <mujoco model="go2">
-<compiler angle="radian" meshdir="../meshes/go2" autolimits="true"/>
+<compiler angle="radian" meshdir="../../meshes/go2" autolimits="true"/>
 
   <option cone="elliptic" impratio="100"/>
 
@@ -98,6 +98,7 @@
             <geom size="0.011 0.0325" pos="0.02 0 -0.148" quat="0.999688 0 0.0249974 0" type="cylinder" class="collision"/>
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black"/>
             <geom name="FL" class="foot"/>
+            <body name="FL_point" pos="0 0 -0.213"></body>
           </body>
         </body>
       </body>
@@ -125,6 +126,7 @@
             <geom size="0.011 0.0325" pos="0.02 0 -0.148" quat="0.999688 0 0.0249974 0" type="cylinder" class="collision"/>
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black"/>
             <geom name="FR" class="foot"/>
+            <body name="FR_point" pos="0 0 -0.213"></body>
           </body>
         </body>
       </body>
@@ -152,6 +154,7 @@
             <geom size="0.011 0.0325" pos="0.02 0 -0.148" quat="0.999688 0 0.0249974 0" type="cylinder" class="collision"/>
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black"/>
             <geom name="RL" class="foot"/>
+            <body name="RL_point" pos="0 0 -0.213"></body>
           </body>
         </body>
       </body>
@@ -179,6 +182,7 @@
             <geom size="0.011 0.0325" pos="0.02 0 -0.148" quat="0.999688 0 0.0249974 0" type="cylinder" class="collision"/>
             <geom pos="0 0 -0.213" mesh="foot" class="visual" material="black"/>
             <geom name="RR" class="foot"/>
+            <body name="RR_point" pos="0 0 -0.213"></body>
           </body>
         </body>
       </body>
