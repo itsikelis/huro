@@ -91,7 +91,6 @@ void SimNode::Step() {
 
   // Calculate control
   for (size_t i = 0; i < NUM_MOTORS; ++i) {
-    // TODO : FIX CRASHING WHEN NO COMMAND HAS BEEN SENT
     mjtNum q_e = q_des_[i] - mj_data_->qpos[7 + i];
     mjtNum qdot_e = qdot_des_[i] - mj_data_->qvel[6 + i];
 
