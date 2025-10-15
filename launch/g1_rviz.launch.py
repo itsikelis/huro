@@ -50,7 +50,7 @@ def generate_launch_description():
     )
 
     ## HURo Node ##
-    core_node = Node(package="huro", executable="g1", name="g1")
+    core_node = Node(package="huro", executable="root_g1", name="root_g1")
 
     # # Livox Lidar Launch File
     # lidar_launch = IncludeLaunchDescription(
