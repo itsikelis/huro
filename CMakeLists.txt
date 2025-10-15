@@ -39,59 +39,71 @@ set(
 
 set(
   SRCS
-  src/humanoid_root_node.cc
-  src/quadruped_root_node.cc
   src/motor_crc_hg.cc
-  src/sim_node.cc
 )
 
 ## TODO: Create a huro library and link it to the executables
 # (thus removing the need to target_link_libraries() for all apps
 
 ## Compile Cpp Executables ##
-add_executable(g1 apps/g1.cc ${SRCS})
-target_include_directories(g1 PUBLIC
+add_executable(root_g1 apps/root_g1.cc ${SRCS})
+target_include_directories(root_g1 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_link_libraries(g1 mujoco)
-ament_target_dependencies(g1 ${DEPENDENCY_LIST})
-target_compile_options(g1 PUBLIC "-Wall;-Wextra;-O3;")
-target_compile_features(g1 PUBLIC c_std_99 cxx_std_17)
-install(TARGETS
-  g1
+target_link_libraries(root_g1 mujoco)
+ament_target_dependencies(root_g1 ${DEPENDENCY_LIST})
+target_compile_options(root_g1 PUBLIC "-Wall;-Wextra;-O3;")
+target_compile_features(root_g1 PUBLIC c_std_99 cxx_std_17)
+install(
+  TARGETS root_g1
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(go2 apps/go2.cc ${SRCS})
-target_include_directories(go2 PUBLIC
+add_executable(root_go2 apps/root_go2.cc ${SRCS})
+target_include_directories(root_go2 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_link_libraries(go2 mujoco)
-ament_target_dependencies(go2 ${DEPENDENCY_LIST})
-target_compile_options(go2 PUBLIC "-Wall;-Wextra;-O3;")
-target_compile_features(go2 PUBLIC c_std_99 cxx_std_17)
-install(TARGETS
-  go2
+target_link_libraries(root_go2 mujoco)
+ament_target_dependencies(root_go2 ${DEPENDENCY_LIST})
+target_compile_options(root_go2 PUBLIC "-Wall;-Wextra;-O3;")
+target_compile_features(root_go2 PUBLIC c_std_99 cxx_std_17)
+install(
+  TARGETS root_go2
   DESTINATION lib/${PROJECT_NAME}
 )
 
-add_executable(sim apps/sim.cc ${SRCS})
-target_include_directories(sim PUBLIC
+add_executable(sim_g1 apps/sim_g1.cc ${SRCS})
+target_include_directories(sim_g1 PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-target_link_libraries(sim mujoco)
-ament_target_dependencies(sim ${DEPENDENCY_LIST})
-target_compile_features(sim PUBLIC c_std_99 cxx_std_17)
-target_compile_options(sim PUBLIC "-Wall;-Wextra;-O3")
-install(TARGETS sim
-  DESTINATION lib/${PROJECT_NAME})
+target_link_libraries(sim_g1 mujoco)
+ament_target_dependencies(sim_g1 ${DEPENDENCY_LIST})
+target_compile_features(sim_g1 PUBLIC c_std_99 cxx_std_17)
+target_compile_options(sim_g1 PUBLIC "-Wall;-Wextra;-O3")
+install(
+  TARGETS sim_g1
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+add_executable(sim_go2 apps/sim_go2.cc ${SRCS})
+target_include_directories(sim_go2 PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_link_libraries(sim_go2 mujoco)
+ament_target_dependencies(sim_go2 ${DEPENDENCY_LIST})
+target_compile_features(sim_go2 PUBLIC c_std_99 cxx_std_17)
+target_compile_options(sim_go2 PUBLIC "-Wall;-Wextra;-O3")
+install(
+  TARGETS sim_go2
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ## Install Python Executables ##
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 # Install Python executables
-install(PROGRAMS
-  python/move_example.py
+install(
+  PROGRAMS python/move_example.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
