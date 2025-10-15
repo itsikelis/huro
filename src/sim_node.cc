@@ -11,9 +11,9 @@ using LowCmdMsg = SimNode::LowCmdMsg;
 using LowStateMsg = SimNode::LowStateMsg;
 using OdometryMsg = SimNode::OdometryMsg;
 
-static constexpr size_t NUM_MOTORS = 29;
+static constexpr size_t NUM_MOTORS = 12;
 static constexpr bool HIGH_FREQ = true;
-static constexpr bool FIX_BASE = true;
+static constexpr bool FIX_BASE = false;
 
 SimNode::SimNode() : Node("sim_node") {
   std::string ls_topic_name = "lf/lowstate";
@@ -21,14 +21,13 @@ SimNode::SimNode() : Node("sim_node") {
 
   if (HIGH_FREQ) {
     ls_topic_name = "lowstate";
-    odom_topic_name = "/odommodestate";
+    odom_topic_name = "/sportmodestate";
   }
 
   std::string xml_path = ament_index_cpp::get_package_share_directory("huro") +
-                         "/resources/description_files/xml/g1_29dof.xml";
+                         "/resources/description_files/xml/go2/go2.xml";
   // std::string xml_path = ament_index_cpp::get_package_share_directory("huro")
-  // +
-  //                        "/resources/description_files/xml/go2.xml";
+  // + "/resources/description_files/xml/go2.xml";
 
   mj_model_ = mj_loadXML(xml_path.c_str(), nullptr, nullptr, 0);
   if (!mj_model_) {
@@ -113,7 +112,7 @@ void SimNode::Step() {
 }
 
 void SimNode::LowCmdHandler(LowCmdMsg::SharedPtr message) {
-  mode_machine = (int)message->mode_machine;
+  // mode_machine = (int)message->mode_machine;
 
   for (size_t i = 0; i < NUM_MOTORS; ++i) {
     q_des_[i] = static_cast<mjtNum>(message->motor_cmd[i].q);
@@ -210,8 +209,11 @@ LowStateMsg SimNode::GenerateLowStateMsg() {
 mjtNum SimNode::GetZDistanceFromSoleToPelvis() {
   mj_fwdPosition(mj_model_, mj_data_);
 
-  int pelvis_id = mj_name2id(mj_model_, mjOBJ_BODY, "pelvis");
-  int sole_id = mj_name2id(mj_model_, mjOBJ_BODY, "right_foot_point_contact");
+  // int pelvis_id = mj_name2id(mj_model_, mjOBJ_BODY, "pelvis");
+  // int sole_id = mj_name2id(mj_model_, mjOBJ_BODY,
+  // "right_foot_point_contact");
+  int pelvis_id = mj_name2id(mj_model_, mjOBJ_BODY, "base");
+  int sole_id = mj_name2id(mj_model_, mjOBJ_BODY, "RR_point");
 
   if (pelvis_id == -1 || sole_id == -1) {
     std::string msg = "Invalid body name(s) during model z calculation";

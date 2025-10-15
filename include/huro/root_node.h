@@ -61,7 +61,7 @@ public:
   RootNode(Params params) : Node("root_node"), params_(params) {
     // Update topic names conditionally
     // TODO: Add topic names in params
-    std::string ls_topic = params_.low_state_topic_name;
+    std::string ls_topic = params_.lowstate_topic_name;
     std::string odom_topic = params_.odom_topic_name;
 
     // Initialize the transform broadcaster
@@ -79,6 +79,8 @@ public:
         odom_topic, 10,
         std::bind(&RootNode::OdometryHandler, this, std::placeholders::_1));
   }
+
+  ~RootNode() {}
 
 protected:
   /**
