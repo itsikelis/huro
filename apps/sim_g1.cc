@@ -16,7 +16,7 @@ int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
   auto params = huro::Params();
-  params.fix_base = false;
+  params.fix_base = true;
   params.info_imu = false;
   params.info_motors = false;
   params.n_motors = 29;

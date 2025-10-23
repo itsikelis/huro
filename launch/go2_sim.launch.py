@@ -9,12 +9,12 @@ def generate_launch_description():
     foo_dir = get_package_share_directory("huro")
     rviz_launch = IncludeLaunchDescription(
         launch.launch_description_sources.PythonLaunchDescriptionSource(
-            foo_dir + "/launch/g1_rviz.launch.py"
+            foo_dir + "/launch/go2_rviz.launch.py"
         )
     )
 
     ## HURo Sim Node ##
-    sim_node = Node(package="huro", executable="sim_g1", name="sim_g1")
+    sim_node = Node(package="huro", executable="sim_go2", name="sim_go2")
 
     return launch.LaunchDescription(
         [
