@@ -8,7 +8,7 @@ import math
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, IMUState, MotorState
 
-from huro.crc_go import Crc
+from huro_py.crc_go import Crc
 
 # Custom PRorAB enum or constant
 # from hucebot_g1_ros.msg import MotorMode  # Assuming PRorAB is defined here

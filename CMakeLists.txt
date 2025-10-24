@@ -11,10 +11,12 @@ find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(rosbag2_cpp REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
 
 # Unitree ROS2 messages
 find_package(unitree_go REQUIRED)
@@ -113,18 +115,28 @@ install(
 #
 ## Install Python Executables ##
 # Install Python modules
-ament_python_install_package(${PROJECT_NAME})
+ament_python_install_package(${PROJECT_NAME}_py)
 # Install Python executables
 install(
-  PROGRAMS python/move_example.py
+  PROGRAMS apps/move_example.py
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
-  PROGRAMS python/go2_example.py
+  PROGRAMS apps/go2_example.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/spacemouse_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install Resources Folder ##
+## Generate Custom Message Types ##
+rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+  "msg/SpaceMouseState.msg"
+  DEPENDENCIES geometry_msgs
+)
+
+## Install Resources Folder ##
 install(
   DIRECTORY resources
   DESTINATION share/${PROJECT_NAME}
