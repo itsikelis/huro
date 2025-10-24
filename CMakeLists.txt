@@ -131,7 +131,7 @@ install(
 )
 
 ## Generate Custom Message Types ##
-rosidl_generate_interfaces(${PROJECT_NAME}_msgs
+rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/SpaceMouseState.msg"
   DEPENDENCIES geometry_msgs
 )

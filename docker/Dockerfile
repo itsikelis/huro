@@ -28,7 +28,10 @@ RUN apt-get update && apt-get install -yy \
     libwayland-dev \
     libxkbcommon-dev \
     iproute2 \
+    libhidapi-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install pyspacemouse
 
 # MuJoCo
 RUN git clone https://github.com/deepmind/mujoco.git && \
