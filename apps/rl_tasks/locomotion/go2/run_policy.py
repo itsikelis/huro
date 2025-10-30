@@ -37,7 +37,7 @@ from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, SportModeState
 
 from huro_py.crc_go import Crc
-from get_obs3 import get_observation_with_high_state, ObservationBuffer
+from get_obs import get_observation_with_high_state, ObservationBuffer
 
 
 class Go2PolicyController(Node):
