@@ -1,0 +1,93 @@
+PROVIDED WHEN THE SIMULATION IS LAUNCHED
+
+
+<<------------- Link ------------->> 
+link_index: 0 , name: world
+link_index: 1 , name: base_link
+link_index: 2 , name: FL_hip
+link_index: 3 , name: FL_thigh
+link_index: 4 , name: FL_calf
+link_index: 5 , name: FL_foot
+link_index: 6 , name: FR_hip
+link_index: 7 , name: FR_thigh
+link_index: 8 , name: FR_calf
+link_index: 9 , name: FR_foot
+link_index: 10 , name: RL_hip
+link_index: 11 , name: RL_thigh
+link_index: 12 , name: RL_calf
+link_index: 13 , name: RL_foot
+link_index: 14 , name: RR_hip
+link_index: 15 , name: RR_thigh
+link_index: 16 , name: RR_calf
+link_index: 17 , name: RR_foot
+ 
+<<------------- Joint ------------->> 
+joint_index: 1 , name: FL_hip_joint
+joint_index: 2 , name: FL_thigh_joint
+joint_index: 3 , name: FL_calf_joint
+joint_index: 4 , name: FR_hip_joint
+joint_index: 5 , name: FR_thigh_joint
+joint_index: 6 , name: FR_calf_joint
+joint_index: 7 , name: RL_hip_joint
+joint_index: 8 , name: RL_thigh_joint
+joint_index: 9 , name: RL_calf_joint
+joint_index: 10 , name: RR_hip_joint
+joint_index: 11 , name: RR_thigh_joint
+joint_index: 12 , name: RR_calf_joint
+ 
+<<------------- Actuator ------------->>
+actuator_index: 0 , name: FR_hip
+actuator_index: 1 , name: FR_thigh
+actuator_index: 2 , name: FR_calf
+actuator_index: 3 , name: FL_hip
+actuator_index: 4 , name: FL_thigh
+actuator_index: 5 , name: FL_calf
+actuator_index: 6 , name: RR_hip
+actuator_index: 7 , name: RR_thigh
+actuator_index: 8 , name: RR_calf
+actuator_index: 9 , name: RL_hip
+actuator_index: 10 , name: RL_thigh
+actuator_index: 11 , name: RL_calf
+ 
+<<------------- Sensor ------------->>
+sensor_index: 0 , name: FR_hip_pos , dim: 1
+sensor_index: 1 , name: FR_thigh_pos , dim: 1
+sensor_index: 2 , name: FR_calf_pos , dim: 1
+sensor_index: 3 , name: FL_hip_pos , dim: 1
+sensor_index: 4 , name: FL_thigh_pos , dim: 1
+sensor_index: 5 , name: FL_calf_pos , dim: 1
+sensor_index: 6 , name: RR_hip_pos , dim: 1
+sensor_index: 7 , name: RR_thigh_pos , dim: 1
+sensor_index: 8 , name: RR_calf_pos , dim: 1
+sensor_index: 9 , name: RL_hip_pos , dim: 1
+sensor_index: 10 , name: RL_thigh_pos , dim: 1
+sensor_index: 11 , name: RL_calf_pos , dim: 1
+sensor_index: 12 , name: FR_hip_vel , dim: 1
+sensor_index: 13 , name: FR_thigh_vel , dim: 1
+sensor_index: 14 , name: FR_calf_vel , dim: 1
+sensor_index: 15 , name: FL_hip_vel , dim: 1
+sensor_index: 16 , name: FL_thigh_vel , dim: 1
+sensor_index: 17 , name: FL_calf_vel , dim: 1
+sensor_index: 18 , name: RR_hip_vel , dim: 1
+sensor_index: 19 , name: RR_thigh_vel , dim: 1
+sensor_index: 20 , name: RR_calf_vel , dim: 1
+sensor_index: 21 , name: RL_hip_vel , dim: 1
+sensor_index: 22 , name: RL_thigh_vel , dim: 1
+sensor_index: 23 , name: RL_calf_vel , dim: 1
+sensor_index: 24 , name: FR_hip_torque , dim: 1
+sensor_index: 25 , name: FR_thigh_torque , dim: 1
+sensor_index: 26 , name: FR_calf_torque , dim: 1
+sensor_index: 27 , name: FL_hip_torque , dim: 1
+sensor_index: 28 , name: FL_thigh_torque , dim: 1
+sensor_index: 29 , name: FL_calf_torque , dim: 1
+sensor_index: 30 , name: RR_hip_torque , dim: 1
+sensor_index: 31 , name: RR_thigh_torque , dim: 1
+sensor_index: 32 , name: RR_calf_torque , dim: 1
+sensor_index: 33 , name: RL_hip_torque , dim: 1
+sensor_index: 34 , name: RL_thigh_torque , dim: 1
+sensor_index: 35 , name: RL_calf_torque , dim: 1
+sensor_index: 36 , name: imu_quat , dim: 4
+sensor_index: 40 , name: imu_gyro , dim: 3
+sensor_index: 43 , name: imu_acc , dim: 3
+sensor_index: 46 , name: frame_pos , dim: 3
+sensor_index: 49 , name: frame_vel , dim: 3
