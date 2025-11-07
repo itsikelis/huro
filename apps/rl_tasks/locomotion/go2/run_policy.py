@@ -35,6 +35,8 @@ import time
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, SportModeState
+from huro.msg import SpaceMouseState
+
 
 from huro_py.crc_go import Crc
 from get_obs import get_observation_with_high_state, ObservationBuffer
@@ -92,6 +94,7 @@ class Go2PolicyController(Node):
         # Store latest messages
         self.latest_low_state = None
         self.latest_high_state = None
+        self.latest_spacemouse_state = None
         
         # Control parameters (MUST match training values!)
         self.kp = kp  # Position gain
@@ -102,6 +105,14 @@ class Go2PolicyController(Node):
         self.yaw = yaw
         self.height = height
         
+        # Standing position (default joint positions)
+        self.target_pos = np.array([
+            0.0, 0.8, -1.5,  # FL
+            0.0, 0.8, -1.5,  # FR
+            0.0, 0.8, -1.5,  # RL
+            0.0, 0.8, -1.5   # RR
+        ], dtype=float)
+        
         
         # Statistics - initialize BEFORE callbacks
         self.inference_count = 0
@@ -110,6 +121,10 @@ class Go2PolicyController(Node):
         
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
+        
+        self.spacemouse_sub = self.create_subscription(
+            SpaceMouseState, "/spacemouse_state", self.spacemouse_callback, 10
+        )
         
         # Subscribe to state (for reading, not callback-driven)
         self.low_state_sub = self.create_subscription(
@@ -129,6 +144,7 @@ class Go2PolicyController(Node):
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
         )
+        
         ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
         req = Request()
         req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
@@ -156,6 +172,33 @@ class Go2PolicyController(Node):
     def low_state_callback(self, msg: LowState):
         """Store low state message."""
         self.latest_low_state = msg
+        
+    def spacemouse_callback(self, msg: SpaceMouseState):
+        self.latest_spacemouse_state = msg
+        
+    def stand_control(self):
+        """PD control to standing position."""
+        if self.latest_low_state is None:
+            return
+        
+        cmd = LowCmd()
+        
+        for i in range(12):
+            q = self.latest_low_state.motor_state[i].q
+            dq = self.latest_low_state.motor_state[i].dq
+            
+            # PD control to standing position
+            tau = self.kp * (self.target_pos[i] - q) - self.kd * dq
+            
+            cmd.motor_cmd[i].q = self.target_pos[i]
+            cmd.motor_cmd[i].dq = 0.0
+            cmd.motor_cmd[i].kp = self.kp
+            cmd.motor_cmd[i].kd = self.kd
+            cmd.motor_cmd[i].tau = tau
+            
+        # Calculate CRC and publish
+        cmd.crc = Crc(cmd)
+        self.low_cmd_pub.publish(cmd)
     
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
@@ -186,6 +229,8 @@ class Go2PolicyController(Node):
 
         
         self.start_time = time.time()
+        
+        # Robot in standing position for the begining
         
         try:
         
@@ -226,6 +271,7 @@ class Go2PolicyController(Node):
         obs = get_observation_with_high_state(
             self.latest_low_state, 
             self.latest_high_state, 
+            self.latest_spacemouse_state,
             self.obs_buffer
         )
         self.obs = obs
@@ -258,7 +304,10 @@ class Go2PolicyController(Node):
             self.last_policy_time = self.sim_time
         
         # Send motor commands every tick (using latest action)
-        self.send_motor_commands()
+        if self.sim_time <= 3:
+            self.stand_control()
+        else:
+            self.send_motor_commands()
 
 
 def main():

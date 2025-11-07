@@ -1,4 +1,6 @@
 from unitree_go.msg import LowState, SportModeState
+from huro.msg import SpaceMouseState
+
 import numpy as np
 import yaml
 import os
@@ -155,7 +157,7 @@ class ObservationBuffer:
         self._high_state_velocity = np.array(velocity)
 
 
-def get_observation(msg: LowState, obs_buffer: ObservationBuffer):
+def get_observation(msg: LowState, spacemouse_msg: SpaceMouseState, obs_buffer: ObservationBuffer):
     """
     Extract observations from LowState message for RL policy.
     
@@ -225,13 +227,15 @@ def get_observation(msg: LowState, obs_buffer: ObservationBuffer):
     ])
     
     # Base linear velocity (obs[0:3])
+    
     obs[0:3] = obs_buffer._high_state_velocity
     
     # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-    obs[9:12] = obs_buffer.cmd_vel
+    obs[9:12] = [spacemouse_msg.twist.linear.x, spacemouse_msg.twist.linear.y, spacemouse_msg.twist.angular.z]
     
     # Height command (obs[12]) - default standing height
-    obs[12] = obs_buffer.height_cmd
+    height = 0.25 + spacemouse_msg.twist.linear.z
+    obs[12] = height
     
     # Previous actions (obs[37:49]) - default to zero
     obs[37:49] = obs_buffer.previous_actions
@@ -239,7 +243,7 @@ def get_observation(msg: LowState, obs_buffer: ObservationBuffer):
     return obs
 
 
-def get_observation_with_high_state(low_state_msg: LowState, high_state_msg: SportModeState, obs_buffer: ObservationBuffer):
+def get_observation_with_high_state(low_state_msg: LowState, high_state_msg: SportModeState, spacemouse_msg: SpaceMouseState, obs_buffer: ObservationBuffer):
     """
     Extract observations using both LowState and SportModeState (RECOMMENDED).
     This provides more accurate velocity measurements from SportModeState.
@@ -256,7 +260,7 @@ def get_observation_with_high_state(low_state_msg: LowState, high_state_msg: Spo
     obs_buffer.update_high_state_velocity(high_state_msg.velocity[:3])
     
     # Get observation using low state (which will use the updated velocity)
-    return get_observation(low_state_msg, obs_buffer)
+    return get_observation(low_state_msg, spacemouse_msg, obs_buffer)
 
 
 def LowStateHandler(msg: LowState):
