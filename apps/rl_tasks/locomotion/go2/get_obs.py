@@ -275,6 +275,7 @@ def quat_rotate_inverse(q, v):
     v: vector [x, y, z]
     Returns rotated vector
     """
+    q /= np.linalg.norm(q)  # ensure unit quaternion
     # Inverse rotation is equivalent to conjugate quaternion rotation
     q_w, q_x, q_y, q_z = q[0], q[1], q[2], q[3]
     

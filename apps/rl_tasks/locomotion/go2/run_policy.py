@@ -38,6 +38,7 @@ from unitree_go.msg import LowCmd, LowState, SportModeState
 
 from huro_py.crc_go import Crc
 from get_obs import get_observation_with_high_state, ObservationBuffer
+np.set_printoptions(precision=3)
 
 
 class Go2PolicyController(Node):
@@ -231,7 +232,6 @@ class Go2PolicyController(Node):
         
         
         # Run policy at 50Hz based on simulation time
-        np.set_printoptions(precision=3)
         if self.sim_time - self.last_policy_time >= self.policy_dt:
             print(f"  Obs[0:3] (lin_vel): {self.obs[0:3]}")
             print(f"  Obs[3:6] (ang_vel): {self.obs[3:6]}")
