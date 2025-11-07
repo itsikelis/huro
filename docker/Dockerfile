@@ -31,9 +31,7 @@ RUN apt-get update && apt-get install -yy \
     libhidapi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install pyspacemouse
-# added for the rl_tasks
-RUN pip install torch 
+RUN pip install pyspacemouse torch
 
 # MuJoCo
 RUN git clone https://github.com/deepmind/mujoco.git && \
