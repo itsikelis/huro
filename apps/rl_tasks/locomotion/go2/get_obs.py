@@ -231,7 +231,7 @@ def get_observation(msg: LowState, spacemouse_msg: SpaceMouseState, obs_buffer: 
     obs[0:3] = obs_buffer._high_state_velocity
     
     # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-    obs[9:12] = [spacemouse_msg.twist.angular.y / 2, spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
+    obs[9:12] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
     
     # Height command (obs[12]) - default standing height
     height = 0.3
