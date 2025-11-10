@@ -286,14 +286,14 @@ class Go2PolicyController(Node):
             self.last_keyboard_press_time = time.perf_counter()
             
         if self.sim_time - self.last_policy_time >= self.policy_dt:
-            print(f"  Obs[0:3] (lin_vel): {self.obs[0:3]}")
-            print(f"  Obs[3:6] (ang_vel): {self.obs[3:6]}")
-            print(f"  Obs[6:9] (gravity_b): {self.obs[6:9]}")
-            print(f"  Obs[9:12] (cmd_vel): {self.obs[9:12]}")
-            print(f"  Obs[12] (cmd_height): {self.obs[12]}")
-            print(f"  Obs[13:25] (joint_pos): {self.obs[13:25]}")
-            print(f"  Obs[25:37] (joint_vel): {self.obs[25:37]}")
-            print(f"  Obs[37:49] (prev_actions): {self.obs[37:49]}")
+            # print(f"  Obs[0:3] (lin_vel): {self.obs[0:3]}")
+            # print(f"  Obs[3:6] (ang_vel): {self.obs[3:6]}")
+            # print(f"  Obs[6:9] (gravity_b): {self.obs[6:9]}")
+            # print(f"  Obs[9:12] (cmd_vel): {self.obs[9:12]}")
+            # print(f"  Obs[12] (cmd_height): {self.obs[12]}")
+            # print(f"  Obs[13:25] (joint_pos): {self.obs[13:25]}")
+            # print(f"  Obs[25:37] (joint_vel): {self.obs[25:37]}")
+            # print(f"  Obs[37:49] (prev_actions): {self.obs[37:49]}")
             # Run policy inference
             self.set_commands(self.vel_x, self.vel_y, self.yaw, self.height)
             with torch.no_grad():
@@ -313,7 +313,7 @@ class Go2PolicyController(Node):
         # Send motor commands every tick (using latest action)
         if self.sim_time <= 3 + self.last_keyboard_press_time:
             self.stand_control()
-        if self.sim_time >= 3:
+        if self.sim_time >= 3 + self.last_keyboard_press_time:
             self.send_motor_commands()
 
 
