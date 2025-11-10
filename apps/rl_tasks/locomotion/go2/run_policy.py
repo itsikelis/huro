@@ -32,6 +32,7 @@ import numpy as np
 import torch
 import os
 import time
+import keyboard
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, SportModeState
@@ -72,6 +73,7 @@ class Go2PolicyController(Node):
         # Simulation time tracking
         self.sim_time = 0.0
         self.last_policy_time = 0.0
+        self.last_keyboard_press_time = 0.0
         
         # Load policy
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -233,6 +235,7 @@ class Go2PolicyController(Node):
         # Robot in standing position for the begining
         
         try:
+            
         
             step_start = time.perf_counter()
             
@@ -277,7 +280,11 @@ class Go2PolicyController(Node):
         self.obs = obs
         
         
-        # Run policy at 50Hz based on simulation time
+        # # Run policy at 50Hz based on simulation time
+        # keyboard.read_key() # an important inclusion thanks to @wkl
+        if self.latest_spacemouse_state.button_1_pressed or self.latest_spacemouse_state.button_2_pressed:
+            self.last_keyboard_press_time = time.perf_counter()
+            
         if self.sim_time - self.last_policy_time >= self.policy_dt:
             print(f"  Obs[0:3] (lin_vel): {self.obs[0:3]}")
             print(f"  Obs[3:6] (ang_vel): {self.obs[3:6]}")
@@ -304,9 +311,9 @@ class Go2PolicyController(Node):
             self.last_policy_time = self.sim_time
         
         # Send motor commands every tick (using latest action)
-        if self.sim_time <= 3:
+        if self.sim_time <= 3 + self.last_keyboard_press_time:
             self.stand_control()
-        else:
+        if self.sim_time >= 3:
             self.send_motor_commands()
 
 

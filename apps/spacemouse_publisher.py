@@ -36,8 +36,8 @@ class SpaceMousePublisher(Node):
             self.tf_publisher.publish(msg)
         else:
             msg = SpaceMouseState()
-            msg.twist.linear.x = float(-0.3)
-            msg.twist.linear.y = float(0.2)
+            msg.twist.linear.x = float(0.5)
+            msg.twist.linear.y = float(0.0)
             msg.twist.linear.z = float(0.0)
             msg.twist.angular.x = float(0.0)
             msg.twist.angular.y = float(0.0)
