@@ -32,7 +32,6 @@ import numpy as np
 import torch
 import os
 import time
-import keyboard
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, SportModeState
@@ -40,15 +39,15 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from get_obs import get_observation_with_high_state, ObservationBuffer
+from get_obs import get_observation_projectedgravity
+from mapping import Mapper 
 np.set_printoptions(precision=3)
 
 
 class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
     
-    def __init__(self, policy_path,vel_x = 0.5, vel_y = 0.0, yaw = 0.0, height = 0.3, policy_freq=50, control_freq=500, 
-                 kp=60.0, kd=5.0, action_scale=0.5):
+    def __init__(self, policy_path, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5):
         """
         Initialize the policy controller.
         
@@ -62,33 +61,26 @@ class Go2PolicyController(Node):
         """
         super().__init__("go2_policy_controller") 
                 
-        self.obs = np.zeros(49)
-        self.policy_freq = policy_freq
-        self.control_freq = control_freq
-        self.control_dt = 1 / self.control_freq
-        self.policy_dt = 1.0 / policy_freq  # e.g., 0.02s for 50Hz
-        self.control_dt = 1.0 / control_freq  # e.g., 0.002s for 500Hz
-        self.decimation = int(control_freq / policy_freq)  # Auto-calculate decimation
+        self.step_dt = 1 / policy_freq
         
         # Simulation time tracking
-        self.sim_time = 0.0
-        self.last_policy_time = 0.0
-        self.last_keyboard_press_time = 0.0
+
+        self.last_emergency_stop_time = 0.0
         
         # Load policy
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"Loading policy from: {policy_path}")
-        print(f"Using device: {self.device}")
+        print(f"[INFO] Loading policy from: {policy_path}")
+        print(f"[INFO] Using device: {self.device}")
         
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"Policy file not found: {policy_path}")
         
         self.policy = torch.jit.load(policy_path, map_location=self.device)
         self.policy.eval()
-        print("✓ Policy loaded successfully")
+        print("[INFO] Policy loaded successfully")
         
         # Initialize observation buffer
-        self.obs_buffer = ObservationBuffer()
+        self.mapper = Mapper()
         
         # Store latest action (for use between policy updates)
         self.current_action = np.zeros(12)
@@ -102,12 +94,8 @@ class Go2PolicyController(Node):
         self.kp = kp  # Position gain
         self.kd = kd  # Velocity gain
         self.action_scale = action_scale  # Scale policy output
-        self.vel_x = vel_x
-        self.vel_y = vel_y
-        self.yaw = yaw
-        self.height = height
         
-        # Standing position (default joint positions)
+        # Standing position (default joint positions but coud be different)
         self.target_pos = np.array([
             0.0, 0.8, -1.5,  # FL
             0.0, 0.8, -1.5,  # FR
@@ -117,26 +105,28 @@ class Go2PolicyController(Node):
         
         
         # Statistics - initialize BEFORE callbacks
-        self.inference_count = 0
         self.tick_count = 0
         self.start_time = None  # Will be set when run() is called
         
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
         
+        # To read data from spacemouse
         self.spacemouse_sub = self.create_subscription(
             SpaceMouseState, "/spacemouse_state", self.spacemouse_callback, 10
         )
         
-        # Subscribe to state (for reading, not callback-driven)
+        # Get low lovel data from robot
         self.low_state_sub = self.create_subscription(
             LowState, "/lowstate", self.low_state_callback, 10
         )
         
+        # Get high lovel data from robot
         self.high_state_sub = self.create_subscription(
             SportModeState, "/sportmodestate", self.high_state_callback, 10
         )
         
+        # This part handles th release mode
         self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
         ROBOT_SPORT_API_ID_STANDDOWN = 1005
         req = Request()
@@ -152,19 +142,11 @@ class Go2PolicyController(Node):
         req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
         self.motion_pub.publish(req)
         
-        self.timer = self.create_timer(self.control_dt, self.run)
+        self.timer = self.create_timer(1/50, self.run)
         
-        print(f"  Controller initialized")
-        print(f"  Control frequency: {self.control_freq}Hz (dt={self.control_dt}s)")
-        print(f"  Policy frequency: {self.policy_freq}Hz (dt={self.policy_dt}s)")
-        print(f"  Decimation: {self.decimation} (policy runs every {self.decimation} ticks)")
-    
-    def set_commands(self, vel_x=-0.5, vel_y=0.0, vel_yaw=0.0, height=0.3):
-        """Set desired velocity commands for the policy."""
-        self.obs_buffer.set_commands(
-            cmd_vel=[vel_x, vel_y, vel_yaw],
-            height_cmd=height
-        )
+        print(f"  Policy controller initialized")
+        print(f"  Policy runs at: {1 / self.step_dt}Hz")
+
     
     def high_state_callback(self, msg: SportModeState):
         """Store high state message."""
@@ -205,14 +187,14 @@ class Go2PolicyController(Node):
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
         # Convert current action from policy order to SDK order
-        actions_sdk_order = self.obs_buffer.remap_actions_to_sdk(self.current_action)
+        actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
         
         cmd = LowCmd()
         cmd.head[0] = 0xFE
         cmd.head[1] = 0xEF
         cmd.level_flag = 0xFF
         cmd.gpio = 0
-        target_positions = self.obs_buffer.default_pos + actions_sdk_order * self.action_scale
+        target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
         # Set motor commands
         for i in range(12):
             cmd.motor_cmd[i].mode = 0x01  # PMSM mode
@@ -228,39 +210,25 @@ class Go2PolicyController(Node):
     
     def run(self):
         """Main control loop running at control_freq Hz."""
-
-        
         self.start_time = time.time()
         
         # Robot in standing position for the begining
         
-        try:
-            
-        
-            step_start = time.perf_counter()
-            
+        try:            
             # Process current state (callbacks update latest_low_state and latest_high_state)
-            if self.latest_low_state is not None and self.latest_high_state is not None:
+            if self.latest_low_state is not None and self.latest_high_state is not None and self.latest_spacemouse_state is not None:
                 self.process_control_step()
             else :
                 print("Waiting for robot state...")
-            
-            # Sleep to maintain control frequency
-            time_until_next_step = self.control_dt - (time.perf_counter() - step_start)
-            if time_until_next_step > 0:
-                time.sleep(time_until_next_step)
-                    
+               
         except KeyboardInterrupt:
             print("\n\n" + "="*60)
             print("Shutting down...")
-            if self.inference_count > 0:
-                print(f"Total inferences: {self.inference_count}")
-                print(f"Total ticks: {self.tick_count}")
-                print(f"Simulation time: {self.sim_time:.2f}s")
-                elapsed = time.time() - self.start_time
-                print(f"Real time elapsed: {elapsed:.2f}s")
-                print(f"Average policy frequency: {self.inference_count / elapsed:.1f}Hz (target: {self.policy_freq}Hz)")
-                print(f"Average tick frequency: {self.tick_count / elapsed:.1f}Hz (target: {self.control_freq}Hz)")
+            print(f"Total inferences: {self.tick_count}")
+            print(f"Total ticks: {self.tick_count}")
+            elapsed = time.time() - self.start_time
+            print(f"Real time elapsed: {elapsed:.2f}s")
+            print(f"Average policy frequency: {self.tick_count / elapsed:.1f}Hz (target: {1 / self.step_dt}Hz)")
             print("="*60)
     
     def process_control_step(self):
@@ -268,52 +236,44 @@ class Go2PolicyController(Node):
         self.tick_count += 1
         
         # Increment simulation time
-        self.sim_time += self.control_dt
         
         # Get observation
-        obs = get_observation_with_high_state(
+        obs = get_observation_projectedgravity(
             self.latest_low_state, 
             self.latest_high_state, 
             self.latest_spacemouse_state,
-            self.obs_buffer
-        )
-        self.obs = obs
-        
+            height= 0.3,
+            prev_actions= self.current_action,
+            mapper= self.mapper
+        )        
         
         # # Run policy at 50Hz based on simulation time
         # keyboard.read_key() # an important inclusion thanks to @wkl
-        if self.latest_spacemouse_state.button_1_pressed or self.latest_spacemouse_state.button_2_pressed:
-            self.last_keyboard_press_time = time.perf_counter()
+        if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed:
+            self.last_emergency_stop_time = time.perf_counter()
             
-        if self.sim_time - self.last_policy_time >= self.policy_dt:
-            # print(f"  Obs[0:3] (lin_vel): {self.obs[0:3]}")
-            # print(f"  Obs[3:6] (ang_vel): {self.obs[3:6]}")
-            # print(f"  Obs[6:9] (gravity_b): {self.obs[6:9]}")
-            # print(f"  Obs[9:12] (cmd_vel): {self.obs[9:12]}")
-            # print(f"  Obs[12] (cmd_height): {self.obs[12]}")
-            # print(f"  Obs[13:25] (joint_pos): {self.obs[13:25]}")
-            # print(f"  Obs[25:37] (joint_vel): {self.obs[25:37]}")
-            # print(f"  Obs[37:49] (prev_actions): {self.obs[37:49]}")
+            # print(f"  Obs[0:3] (lin_vel): {obs[0:3]}")
+            # print(f"  Obs[3:6] (ang_vel): {obs[3:6]}")
+            # print(f"  Obs[6:9] (gravity_b): {obs[6:9]}")
+            # print(f"  Obs[9:12] (cmd_vel): {obs[9:12]}")
+            # print(f"  Obs[12] (cmd_height): {obs[12]}")
+            # print(f"  Obs[13:25] (joint_pos): {obs[13:25]}")
+            # print(f"  Obs[25:37] (joint_vel): {obs[25:37]}")
+            # print(f"  Obs[37:49] (prev_actions): {obs[37:49]}")
             # Run policy inference
-            self.set_commands(self.vel_x, self.vel_y, self.yaw, self.height)
-            with torch.no_grad():
-                obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
-                actions_tensor = self.policy(obs_tensor)
-                actions_policy_order = actions_tensor.squeeze(0).cpu().numpy()
-            
-            # Update current action
-            self.current_action = actions_policy_order.copy()
-            
-            # Update action buffer (store in policy order)
-            self.obs_buffer.update_actions(actions_policy_order)
-            
-            self.inference_count += 1
-            self.last_policy_time = self.sim_time
+        # self.set_commands(self.vel_x, self.vel_y, self.yaw, self.height)
+        with torch.no_grad():
+            obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
+            actions_tensor = self.policy(obs_tensor)
+            actions_policy_order = actions_tensor.squeeze(0).cpu().numpy()
         
+        # Update current action
+        self.current_action = actions_policy_order.copy()
+                
         # Send motor commands every tick (using latest action)
-        if self.sim_time <= 3 + self.last_keyboard_press_time:
+        if self.tick_count <= (3 + self.last_emergency_stop_time) * 1 / self.step_dt:
             self.stand_control()
-        if self.sim_time >= 3 + self.last_keyboard_press_time:
+        if self.tick_count >= (3 + self.last_emergency_stop_time) * 1 / self.step_dt:
             self.send_motor_commands()
 
 
@@ -355,12 +315,7 @@ def main():
     # Create controller
     node = Go2PolicyController(
         policy_path=args.policy,
-        vel_x = args.vel_x,
-        vel_y = args.vel_y,
-        yaw = args.vel_yaw,
-        height = args.height,
         policy_freq=args.policy_freq,
-        control_freq=args.control_freq,
         kp=args.kp,
         kd=args.kd,
         action_scale=args.action_scale
