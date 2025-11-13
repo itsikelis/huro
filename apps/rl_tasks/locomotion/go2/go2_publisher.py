@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 """
 RL Policy Controller for Unitree Go2 Robot
 Loads a PyTorch policy and controls the robot at 50Hz
@@ -239,9 +241,7 @@ class Go2PolicyController(Node):
     def process_control_step(self):
         """Process one control step (called at control_freq Hz)."""
         self.tick_count += 1
-        
-        # Increment simulation time
-        
+                
         # Get observation
         obs = self.get_obs(
             self.latest_low_state, 
@@ -257,17 +257,7 @@ class Go2PolicyController(Node):
         # keyboard.read_key() # an important inclusion thanks to @wkl
         if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed:
             self.last_emergency_stop_time = time.perf_counter()
-            
-            # print(f"  Obs[0:3] (lin_vel): {obs[0:3]}")
-            # print(f"  Obs[3:6] (ang_vel): {obs[3:6]}")
-            # print(f"  Obs[6:9] (gravity_b): {obs[6:9]}")
-            # print(f"  Obs[9:12] (cmd_vel): {obs[9:12]}")
-            # print(f"  Obs[12] (cmd_height): {obs[12]}")
-            # print(f"  Obs[13:25] (joint_pos): {obs[13:25]}")
-            # print(f"  Obs[25:37] (joint_vel): {obs[25:37]}")
-            # print(f"  Obs[37:49] (prev_actions): {obs[37:49]}")
-            # Run policy inference
-        # self.set_commands(self.vel_x, self.vel_y, self.yaw, self.height)
+
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
             actions_tensor = self.policy(obs_tensor)
@@ -289,10 +279,6 @@ def main():
     parser = argparse.ArgumentParser(description="Go2 RL Policy Controller")
     parser.add_argument("--policy", type=str, default="policy.pt",
                        help="Path to policy.pt file")
-    parser.add_argument("--domain_id", type=int, default=1,
-                       help="DDS domain ID (default: 1 for simulation)")
-    parser.add_argument("--interface", type=str, default="lo",
-                       help="Network interface (default: lo for local)")
     parser.add_argument("--policy-freq", type=int, default=50,
                        help="Policy inference frequency in Hz (default: 50)")
     parser.add_argument("--kp", type=float, default=25.0,
@@ -307,7 +293,6 @@ def main():
     args = parser.parse_args()
     
     # Initialize DDS communication
-    print(f"Initializing DDS (domain_id={args.domain_id}, interface={args.interface})")
     rclpy.init(args=None)
     
     # Create controller
@@ -323,12 +308,8 @@ def main():
     try:
         rclpy.spin(node)
     except KeyboardInterrupt:
-        # Print statistics before destroying node (avoid rosout errors)
         print("\n" + "="*60)
         print("Shutting down...")
-        # print(f"Total inferences: {node.inference_count}")
-        # print(f"Total ticks: {node.tick_count}")
-        # print(f"Simulation time: {node.time:.2f}s")
         print("="*60)
     finally:
         node.destroy_node()

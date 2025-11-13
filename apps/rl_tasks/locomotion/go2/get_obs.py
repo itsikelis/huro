@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from unitree_go.msg import LowState, SportModeState
 from huro.msg import SpaceMouseState
 
