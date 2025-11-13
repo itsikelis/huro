@@ -39,7 +39,7 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from get_obs import get_observation_projectedgravity
+from get_obs import get_observation_projectedgravity, get_observation_imuquat
 from mapping import Mapper 
 np.set_printoptions(precision=3)
 
@@ -47,7 +47,7 @@ np.set_printoptions(precision=3)
 class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
     
-    def __init__(self, policy_path, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5):
+    def __init__(self, policy_path, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw = False):
         """
         Initialize the policy controller.
         
@@ -72,6 +72,11 @@ class Go2PolicyController(Node):
         print(f"[INFO] Loading policy from: {policy_path}")
         print(f"[INFO] Using device: {self.device}")
         
+        self.get_obs = get_observation_projectedgravity
+        if raw:
+            policy_path = "policy_raw.pt"
+            self.get_obs = get_observation_imuquat
+            
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"Policy file not found: {policy_path}")
         
@@ -238,7 +243,7 @@ class Go2PolicyController(Node):
         # Increment simulation time
         
         # Get observation
-        obs = get_observation_projectedgravity(
+        obs = self.get_obs(
             self.latest_low_state, 
             self.latest_high_state, 
             self.latest_spacemouse_state,
@@ -246,6 +251,7 @@ class Go2PolicyController(Node):
             prev_actions= self.current_action,
             mapper= self.mapper
         )        
+        print(obs.size)
         
         # # Run policy at 50Hz based on simulation time
         # keyboard.read_key() # an important inclusion thanks to @wkl
@@ -289,22 +295,14 @@ def main():
                        help="Network interface (default: lo for local)")
     parser.add_argument("--policy-freq", type=int, default=50,
                        help="Policy inference frequency in Hz (default: 50)")
-    parser.add_argument("--control-freq", type=int, default=200,
-                       help="Motor command frequency in Hz (default: 200, dt=0.005)")
     parser.add_argument("--kp", type=float, default=25.0,
                        help="Position gain/stiffness (default: 25.0 - lower for simulation stability)")
     parser.add_argument("--kd", type=float, default=0.5,
                        help="Velocity gain/damping (default: 0.5 - lower for simulation stability)")
     parser.add_argument("--action-scale", type=float, default=0.5,
                        help="Scale factor for policy actions (default: 0.5)")
-    parser.add_argument("--vel-x", type=float, default=0.0,
-                       help="Forward velocity command (m/s)")
-    parser.add_argument("--vel-y", type=float, default=0.0,
-                       help="Lateral velocity command (m/s)")
-    parser.add_argument("--vel-yaw", type=float, default=0.0,
-                       help="Yaw rate command (rad/s)")
-    parser.add_argument("--height", type=float, default=0.3,
-                       help="Height command (m)")
+    parser.add_argument("--raw", type=bool, default=False,
+                       help="Wether to use raw IMU data or not")
     
     args = parser.parse_args()
     
@@ -318,7 +316,8 @@ def main():
         policy_freq=args.policy_freq,
         kp=args.kp,
         kd=args.kd,
-        action_scale=args.action_scale
+        action_scale=args.action_scale,
+        raw = args.raw
     )
     
     try:
