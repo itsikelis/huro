@@ -31,6 +31,7 @@ python run_policy.py \
 import rclpy
 from rclpy.node import Node
 import numpy as np
+from ament_index_python.packages import get_package_share_directory
 import torch
 import os
 import time
@@ -41,15 +42,15 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from get_obs import get_observation_projectedgravity, get_observation_imuquat
-from mapping import Mapper 
+from huro_py.get_obs import get_observation_projectedgravity, get_observation_imuquat
+from huro_py.mapping import Mapper 
 np.set_printoptions(precision=3)
 
 
 class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
     
-    def __init__(self, policy_path, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw = False):
+    def __init__(self, policy_name, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw = False):
         """
         Initialize the policy controller.
         
@@ -71,13 +72,18 @@ class Go2PolicyController(Node):
         
         # Load policy
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[INFO] Loading policy from: {policy_path}")
+        print(f"[INFO] Loading policy from: {policy_name}")
         print(f"[INFO] Using device: {self.device}")
         
         self.get_obs = get_observation_projectedgravity
+        
         if raw:
-            policy_path = "policy_raw.pt"
+            policy_name = "policy_raw.pt"
             self.get_obs = get_observation_imuquat
+            
+        share = get_package_share_directory('huro')   # or 'huro_py' if you install with the python package name
+        policy_path = os.path.join(share, 'resources', 'models', policy_name)
+        
             
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"Policy file not found: {policy_path}")
@@ -87,7 +93,8 @@ class Go2PolicyController(Node):
         print("[INFO] Policy loaded successfully")
         
         # Initialize observation buffer
-        self.mapper = Mapper()
+        mapping_path = policy_path = os.path.join(share, 'resources', 'mappings', 'physx_to_mujoco_go2.yaml')
+        self.mapper = Mapper(mapping_yaml_path=mapping_path)
         
         # Store latest action (for use between policy updates)
         self.current_action = np.zeros(12)
@@ -109,6 +116,8 @@ class Go2PolicyController(Node):
             0.0, 0.8, -1.5,  # RL
             0.0, 0.8, -1.5   # RR
         ], dtype=float)
+        self.time_to_target = 3
+        self.target_dt = 0
         
         
         # Statistics - initialize BEFORE callbacks
@@ -297,7 +306,7 @@ def main():
     
     # Create controller
     node = Go2PolicyController(
-        policy_path=args.policy,
+        policy_name=args.policy,
         policy_freq=args.policy_freq,
         kp=args.kp,
         kd=args.kd,

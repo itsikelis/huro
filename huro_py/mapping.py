@@ -10,7 +10,7 @@ class Mapper:
     """
     Buffer to maintain state needed for observation construction.
     """
-    def __init__(self, mapping_yaml_path=None):
+    def __init__(self, mapping_yaml_path):
         
         self.default_pos_sdk = np.array([
             0.0, 0.8, -1.5,  # FR: hip, thigh, calf (actuators 0-2)
@@ -19,12 +19,6 @@ class Mapper:
             0.0, 0.8, -1.5   # RL: hip, thigh, calf (actuators 9-11)
         ])
         
-        
-        # Joint mapping for policy transfer
-        if mapping_yaml_path is None:
-            # Use default path
-            script_dir = os.path.dirname(os.path.abspath(__file__))
-            mapping_yaml_path = os.path.join(script_dir, "physx_to_mujoco_go2.yaml")
         
         self.target_to_source, self.source_to_target, self.source_names, self.target_names = self.load_joint_mapping(mapping_yaml_path)
         
