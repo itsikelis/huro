@@ -46,6 +46,21 @@ from huro_py.get_obs import get_observation_projectedgravity, get_observation_im
 from huro_py.mapping import Mapper 
 np.set_printoptions(precision=3)
 
+q_init = [
+    0.005,
+    0.72,
+    -1.4,
+    -0.005,
+    0.72,
+    -1.4,
+    -0.005,
+    0.72,
+    -1.4,
+    0.005,
+    0.72,
+    -1.4,
+]
+
 
 class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
@@ -68,7 +83,8 @@ class Go2PolicyController(Node):
         
         # Simulation time tracking
 
-        self.last_emergency_stop_time = 0.0
+        self.last_emergency_stop_time = self.get_clock().now()
+        self.stop = False
         
         # Load policy
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,13 +132,13 @@ class Go2PolicyController(Node):
             0.0, 0.8, -1.5,  # RL
             0.0, 0.8, -1.5   # RR
         ], dtype=float)
-        self.time_to_target = 3
+        self.time_to_target = 3.0
         self.target_dt = 0
         
         
         # Statistics - initialize BEFORE callbacks
         self.tick_count = 0
-        self.start_time = None  # Will be set when run() is called
+        self.start_time = self.get_clock().now()
         
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
@@ -182,15 +198,16 @@ class Go2PolicyController(Node):
             return
         
         cmd = LowCmd()
-        
+        r = (self.get_clock().now() - self.start_time).nanoseconds*1e-9 / self.time_to_target
+        # s = r**(1/10)   # smooth cubic blend
+
         for i in range(12):
             q = self.latest_low_state.motor_state[i].q
             dq = self.latest_low_state.motor_state[i].dq
             
             # PD control to standing position
             tau = self.kp * (self.target_pos[i] - q) - self.kd * dq
-            
-            cmd.motor_cmd[i].q = self.target_pos[i]
+            cmd.motor_cmd[i].q = (1.0 - r) * q + r * self.target_pos[i]
             cmd.motor_cmd[i].dq = 0.0
             cmd.motor_cmd[i].kp = self.kp
             cmd.motor_cmd[i].kd = self.kd
@@ -226,7 +243,6 @@ class Go2PolicyController(Node):
     
     def run(self):
         """Main control loop running at control_freq Hz."""
-        self.start_time = time.time()
         
         # Robot in standing position for the begining
         
@@ -250,6 +266,7 @@ class Go2PolicyController(Node):
     def process_control_step(self):
         """Process one control step (called at control_freq Hz)."""
         self.tick_count += 1
+        self.curr_time = self.get_clock().now()
                 
         # Get observation
         obs = self.get_obs(
@@ -260,12 +277,10 @@ class Go2PolicyController(Node):
             prev_actions= self.current_action,
             mapper= self.mapper
         )        
-        print(obs.size)
         
         # # Run policy at 50Hz based on simulation time
         # keyboard.read_key() # an important inclusion thanks to @wkl
-        if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed:
-            self.last_emergency_stop_time = time.perf_counter()
+        
 
         with torch.no_grad():
             obs_tensor = torch.tensor(obs, dtype=torch.float32, device=self.device).unsqueeze(0)
@@ -276,9 +291,13 @@ class Go2PolicyController(Node):
         self.current_action = actions_policy_order.copy()
                 
         # Send motor commands every tick (using latest action)
-        if self.tick_count <= (3 + self.last_emergency_stop_time) * 1 / self.step_dt:
+        if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.stop:
+            self.stop = True
+            #self.release_robot()
+        elif (self.curr_time - self.start_time).nanoseconds*1e-9 <= self.time_to_target:
+            print((self.curr_time - self.start_time).nanoseconds*1e-9 )
             self.stand_control()
-        if self.tick_count >= (3 + self.last_emergency_stop_time) * 1 / self.step_dt:
+        elif (self.curr_time - self.last_emergency_stop_time).nanoseconds*1e-9  >= self.time_to_target:
             self.send_motor_commands()
 
 
