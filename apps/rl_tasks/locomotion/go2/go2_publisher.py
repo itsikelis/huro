@@ -51,22 +51,6 @@ from huro_py.get_obs import get_observation_projectedgravity, get_observation_im
 from huro_py.mapping import Mapper 
 np.set_printoptions(precision=3)
 
-q_init = [
-    0.005,
-    0.72,
-    -1.4,
-    -0.005,
-    0.72,
-    -1.4,
-    -0.005,
-    0.72,
-    -1.4,
-    0.005,
-    0.72,
-    -1.4,
-]
-
-
 class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
     
@@ -84,43 +68,30 @@ class Go2PolicyController(Node):
         """
         super().__init__("go2_policy_controller") 
                 
-        self.step_dt = 1 / policy_freq
+        self.step_dt = 1 / policy_freq        
         
-        # Simulation time tracking
-
-        self.last_emergency_stop_time = self.get_clock().now()
-        self.stop = False
-        
-        # Release mode state
-        self.release_mode = False
-        self.release_start_time = None
+        # Emergency mode
+        self.emergency_mode = False
+        self.emergency_mode_start_time = None
         self.last_commanded_positions = None
-        self.last_kp = kp
-        self.last_kd = kd
-        
-        # Load policy
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"[INFO] Loading policy from: {policy_name}")
-        print(f"[INFO] Using device: {self.device}")
-        
+           
+        # Setting policy and obs processing according to the data sent by IMU (ra or projected gravity)
         self.get_obs = get_observation_projectedgravity
-        
         if raw:
             policy_name = "policy_raw.pt"
             self.get_obs = get_observation_imuquat
-            
-        share = get_package_share_directory('huro')   # or 'huro_py' if you install with the python package name
-        policy_path = os.path.join(share, 'resources', 'models', policy_name)
-        
-            
+        share = get_package_share_directory('huro')  
+        policy_path = os.path.join(share, 'resources', 'models', policy_name)  
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"[INFO] Loading policy from: {policy_name}")
+        print(f"[INFO] Using device: {self.device}")          
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"Policy file not found: {policy_path}")
-        
         self.policy = torch.jit.load(policy_path, map_location=self.device)
         self.policy.eval()
         print("[INFO] Policy loaded successfully")
         
-        # Initialize observation buffer
+        # Initialize the mapper for the joints and the actions
         mapping_path = policy_path = os.path.join(share, 'resources', 'mappings', 'physx_to_mujoco_go2.yaml')
         self.mapper = Mapper(mapping_yaml_path=mapping_path)
         
@@ -138,15 +109,13 @@ class Go2PolicyController(Node):
         self.action_scale = action_scale  # Scale policy output
         
         # Standing position (default joint positions but coud be different)
-        self.target_pos = np.array([
+        self.stand_pos = np.array([
             0.0, 0.8, -1.5,  # FL
             0.0, 0.8, -1.5,  # FR
             0.0, 0.8, -1.5,  # RL
             0.0, 0.8, -1.5   # RR
         ], dtype=float)
-        self.time_to_target = 3.0
-        self.target_dt = 0
-        
+        self.time_to_stand = 3.0 # Time to reach the standing position        
         
         # Statistics - initialize BEFORE callbacks
         self.tick_count = 0
@@ -170,7 +139,7 @@ class Go2PolicyController(Node):
             SportModeState, "/sportmodestate", self.high_state_callback, 10
         )
         
-        # This part handles th release mode
+        # This part handles the release mode
         self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
         ROBOT_SPORT_API_ID_STANDDOWN = 1005
         req = Request()
@@ -186,7 +155,7 @@ class Go2PolicyController(Node):
         req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
         self.motion_pub.publish(req)
         
-        self.timer = self.create_timer(1/50, self.run)
+        self.timer = self.create_timer(self.step_dt, self.run)
         
         print(f"  Policy controller initialized")
         print(f"  Policy runs at: {1 / self.step_dt}Hz")
@@ -212,14 +181,14 @@ class Go2PolicyController(Node):
         
         # Calculate progress (0 to 1)
         release_duration = 2
-        elapsed = (self.get_clock().now() - self.release_start_time).nanoseconds * 1e-9
+        elapsed = (self.get_clock().now() - self.emergency_mode_start_time).nanoseconds * 1e-9
         r = min(elapsed / release_duration, 1.0)
         
         alpha = 1.0 - (1.0 - r) ** 10
         
         # Gradually reduce gains from current values to zero
-        current_kp = self.last_kp * (1.0 - alpha)
-        current_kd = self.last_kd * (1.0 - alpha)
+        current_kp = self.kp * (1.0 - alpha)
+        current_kd = self.kd * (1.0 - alpha)
         
         cmd = LowCmd()
         
@@ -246,19 +215,19 @@ class Go2PolicyController(Node):
             return
         
         cmd = LowCmd()
-        r = min((self.get_clock().now() - self.start_time).nanoseconds*1e-9 / self.time_to_target,1)
-        # s = r**(1/10)   # smooth cubic blend
+        r = min((self.get_clock().now() - self.start_time).nanoseconds*1e-9 / self.time_to_stand,1)
+        alpha = 1.0 - (1.0 - r) ** 3
 
         for i in range(12):
             q = self.latest_low_state.motor_state[i].q
             dq = self.latest_low_state.motor_state[i].dq
-            
-            # PD control to standing position
-            tau = self.kp * (self.target_pos[i] - q) - self.kd * dq
-            cmd.motor_cmd[i].q = (1.0 - r) * q + r * self.target_pos[i]
+            curr_kp = alpha * self.kp
+            curr_kd = alpha * self.kd
+            tau = curr_kp * (self.stand_pos[i] - q) - curr_kd * dq
+            cmd.motor_cmd[i].q = (1.0 - alpha) * q + alpha * self.stand_pos[i]
             cmd.motor_cmd[i].dq = 0.0
-            cmd.motor_cmd[i].kp = self.kp
-            cmd.motor_cmd[i].kd = self.kd
+            cmd.motor_cmd[i].kp = curr_kp
+            cmd.motor_cmd[i].kd = curr_kd
             cmd.motor_cmd[i].tau = tau
             
         # Calculate CRC and publish
@@ -304,6 +273,7 @@ class Go2PolicyController(Node):
                 self.process_control_step()
             else :
                 print("Waiting for robot state...")
+                self.start_time = self.get_clock().now()
                
         except KeyboardInterrupt:
             print("\n\n" + "="*60)
@@ -344,15 +314,15 @@ class Go2PolicyController(Node):
                 
         # Send motor commands every tick (using latest action)
         #if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.stop:
-        if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.stop:
-            if not self.stop:
-                self.release_start_time = self.get_clock().now()
-            self.stop = True
+        if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.emergency_mode:
+            if not self.emergency_mode:
+                self.emergency_mode_start_time = self.get_clock().now()
+            self.emergency_mode = True
             self.emergency_mode_control()
-        elif (self.curr_time - self.start_time).nanoseconds*1e-9 <= self.time_to_target:
+        elif (self.curr_time - self.start_time).nanoseconds*1e-9 <= self.time_to_stand:
             print((self.curr_time - self.start_time).nanoseconds*1e-9 )
             self.stand_control()
-        elif (self.curr_time - self.last_emergency_stop_time).nanoseconds*1e-9  >= self.time_to_target:
+        elif (self.curr_time - self.start_time).nanoseconds*1e-9  >= self.time_to_stand:
             self.send_motor_commands()
 
 
