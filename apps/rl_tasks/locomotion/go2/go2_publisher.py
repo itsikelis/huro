@@ -7,7 +7,12 @@ Loads a PyTorch policy and controls the robot at 50Hz
 
 """
 TO RUN:
-First run the simulation, then:
+
+ros2 launch huro go2_rviz.launch.py
+ros2 run huro spacemouse_publisher.py
+ros2 run huro sim_go2
+ros2 run huro go2_publisher.py 
+
 
 python run_policy.py \
     --vel-x -0.5 \
@@ -85,6 +90,13 @@ class Go2PolicyController(Node):
 
         self.last_emergency_stop_time = self.get_clock().now()
         self.stop = False
+        
+        # Release mode state
+        self.release_mode = False
+        self.release_start_time = None
+        self.last_commanded_positions = None
+        self.last_kp = kp
+        self.last_kd = kd
         
         # Load policy
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -192,13 +204,49 @@ class Go2PolicyController(Node):
     def spacemouse_callback(self, msg: SpaceMouseState):
         self.latest_spacemouse_state = msg
         
+    
+    def emergency_mode_control(self):
+        """Smoothly reduce gains and torque to zero over release_duration."""
+        if self.latest_low_state is None:
+            return
+        
+        # Calculate progress (0 to 1)
+        release_duration = 2
+        elapsed = (self.get_clock().now() - self.release_start_time).nanoseconds * 1e-9
+        r = min(elapsed / release_duration, 1.0)
+        
+        alpha = 1.0 - (1.0 - r) ** 10
+        
+        # Gradually reduce gains from current values to zero
+        current_kp = self.last_kp * (1.0 - alpha)
+        current_kd = self.last_kd * (1.0 - alpha)
+        
+        cmd = LowCmd()
+        
+        for i in range(12):
+            q = self.latest_low_state.motor_state[i].q
+            dq = self.latest_low_state.motor_state[i].dq
+            
+            # Compute diminishing torque
+            tau = current_kp * (self.last_commanded_positions[i] - q) - current_kd * dq
+            
+            cmd.motor_cmd[i].mode = 0x01
+            cmd.motor_cmd[i].q = self.last_commanded_positions[i]
+            cmd.motor_cmd[i].dq = 0.0
+            cmd.motor_cmd[i].kp = current_kp
+            cmd.motor_cmd[i].kd = current_kd
+            cmd.motor_cmd[i].tau = tau
+        
+        cmd.crc = Crc(cmd)
+        self.low_cmd_pub.publish(cmd)
+        
     def stand_control(self):
         """PD control to standing position."""
         if self.latest_low_state is None:
             return
         
         cmd = LowCmd()
-        r = (self.get_clock().now() - self.start_time).nanoseconds*1e-9 / self.time_to_target
+        r = min((self.get_clock().now() - self.start_time).nanoseconds*1e-9 / self.time_to_target,1)
         # s = r**(1/10)   # smooth cubic blend
 
         for i in range(12):
@@ -219,19 +267,21 @@ class Go2PolicyController(Node):
     
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
+        # Store last commanded positions for potential release
         # Convert current action from policy order to SDK order
         actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
+        self.last_commanded_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
         
         cmd = LowCmd()
         cmd.head[0] = 0xFE
         cmd.head[1] = 0xEF
         cmd.level_flag = 0xFF
         cmd.gpio = 0
-        target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
+        # target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
         # Set motor commands
         for i in range(12):
             cmd.motor_cmd[i].mode = 0x01  # PMSM mode
-            cmd.motor_cmd[i].q = target_positions[i]
+            cmd.motor_cmd[i].q = self.last_commanded_positions[i]
             cmd.motor_cmd[i].kp = self.kp
             cmd.motor_cmd[i].dq = 0.0
             cmd.motor_cmd[i].kd = self.kd
@@ -243,6 +293,8 @@ class Go2PolicyController(Node):
     
     def run(self):
         """Main control loop running at control_freq Hz."""
+        
+
         
         # Robot in standing position for the begining
         
@@ -291,9 +343,12 @@ class Go2PolicyController(Node):
         self.current_action = actions_policy_order.copy()
                 
         # Send motor commands every tick (using latest action)
-        if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.stop:
+        #if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.stop:
+        if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.stop:
+            if not self.stop:
+                self.release_start_time = self.get_clock().now()
             self.stop = True
-            #self.release_robot()
+            self.emergency_mode_control()
         elif (self.curr_time - self.start_time).nanoseconds*1e-9 <= self.time_to_target:
             print((self.curr_time - self.start_time).nanoseconds*1e-9 )
             self.stand_control()
