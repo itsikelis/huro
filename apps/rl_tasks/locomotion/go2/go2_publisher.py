@@ -313,14 +313,13 @@ class Go2PolicyController(Node):
         self.current_action = actions_policy_order.copy()
                 
         # Send motor commands every tick (using latest action)
-        #if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.stop:
-        if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.emergency_mode:
+        if self.latest_spacemouse_state.button_1_pressed and self.latest_spacemouse_state.button_2_pressed or self.emergency_mode:
+        # if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.emergency_mode:
             if not self.emergency_mode:
                 self.emergency_mode_start_time = self.get_clock().now()
             self.emergency_mode = True
             self.emergency_mode_control()
         elif (self.curr_time - self.start_time).nanoseconds*1e-9 <= self.time_to_stand:
-            print((self.curr_time - self.start_time).nanoseconds*1e-9 )
             self.stand_control()
         elif (self.curr_time - self.start_time).nanoseconds*1e-9  >= self.time_to_stand:
             self.send_motor_commands()
