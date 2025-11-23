@@ -47,7 +47,7 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_observation_projectedgravity, get_observation_imuquat
+from huro_py.get_obs import get_obs_high_state, get_obs_low_state
 from huro_py.mapping import Mapper
 
 np.set_printoptions(precision=3)
@@ -57,7 +57,7 @@ class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
 
     def __init__(
-        self, policy_name, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw=False
+        self, policy_name, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw=False, high_state = False
     ):
         """
         Initialize the policy controller.
@@ -74,21 +74,18 @@ class Go2PolicyController(Node):
 
         self.step_dt = 1 / policy_freq
         self.run_policy = False
+        self.raw = raw
+        self.high_state = high_state
 
         # Emergency mode
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
 
-        # Setting policy and obs processing according to the data sent by IMU (ra or projected gravity)
-        self.get_obs = get_observation_projectedgravity
-
-        if raw:
-            policy_name = "policy_raw.pt"
-            self.get_obs = get_observation_imuquat
 
         # Load policy model
         share = get_package_share_directory("huro")
+        policy_name = "policy_raw.pt" if raw else policy_name
         policy_path = os.path.join(share, "resources", "models", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -299,11 +296,12 @@ class Go2PolicyController(Node):
 
         try:
             # Process current state (callbacks update latest_low_state and latest_high_state)
-            if (
-                self.latest_low_state is not None
-                and self.latest_high_state is not None
-                and self.spacemouse_state is not None
-            ):
+            if self.high_state:
+                cond = self.latest_low_state is not None and self.latest_high_state is not None and self.spacemouse_state is not None
+            else:
+                cond = self.latest_low_state is not None and self.spacemouse_state is not None
+                
+            if cond:
                 self.process_control_step()
             else:
                 print("Waiting for robot state...")
@@ -327,14 +325,25 @@ class Go2PolicyController(Node):
         self.curr_time = self.get_clock().now()
 
         # Get observation
-        obs = self.get_obs(
-            self.latest_low_state,
-            self.latest_high_state,
-            self.spacemouse_state,
-            height=0.3,
-            prev_actions=self.current_action,
-            mapper=self.mapper,
-        )
+        if self.high_state:
+            obs = get_obs_high_state(
+                self.latest_low_state,
+                self.latest_high_state,
+                self.spacemouse_state,
+                height=0.3,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+                raw = self.raw
+            )
+        else:
+            obs = get_obs_low_state(
+                self.latest_low_state,
+                self.spacemouse_state,
+                height=0.3,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+                raw = self.raw
+            )
 
         # # Run policy at 50Hz based on simulation time
         # keyboard.read_key() # an important inclusion thanks to @wkl
@@ -405,7 +414,10 @@ def main():
         help="Scale factor for policy actions (default: 0.5)",
     )
     parser.add_argument(
-        "--raw", type=bool, default=False, help="Wether to use raw IMU data or not"
+        "--raw", type=bool, default=True, help="Wether to use raw IMU data or not"
+    )
+    parser.add_argument(
+        "--high_state", type=bool, default=False, help="Wether to use raw IMU data or not"
     )
 
     args = parser.parse_args()
@@ -421,6 +433,7 @@ def main():
         kd=args.kd,
         action_scale=args.action_scale,
         raw=args.raw,
+        high_state= args.high_state
     )
 
     try:
