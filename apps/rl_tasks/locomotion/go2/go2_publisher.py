@@ -109,8 +109,10 @@ class Go2PolicyController(Node):
 
         # Store latest messages
         self.latest_low_state = None
-        self.latest_high_state = None
         self.spacemouse_state = None
+        if self.high_state:
+            self.latest_high_state = None
+
 
         # Control parameters (MUST match training values!)
         self.kp = kp  # Position gain
@@ -155,26 +157,27 @@ class Go2PolicyController(Node):
         )
 
         # Get high lovel data from robot
-        self.high_state_sub = self.create_subscription(
-            SportModeState, "/sportmodestate", self.high_state_callback, 10
-        )
+        if self.high_state:
+            self.high_state_sub = self.create_subscription(
+                SportModeState, "/sportmodestate", self.high_state_callback, 10
+            )
 
-        # This part handles the release mode
-        self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
-        ROBOT_SPORT_API_ID_STANDUP = 1004
-        ROBOT_SPORT_API_ID_STANDDOWN = 1005
-        req = Request()
-        req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDUP
-        # req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
-        self.sport_pub.publish(req)
-
-        # self.motion_pub = self.create_publisher(
-        #     Request, "/api/motion_switcher/request", 10
-        # )
-        # ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
+        # # This part handles the release mode
+        # self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
+        # ROBOT_SPORT_API_ID_STANDUP = 1004
+        # ROBOT_SPORT_API_ID_STANDDOWN = 1005
         # req = Request()
-        # req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
-        # self.motion_pub.publish(req)
+        # req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDUP
+        # # req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
+        # self.sport_pub.publish(req)
+
+        self.motion_pub = self.create_publisher(
+            Request, "/api/motion_switcher/request", 10
+        )
+        ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
+        req = Request()
+        req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
+        self.motion_pub.publish(req)
 
         time.sleep(1)
 
@@ -245,7 +248,7 @@ class Go2PolicyController(Node):
         )
         alpha = 1.0 - (1.0 - r) ** 3
 
-        for i in range(2, 12):
+        for i in range(12):
             curr_kd = alpha * self.kd
             curr_kp = alpha * self.kp
             # tau = curr_kp * (self.stand_pos[i] - q) - curr_kd * dq
@@ -268,7 +271,7 @@ class Go2PolicyController(Node):
         actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
         self.last_commanded_positions = (
             self.mapper.default_pos_sdk
-        )  # + actions_sdk_order * self.action_scale
+        )   + actions_sdk_order * self.action_scale
 
         cmd = LowCmd()
         cmd.head[0] = 0xFE
@@ -277,7 +280,7 @@ class Go2PolicyController(Node):
         cmd.gpio = 0
         # target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
         # Set motor commands
-        for i in range(2, 12):
+        for i in range(12):
             cmd.motor_cmd[i].mode = 0x01  # PMSM mode
             cmd.motor_cmd[i].q = self.last_commanded_positions[i]
             cmd.motor_cmd[i].kp = self.kp
@@ -378,7 +381,7 @@ class Go2PolicyController(Node):
             self.stand_control()
         elif (
             self.curr_time - self.start_time
-        ).nanoseconds * 1e-9 >= self.time_to_stand and self.run_policy:
+        ).nanoseconds * 1e-9 >= self.time_to_stand:# and self.run_policy:
             self.send_motor_commands()
 
 

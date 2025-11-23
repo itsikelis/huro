@@ -138,8 +138,10 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    
-    obs = np.zeros(49)
+    if raw:
+        obs = np.zeros(50)
+    else:
+        obs = np.zeros(49)
         
     # Base linear velocity (obs[0:3])
     obs[0:3] = highstate_msg.velocity[:3]
