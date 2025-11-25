@@ -57,7 +57,7 @@ class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
 
     def __init__(
-        self, policy_name, policy_freq=50, kp=60.0, kd=5.0, action_scale=0.5, raw=False, high_state = False
+        self, policy_name, high_state = False
     ):
         """
         Initialize the policy controller.
@@ -72,11 +72,9 @@ class Go2PolicyController(Node):
         """
         super().__init__("go2_policy_controller")
 
-        self.step_dt = 1 / policy_freq
+        self.step_dt = 1 / 50 # policy freq = 50Hz
         self.run_policy = False
-        self.raw = raw
         self.high_state = high_state
-        print(self.high_state)
 
         # Emergency mode
         self.emergency_mode = False
@@ -86,10 +84,13 @@ class Go2PolicyController(Node):
 
         # Load policy model
         share = get_package_share_directory("huro")
-        if raw:
-            policy_name = "policy_raw2.pt"
+        
+        if policy_name is None:
             if not self.high_state:
-                policy_name = "policy_raw_low_state_student2.pt"
+                policy_name = "policy_low_state.pt"
+            else:
+                policy_name = "policy.pt"
+                
         policy_path = os.path.join(share, "resources", "models", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -118,11 +119,9 @@ class Go2PolicyController(Node):
             self.latest_high_state = None
             self.prev_vel = None
 
-
-        # Control parameters (MUST match training values!)
-        self.kp = kp  # Position gain
-        self.kd = kd  # Velocity gain
-        self.action_scale = action_scale  # Scale policy output
+        self.kp = 25.0  # Position gain
+        self.kd = 0.5  # Velocity gain
+        self.action_scale = 0.5  # Scale policy output
 
         # Standing position (default joint positions but coud be different)
         self.stand_pos = np.array(
@@ -329,45 +328,8 @@ class Go2PolicyController(Node):
     def process_control_step(self):
         """Process one control step (called at control_freq Hz)."""
         self.tick_count += 1
-        self.curr_time = self.get_clock().now()
+        self.curr_time = self.get_clock().now()       
 
-        # Get observation
-        if self.high_state:
-            obs = get_obs_high_state(
-                self.latest_low_state,
-                self.latest_high_state,
-                self.spacemouse_state,
-                height=0.3,
-                prev_actions=self.current_action,
-                mapper=self.mapper,
-                raw = self.raw,
-                previous_vel= self.prev_vel
-            )
-            self.prev_vel = obs[0:3]
-        else:
-            obs = get_obs_low_state(
-                self.latest_low_state,
-                self.spacemouse_state,
-                height=0.3,
-                prev_actions=self.current_action,
-                mapper=self.mapper,
-                raw = self.raw
-            )
-
-        # # Run policy at 50Hz based on simulation time
-        # keyboard.read_key() # an important inclusion thanks to @wkl
-
-        with torch.no_grad():
-            obs_tensor = torch.tensor(
-                obs, dtype=torch.float32, device=self.device
-            ).unsqueeze(0)
-            actions_tensor = self.policy(obs_tensor)
-            actions_policy_order = actions_tensor.squeeze(0).cpu().numpy()
-
-        # Update current action
-        self.current_action = actions_policy_order.copy()
-
-        # Send motor commands every tick (using latest action)
         if (
             self.spacemouse_state.button_1_pressed
             and self.spacemouse_state.button_2_pressed
@@ -385,10 +347,41 @@ class Go2PolicyController(Node):
         ).nanoseconds * 1e-9 <= self.time_to_stand:
             print((self.curr_time - self.start_time).nanoseconds * 1e-9)
             self.stand_control()
+        # Run policy
         elif (
             self.curr_time - self.start_time
         ).nanoseconds * 1e-9 >= self.time_to_stand:# and self.run_policy:
-            self.send_motor_commands()
+            self.policy_control()
+            
+    def policy_control(self):
+        # Get observation
+        if self.high_state:
+            obs = get_obs_high_state(
+                self.latest_low_state,
+                self.latest_high_state,
+                self.spacemouse_state,
+                height=0.3,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+                previous_vel= self.prev_vel
+            )
+            self.prev_vel = obs[0:3]
+        else:
+            obs = get_obs_low_state(
+                self.latest_low_state,
+                self.spacemouse_state,
+                height=0.3,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+            )
+        with torch.no_grad():
+            obs_tensor = torch.tensor(
+                obs, dtype=torch.float32, device=self.device
+            ).unsqueeze(0)
+            actions_tensor = self.policy(obs_tensor)
+        actions_policy_order = actions_tensor.squeeze(0).cpu().numpy()
+        self.current_action = actions_policy_order.copy()
+        self.send_motor_commands()
 
 
 def main():
@@ -396,37 +389,11 @@ def main():
 
     parser = argparse.ArgumentParser(description="Go2 RL Policy Controller")
     parser.add_argument(
-        "--policy", type=str, default="policy.pt", help="Path to policy.pt file"
+        "--policy", type=str, default=None, help="Path to policy.pt file"
     )
+
     parser.add_argument(
-        "--policy-freq",
-        type=int,
-        default=50,
-        help="Policy inference frequency in Hz (default: 50)",
-    )
-    parser.add_argument(
-        "--kp",
-        type=float,
-        default=25.0,
-        help="Position gain/stiffness (default: 25.0 - lower for simulation stability)",
-    )
-    parser.add_argument(
-        "--kd",
-        type=float,
-        default=0.5,
-        help="Velocity gain/damping (default: 0.5 - lower for simulation stability)",
-    )
-    parser.add_argument(
-        "--action-scale",
-        type=float,
-        default=0.5,
-        help="Scale factor for policy actions (default: 0.5)",
-    )
-    parser.add_argument(
-        "--raw", type=bool, default=False, help="Wether to use raw IMU data or not"
-    )
-    parser.add_argument(
-        "--high_state", type=bool, default=True, help="Wether to use raw IMU data or not"
+        "--high_state", type=bool, default=True, help="Wether to use base_vel sent by sportsmode state or not"
     )
 
     args = parser.parse_args()
@@ -437,11 +404,6 @@ def main():
     # Create controller
     node = Go2PolicyController(
         policy_name=args.policy,
-        policy_freq=args.policy_freq,
-        kp=args.kp,
-        kd=args.kd,
-        action_scale=args.action_scale,
-        raw=args.raw,
         high_state= args.high_state
     )
 

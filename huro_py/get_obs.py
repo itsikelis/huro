@@ -10,7 +10,7 @@ import torch
 from huro_py.mapping import Mapper
 
 
-def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper, raw = True):
+def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper):
     """
     Extract observations from LowState message for RL policy.
     
@@ -49,10 +49,8 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
 
     # FILLING OBS VECTOR
 
-    if raw:
-        obs = np.zeros(47)
-    else:
-        obs = np.zeros(46)
+
+    obs = np.zeros(46)
         
     # Base linear velocity (obs[0:3])
     
@@ -70,37 +68,24 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
         lowstate_msg.imu_state.quaternion[2],  # y
         lowstate_msg.imu_state.quaternion[3]   # z
     ])
-    # quat = np.array([ 0.0 for i in range(4)])
-    if raw:
-        obs[3:7] = quat
-        # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-        obs[7:10] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
-        # Height command (obs[12]) - default standing height
-        obs[10] = height
-        # Fill joint positions (obs[13:25]) in policy order
-        obs[11:23] = current_joint_pos_policy - default_pos_policy
-        # Fill joint velocities (obs[25:37]) in policy order
-        obs[23:35] = current_joint_vel_policy
-        # Previous actions (obs[37:49]) - default to zero
-        obs[35:47] = prev_actions
-    else:
-        gravity_world = np.array([0.0, 0.0, -1.0])
-        gravity_b = quat_rotate_inverse(quat, gravity_world)
-        obs[3:6] = gravity_b
-        # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-        obs[6:9] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
-        # Height command (obs[12]) - default standing height
-        obs[9] = height
-        # Fill joint positions (obs[13:25]) in policy order
-        obs[10:22] = current_joint_pos_policy - default_pos_policy
-        # Fill joint velocities (obs[25:37]) in policy order
-        obs[22:34] = current_joint_vel_policy
-        # Previous actions (obs[37:49]) - default to zero
-        obs[34:46] = prev_actions
+    
+    gravity_world = np.array([0.0, 0.0, -1.0])
+    gravity_b = quat_rotate_inverse(quat, gravity_world)
+    obs[3:6] = gravity_b
+    # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
+    obs[6:9] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
+    # Height command (obs[12]) - default standing height
+    obs[9] = height
+    # Fill joint positions (obs[13:25]) in policy order
+    obs[10:22] = current_joint_pos_policy - default_pos_policy
+    # Fill joint velocities (obs[25:37]) in policy order
+    obs[22:34] = current_joint_vel_policy
+    # Previous actions (obs[37:49]) - default to zero
+    obs[34:46] = prev_actions
         
     return obs
 
-def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper, raw = True, previous_vel = None):
+def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper, previous_vel = None):
     """
     Extract observations from LowState message for RL policy.
     
@@ -138,11 +123,8 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
     )
     default_pos_policy = mapper.default_pos_policy
 
-    # FILLING OBS VECTOR
-    if raw:
-        obs = np.zeros(50)
-    else:
-        obs = np.zeros(49)
+
+    obs = np.zeros(49)
         
     # Base linear velocity (obs[0:3])
     obs[0:3] = highstate_msg.velocity[:3]
@@ -157,38 +139,24 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
     
     # Computing projected gravity from IMU sensor
     quat = np.array([
-        lowstate_msg.imu_state.quaternion[1],  # w
-        lowstate_msg.imu_state.quaternion[2],  # x
-        lowstate_msg.imu_state.quaternion[3],  # y
-        lowstate_msg.imu_state.quaternion[0]   # z
+        lowstate_msg.imu_state.quaternion[0],  # w
+        lowstate_msg.imu_state.quaternion[1],  # x
+        lowstate_msg.imu_state.quaternion[2],  # y
+        lowstate_msg.imu_state.quaternion[3]   # z
     ])
-    if raw:
-        obs[6:10] = quat
-        # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-        obs[10:13] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
-        # Height command (obs[12]) - default standing height
-        obs[13] = height
-        # Fill joint positions (obs[13:25]) in policy order
-        obs[14:26] = current_joint_pos_policy - default_pos_policy
-        # Fill joint velocities (obs[25:37]) in policy order
-        obs[26:38] = current_joint_vel_policy
-        # Previous actions (obs[37:49]) - default to zero
-        obs[38:50] = prev_actions
-    else:
-        print("else")
-        gravity_world = np.array([0.0, 0.0, -1.0])
-        gravity_b = quat_rotate_inverse(quat, gravity_world)
-        obs[6:9] = gravity_b
-        # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
-        obs[9:12] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
-        # Height command (obs[12]) - default standing height
-        obs[12] = height
-        # Fill joint positions (obs[13:25]) in policy order
-        obs[13:25] = current_joint_pos_policy - default_pos_policy
-        # Fill joint velocities (obs[25:37]) in policy order
-        obs[25:37] = current_joint_vel_policy
-        # Previous actions (obs[37:49]) - default to zero
-        obs[37:49] = prev_actions
+    gravity_world = np.array([0.0, 0.0, -1.0])
+    gravity_b = quat_rotate_inverse(quat, gravity_world)
+    obs[6:9] = gravity_b
+    # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
+    obs[9:12] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
+    # Height command (obs[12]) - default standing height
+    obs[12] = height
+    # Fill joint positions (obs[13:25]) in policy order
+    obs[13:25] = current_joint_pos_policy - default_pos_policy
+    # Fill joint velocities (obs[25:37]) in policy order
+    obs[25:37] = current_joint_vel_policy
+    # Previous actions (obs[37:49]) - default to zero
+    obs[37:49] = prev_actions
         
     return obs
 
@@ -251,14 +219,15 @@ def compute_base_lin_vel(lowstate_msg: LowState, prev_vel: np.array = None, dt: 
 def quat_rotate_inverse(q, v):
     """
     Rotate vector v by the inverse of quaternion q.
+    Matches IsaacLab's quat_apply_inverse implementation.
+    
     q: quaternion [w, x, y, z]
     v: vector [x, y, z]
     Returns rotated vector
     """
     qw = q[0]
-    qxyz = q[1:]
+    xyz = q[1:]
     
-    # v' = v + 2 * cross(qxyz, cross(qxyz, v) + qw * v)
-    t = np.cross(qxyz, v) + qw * v
-    return v + 2.0 * np.cross(qxyz, t)
+    t = np.cross(xyz, v) * 2
+    return v - qw * t + np.cross(xyz, t)
     
