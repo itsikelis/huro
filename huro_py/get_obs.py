@@ -48,7 +48,7 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    
+
     if raw:
         obs = np.zeros(47)
     else:
@@ -70,6 +70,7 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
         lowstate_msg.imu_state.quaternion[2],  # y
         lowstate_msg.imu_state.quaternion[3]   # z
     ])
+    # quat = np.array([ 0.0 for i in range(4)])
     if raw:
         obs[3:7] = quat
         # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
@@ -99,7 +100,7 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
         
     return obs
 
-def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper, raw = True):
+def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper, raw = True, previous_vel = None):
     """
     Extract observations from LowState message for RL policy.
     
@@ -145,6 +146,7 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
         
     # Base linear velocity (obs[0:3])
     obs[0:3] = highstate_msg.velocity[:3]
+    # obs[0:3] = compute_base_lin_vel(lowstate_msg=lowstate_msg, prev_vel=previous_vel)
     
     # Base angular velocity (gyroscope) (obs[3:6])
     obs[3:6] = np.array([
@@ -155,10 +157,10 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
     
     # Computing projected gravity from IMU sensor
     quat = np.array([
-        lowstate_msg.imu_state.quaternion[0],  # w
-        lowstate_msg.imu_state.quaternion[1],  # x
-        lowstate_msg.imu_state.quaternion[2],  # y
-        lowstate_msg.imu_state.quaternion[3]   # z
+        lowstate_msg.imu_state.quaternion[1],  # w
+        lowstate_msg.imu_state.quaternion[2],  # x
+        lowstate_msg.imu_state.quaternion[3],  # y
+        lowstate_msg.imu_state.quaternion[0]   # z
     ])
     if raw:
         obs[6:10] = quat
@@ -173,6 +175,7 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
         # Previous actions (obs[37:49]) - default to zero
         obs[38:50] = prev_actions
     else:
+        print("else")
         gravity_world = np.array([0.0, 0.0, -1.0])
         gravity_b = quat_rotate_inverse(quat, gravity_world)
         obs[6:9] = gravity_b
@@ -192,6 +195,59 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
 
 
 
+def compute_base_lin_vel(lowstate_msg: LowState, prev_vel: np.array = None, dt: float = 0.02):
+    """
+    Compute an approximation of the base linear velocity from available sensor data.
+    
+    This integrates IMU acceleration over time with gravity compensation.
+    Similar to how Unitree's SportModeState computes velocity.
+    
+    Args:
+        lowstate_msg: LowState message containing IMU data
+        prev_vel: Previous velocity estimate (body frame) for integration
+        dt: Time step for integration (default 0.02s = 50Hz)
+    
+    Returns:
+        base_lin_vel: numpy array [vx, vy, vz] - base linear velocity in body frame
+    """
+    # Get IMU acceleration (in body frame)
+    acc_body = np.array([
+        lowstate_msg.imu_state.accelerometer[0],
+        lowstate_msg.imu_state.accelerometer[1],
+        lowstate_msg.imu_state.accelerometer[2]
+    ])
+    
+    # Get quaternion for gravity compensation
+    quat = np.array([
+        lowstate_msg.imu_state.quaternion[0],  # w
+        lowstate_msg.imu_state.quaternion[1],  # x
+        lowstate_msg.imu_state.quaternion[2],  # y
+        lowstate_msg.imu_state.quaternion[3]   # z
+    ])
+    
+    # Remove gravity component from acceleration
+    # Gravity in world frame is [0, 0, -9.81]
+    gravity_world = np.array([0.0, 0.0, -9.81])
+    gravity_body = quat_rotate_inverse(quat, gravity_world)
+    
+    # Compensated acceleration (linear acceleration without gravity)
+    lin_acc_body = acc_body - gravity_body
+    
+    # Initialize previous velocity if not provided
+    if prev_vel is None:
+        prev_vel = np.zeros(3)
+    
+    # Integrate acceleration to get velocity
+    base_lin_vel = prev_vel + lin_acc_body * dt
+    
+    # Apply exponential decay to prevent unbounded drift
+    # This simulates zero-velocity updates during stance phase
+    decay = 0.98  # Tune this: 1.0=no decay, 0.9=aggressive decay
+    base_lin_vel = base_lin_vel * decay
+    
+    return base_lin_vel
+
+
 def quat_rotate_inverse(q, v):
     """
     Rotate vector v by the inverse of quaternion q.
@@ -199,7 +255,10 @@ def quat_rotate_inverse(q, v):
     v: vector [x, y, z]
     Returns rotated vector
     """
-    xyz = q[1:]
-    t = np.cross(v, xyz) * 2
-    return v - q[0] * t + np.cross(t, xyz)
+    qw = q[0]
+    qxyz = q[1:]
+    
+    # v' = v + 2 * cross(qxyz, cross(qxyz, v) + qw * v)
+    t = np.cross(qxyz, v) + qw * v
+    return v + 2.0 * np.cross(qxyz, t)
     

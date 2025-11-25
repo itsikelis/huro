@@ -76,6 +76,7 @@ class Go2PolicyController(Node):
         self.run_policy = False
         self.raw = raw
         self.high_state = high_state
+        print(self.high_state)
 
         # Emergency mode
         self.emergency_mode = False
@@ -85,7 +86,10 @@ class Go2PolicyController(Node):
 
         # Load policy model
         share = get_package_share_directory("huro")
-        policy_name = "policy_raw.pt" if raw else policy_name
+        if raw:
+            policy_name = "policy_raw2.pt"
+            if not self.high_state:
+                policy_name = "policy_raw_low_state_student2.pt"
         policy_path = os.path.join(share, "resources", "models", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -112,6 +116,7 @@ class Go2PolicyController(Node):
         self.spacemouse_state = None
         if self.high_state:
             self.latest_high_state = None
+            self.prev_vel = None
 
 
         # Control parameters (MUST match training values!)
@@ -264,7 +269,6 @@ class Go2PolicyController(Node):
         self.low_cmd_pub.publish(cmd)
 
     def send_motor_commands(self):
-        print("policy running")
         """Send motor commands to the robot based on current action."""
         # Store last commanded positions for potential release
         # Convert current action from policy order to SDK order
@@ -336,8 +340,10 @@ class Go2PolicyController(Node):
                 height=0.3,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
-                raw = self.raw
+                raw = self.raw,
+                previous_vel= self.prev_vel
             )
+            self.prev_vel = obs[0:3]
         else:
             obs = get_obs_low_state(
                 self.latest_low_state,
@@ -417,10 +423,10 @@ def main():
         help="Scale factor for policy actions (default: 0.5)",
     )
     parser.add_argument(
-        "--raw", type=bool, default=True, help="Wether to use raw IMU data or not"
+        "--raw", type=bool, default=False, help="Wether to use raw IMU data or not"
     )
     parser.add_argument(
-        "--high_state", type=bool, default=False, help="Wether to use raw IMU data or not"
+        "--high_state", type=bool, default=True, help="Wether to use raw IMU data or not"
     )
 
     args = parser.parse_args()
