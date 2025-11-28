@@ -265,9 +265,10 @@ class Go2PolicyController(Node):
 
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
-        # Store last commanded positions for potential release
         # Convert current action from policy order to SDK order
         actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
+        
+        # Store last commanded positions for potential emergency mode
         self.last_commanded_positions = (
             self.mapper.default_pos_sdk
         )   + actions_sdk_order * self.action_scale
@@ -302,7 +303,6 @@ class Go2PolicyController(Node):
                 cond = self.latest_low_state is not None and self.latest_high_state is not None and self.spacemouse_state is not None
             else:
                 cond = self.latest_low_state is not None and self.spacemouse_state is not None
-                
             if cond:
                 self.process_control_step()
             else:
@@ -329,9 +329,9 @@ class Go2PolicyController(Node):
         if (
             self.spacemouse_state.button_1_pressed
             and self.spacemouse_state.button_2_pressed
+            and self.run_policy
             or self.emergency_mode
         ):
-            # if (self.curr_time - self.start_time).nanoseconds*1e-9 >= 10 or self.emergency_mode:
             if not self.emergency_mode:
                 self.emergency_mode_start_time = self.get_clock().now()
             self.emergency_mode = True
