@@ -88,7 +88,7 @@ class Go2PolicyController(Node):
         if policy_name is None:
             if not self.high_state:
                 if training_type == "asymmetric":
-                    policy_name = "policy_asymmetric4.pt"
+                    policy_name = "policy_asymmetric2.pt"
                 elif training_type == "student":
                     policy_name = "policy_student.pt"
                 else:
@@ -124,8 +124,8 @@ class Go2PolicyController(Node):
             self.latest_high_state = None
             self.prev_vel = None
 
-        self.kp = 35.0  # Position gain
-        self.kd = 1.0  # Velocity gain
+        self.kp = 25.0  # Position gain
+        self.kd = 0.5  # Velocity gain
         self.action_scale = 0.5  # Scale policy output
 
         # Standing position (default joint positions but coud be different)
@@ -356,7 +356,7 @@ class Go2PolicyController(Node):
                 self.latest_low_state,
                 self.latest_high_state,
                 self.spacemouse_state,
-                height=0.35,
+                height=0.3,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
                 previous_vel= self.prev_vel
@@ -366,7 +366,7 @@ class Go2PolicyController(Node):
             obs = get_obs_low_state(
                 self.latest_low_state,
                 self.spacemouse_state,
-                height=0.35,
+                height=0.3,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
             )

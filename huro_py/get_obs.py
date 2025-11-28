@@ -164,58 +164,6 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
 
 
 
-def compute_base_lin_vel(lowstate_msg: LowState, prev_vel: np.array = None, dt: float = 0.02):
-    """
-    Compute an approximation of the base linear velocity from available sensor data.
-    
-    This integrates IMU acceleration over time with gravity compensation.
-    Similar to how Unitree's SportModeState computes velocity.
-    
-    Args:
-        lowstate_msg: LowState message containing IMU data
-        prev_vel: Previous velocity estimate (body frame) for integration
-        dt: Time step for integration (default 0.02s = 50Hz)
-    
-    Returns:
-        base_lin_vel: numpy array [vx, vy, vz] - base linear velocity in body frame
-    """
-    # Get IMU acceleration (in body frame)
-    acc_body = np.array([
-        lowstate_msg.imu_state.accelerometer[0],
-        lowstate_msg.imu_state.accelerometer[1],
-        lowstate_msg.imu_state.accelerometer[2]
-    ])
-    
-    # Get quaternion for gravity compensation
-    quat = np.array([
-        lowstate_msg.imu_state.quaternion[0],  # w
-        lowstate_msg.imu_state.quaternion[1],  # x
-        lowstate_msg.imu_state.quaternion[2],  # y
-        lowstate_msg.imu_state.quaternion[3]   # z
-    ])
-    
-    # Remove gravity component from acceleration
-    # Gravity in world frame is [0, 0, -1.0] scaled to unit vector
-    gravity_world = np.array([0.0, 0.0, -1.0])
-    gravity_body = quat_rotate_inverse(quat, gravity_world) * 9.81
-    
-    # Compensated acceleration (linear acceleration without gravity)
-    lin_acc_body = acc_body - gravity_body
-    
-    # Initialize previous velocity if not provided
-    if prev_vel is None:
-        prev_vel = np.zeros(3)
-    
-    # Integrate acceleration to get velocity
-    base_lin_vel = prev_vel + lin_acc_body * dt
-    
-    # Apply exponential decay to prevent unbounded drift
-    # This simulates zero-velocity updates during stance phase
-    decay = 0.98  # Tune this: 1.0=no decay, 0.9=aggressive decay
-    base_lin_vel = base_lin_vel * decay
-    
-    return base_lin_vel
-
 
 def quat_rotate_inverse(q, v):
     """
