@@ -57,7 +57,7 @@ class Go2PolicyController(Node):
     """RL Policy controller for Unitree Go2 locomotion."""
 
     def __init__(
-        self, policy_name, high_state = False
+        self, policy_name = "policy.pt", high_state = False, training_type = "normal"
     ):
         """
         Initialize the policy controller.
@@ -87,9 +87,14 @@ class Go2PolicyController(Node):
         
         if policy_name is None:
             if not self.high_state:
-                policy_name = "policy_low_state.pt"
+                if training_type == "asymmetric":
+                    policy_name = "policy_asymmetric2.pt"
+                elif training_type == "student":
+                    policy_name = "policy_student.pt"
+                else:
+                    policy_name = "policy_low_state.pt"
             else:
-                policy_name = "policy.pt"
+                policy_name = "policy_teacher.pt"
                 
         policy_path = os.path.join(share, "resources", "models", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -165,15 +170,6 @@ class Go2PolicyController(Node):
             self.high_state_sub = self.create_subscription(
                 SportModeState, "/sportmodestate", self.high_state_callback, 10
             )
-
-        # # This part handles the release mode
-        # self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
-        # ROBOT_SPORT_API_ID_STANDUP = 1004
-        # ROBOT_SPORT_API_ID_STANDDOWN = 1005
-        # req = Request()
-        # req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDUP
-        # # req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
-        # self.sport_pub.publish(req)
 
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
@@ -393,7 +389,11 @@ def main():
     )
 
     parser.add_argument(
-        "--high_state", type=bool, default=True, help="Wether to use base_vel sent by sportsmode state or not"
+        "--high_state", type=bool, default=False, help="Wether to use base_vel sent by sportsmode state or not"
+    )
+    
+    parser.add_argument(
+        "--training_type", type=str, default="normal", help="The type of training use (normal, asymmetric or student)"
     )
 
     args = parser.parse_args()
@@ -404,7 +404,8 @@ def main():
     # Create controller
     node = Go2PolicyController(
         policy_name=args.policy,
-        high_state= args.high_state
+        high_state= args.high_state,
+        training_type = args.training_type
     )
 
     try:

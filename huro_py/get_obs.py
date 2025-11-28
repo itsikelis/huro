@@ -6,7 +6,6 @@ from huro.msg import SpaceMouseState
 import numpy as np
 import yaml
 import os
-import torch
 from huro_py.mapping import Mapper
 
 
@@ -54,13 +53,12 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
         
     # Base linear velocity (obs[0:3])
     
-    # Base angular velocity (gyroscope) (obs[3:6])
+    # Base angular velocity (gyroscope) (obs[0:3])
     obs[0:3] = np.array([
         lowstate_msg.imu_state.gyroscope[0],
         lowstate_msg.imu_state.gyroscope[1],
         lowstate_msg.imu_state.gyroscope[2]
     ])
-    
     # Computing projected gravity from IMU sensor
     quat = np.array([
         lowstate_msg.imu_state.quaternion[0],  # w
@@ -68,6 +66,8 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
         lowstate_msg.imu_state.quaternion[2],  # y
         lowstate_msg.imu_state.quaternion[3]   # z
     ])
+    # Normalize quaternion to prevent drift
+  
     
     gravity_world = np.array([0.0, 0.0, -1.0])
     gravity_b = quat_rotate_inverse(quat, gravity_world)
@@ -144,6 +144,7 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
         lowstate_msg.imu_state.quaternion[2],  # y
         lowstate_msg.imu_state.quaternion[3]   # z
     ])
+    # Normalize quaternion to prevent drift    
     gravity_world = np.array([0.0, 0.0, -1.0])
     gravity_b = quat_rotate_inverse(quat, gravity_world)
     obs[6:9] = gravity_b
@@ -194,9 +195,9 @@ def compute_base_lin_vel(lowstate_msg: LowState, prev_vel: np.array = None, dt: 
     ])
     
     # Remove gravity component from acceleration
-    # Gravity in world frame is [0, 0, -9.81]
-    gravity_world = np.array([0.0, 0.0, -9.81])
-    gravity_body = quat_rotate_inverse(quat, gravity_world)
+    # Gravity in world frame is [0, 0, -1.0] scaled to unit vector
+    gravity_world = np.array([0.0, 0.0, -1.0])
+    gravity_body = quat_rotate_inverse(quat, gravity_world) * 9.81
     
     # Compensated acceleration (linear acceleration without gravity)
     lin_acc_body = acc_body - gravity_body
