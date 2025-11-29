@@ -11,27 +11,8 @@ TO RUN:
 ros2 launch huro go2_rviz.launch.py
 ros2 run huro spacemouse_publisher.py
 ros2 run huro sim_go2
-ros2 run huro go2_publisher.py
+ros2 run huro go2_publisher.py --
 
-
-python run_policy.py \
-    --vel-x -0.5 \
-    --vel-y 0.1 \
-    --vel-yaw 0.3 \
-    --kd 0.5 \
-    --kp 25.0
-
-Or with all parameters:
-
-python run_policy.py \
-    --policy policy.pt \
-    --vel-x 0.3 \
-    --vel-y 0.0 \
-    --vel-yaw 0.0 \
-    --action-scale 0.5 \
-    --kp 25.0 \
-    --kd 0.5 \
-    --control-freq 200
 """
 import rclpy
 from rclpy.node import Node
@@ -42,7 +23,7 @@ import os
 import time
 
 from unitree_api.msg import Request
-from unitree_go.msg import LowCmd, LowState, SportModeState
+from unitree_go.msg import LowCmd, LowState
 from huro.msg import SpaceMouseState
 
 
@@ -51,6 +32,7 @@ from huro_py.get_obs import get_obs_high_state, get_obs_low_state
 from huro_py.mapping import Mapper
 
 np.set_printoptions(precision=3)
+G1_NUM_MOTOTS = 29
 
 
 class Go2PolicyController(Node):
@@ -120,33 +102,38 @@ class Go2PolicyController(Node):
         # Store latest messages
         self.latest_low_state = None
         self.spacemouse_state = None
-        if self.high_state:
-            self.latest_high_state = None
-            self.prev_vel = None
 
         self.kp = 25.0  # Position gain
         self.kd = 0.5  # Velocity gain
         self.action_scale = 0.5  # Scale policy output
+        
+        
+        self.stifness = [
+                60, 60, 60, 100, 40, 40,     # legs
+                60, 60, 60, 100, 40, 40,     # legs
+                60, 40, 40,                  # waist
+                40, 40, 40, 40,  40, 40, 40, # arms
+                40, 40, 40, 40,  40, 40, 40  # arms 
+            ]
+        
+        self.dampings = [
+                1, 1, 1, 2, 1, 1,    # legs
+                1, 1, 1, 2, 1, 1,    # legs
+                1, 1, 1,             # waist
+                1, 1, 1, 1, 1, 1, 1, # arms
+                1, 1, 1, 1, 1, 1, 1  # arms
+            ]
+
 
         # Standing position (default joint positions but coud be different)
-        self.stand_pos = np.array(
-            [
-                0.0,
-                0.8,
-                -1.5,  # FL
-                0.0,
-                0.8,
-                -1.5,  # FR
-                0.0,
-                0.8,
-                -1.5,  # RL
-                0.0,
-                0.8,
-                -1.5,  # RR
-            ],
+        self.stand_pos = np.array([-0.1,  0.0,  0.0,  0.3, -0.2, 0.0, 
+                -0.1,  0.0,  0.0,  0.3, -0.2, 0.0, 0, 0, 0,
+                0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0],
             dtype=float,
         )
-        self.time_to_stand = 3.0  # Time to reach the standing position
+        self.time_to_stand = 2.0  # Time to reach the standing position
 
         # Statistics - initialize BEFORE callbacks
         self.tick_count = 0
@@ -165,12 +152,6 @@ class Go2PolicyController(Node):
             LowState, "/lowstate", self.low_state_callback, 10
         )
 
-        # Get high lovel data from robot
-        if self.high_state:
-            self.high_state_sub = self.create_subscription(
-                SportModeState, "/sportmodestate", self.high_state_callback, 10
-            )
-
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
         )
@@ -185,10 +166,6 @@ class Go2PolicyController(Node):
 
         print(f"  Policy controller initialized")
         print(f"  Policy runs at: {1 / self.step_dt}Hz")
-
-    def high_state_callback(self, msg: SportModeState):
-        """Log high state message."""
-        self.latest_high_state = msg
 
     def low_state_callback(self, msg: LowState):
         """Log low state message."""
@@ -218,7 +195,7 @@ class Go2PolicyController(Node):
 
         cmd = LowCmd()
 
-        for i in range(12):
+        for i in range(G1_NUM_MOTOTS):
             q = self.latest_low_state.motor_state[i].q
             dq = self.latest_low_state.motor_state[i].dq
 

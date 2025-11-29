@@ -73,6 +73,7 @@ class Go2PolicyController(Node):
         super().__init__("go2_policy_controller")
 
         self.step_dt = 1 / 50 # policy freq = 50Hz
+        self.control_gait = 0.02 # the phase updated at 2Hz
         self.run_policy = False
         self.high_state = high_state
 
@@ -351,12 +352,13 @@ class Go2PolicyController(Node):
             
     def policy_control(self):
         # Get observation
+        phase = (self.phase + self.step_dt * self.control_gait) % 1
         if self.high_state:
             obs = get_obs_high_state(
                 self.latest_low_state,
                 self.latest_high_state,
                 self.spacemouse_state,
-                height=0.35,
+                height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
                 previous_vel= self.prev_vel
@@ -366,8 +368,9 @@ class Go2PolicyController(Node):
             obs = get_obs_low_state(
                 self.latest_low_state,
                 self.spacemouse_state,
-                height=0.35,
+                height=0.30,
                 prev_actions=self.current_action,
+                phase = phase
                 mapper=self.mapper,
             )
         with torch.no_grad():

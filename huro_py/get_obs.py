@@ -9,7 +9,7 @@ import os
 from huro_py.mapping import Mapper
 
 
-def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, mapper: Mapper):
+def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, phase: float, mapper: Mapper):
     """
     Extract observations from LowState message for RL policy.
     
@@ -70,7 +70,11 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
   
     
     gravity_world = np.array([0.0, 0.0, -1.0])
-    gravity_b = quat_rotate_inverse(quat, gravity_world)
+
+    gravity_b = rotate(quat,gravity_world)
+    gravity_b[0] *= 2.0
+    gravity_b[1] *= 2.0
+    print(gravity_b)
     obs[3:6] = gravity_b
     # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
     obs[6:9] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
@@ -82,6 +86,8 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
     obs[22:34] = current_joint_vel_policy
     # Previous actions (obs[37:49]) - default to zero
     obs[34:46] = prev_actions
+    obs[46] = np.sin(2.0 * np.pi * phase)
+    obs[47] = np.cos(2.0 * np.pi * phase)
         
     return obs
 
@@ -145,9 +151,9 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
         lowstate_msg.imu_state.quaternion[3]   # z
     ])
     # Normalize quaternion to prevent drift    
-    gravity_world = np.array([0.0, 0.0, -1.0])
-    gravity_b = quat_rotate_inverse(quat, gravity_world)
-    obs[6:9] = gravity_b
+    gravity_world = np.array([0.0, 0.0, -0.91])
+    gravity_b = rotate(quat, gravity_world)
+    obs[6:9] = np.array([0.0, 0.0, 0.0])
     # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
     obs[9:12] = [spacemouse_msg.twist.angular.y / 2, -spacemouse_msg.twist.angular.x / 2, spacemouse_msg.twist.angular.z / 2]
     # Height command (obs[12]) - default standing height
@@ -162,21 +168,11 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
     return obs
 
 
-
-
-
-def quat_rotate_inverse(q, v):
-    """
-    Rotate vector v by the inverse of quaternion q.
-    Matches IsaacLab's quat_apply_inverse implementation.
     
-    q: quaternion [w, x, y, z]
-    v: vector [x, y, z]
-    Returns rotated vector
-    """
-    qw = q[0]
-    xyz = q[1:]
-    
-    t = np.cross(xyz, v) * 2
-    return v - qw * t + np.cross(xyz, t)
-    
+def rotate(quat, grav):
+    # store shape
+    # reshape to (N, 3) for multiplication
+    # extract components from quaternions
+    xyz = quat[1:3]
+    t = np.cross(xyz, grav)*2.0
+    return grav - quat[0:1] * t + np.cross(xyz,t)
