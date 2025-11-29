@@ -23,16 +23,17 @@ import os
 import time
 
 from unitree_api.msg import Request
-from unitree_go.msg import LowCmd, LowState
+from unitree_hg.msg import LowCmd, LowState
 from huro.msg import SpaceMouseState
 
 
-from huro_py.crc_go import Crc
+from huro_py.crc_hg import Crc
 from huro_py.get_obs import get_obs_high_state, get_obs_low_state
 from huro_py.mapping import Mapper
 
 np.set_printoptions(precision=3)
 G1_NUM_MOTOTS = 29
+NUM_ACTIONS = 12
 
 
 class Go2PolicyController(Node):
@@ -62,6 +63,38 @@ class Go2PolicyController(Node):
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
+        
+        # Store latest action (for use between policy updates)
+        self.current_action = np.zeros(12)
+
+        # Store latest messages
+        self.latest_low_state = None
+        self.spacemouse_state = None
+
+        self.kp = 25.0  # Position gain
+        self.kd = 0.5  # Velocity gain
+        self.action_scale = 0.5  # Scale policy output
+        
+        
+        self.leg_kps = [100., 100., 100., 150., 40., 40., 100., 100., 100., 150., 40., 40.]
+        self.upper_kps = [300., 300., 300.,
+                100., 100., 50., 50., 20., 20., 20.,
+                100., 100., 50., 50., 20., 20., 20.]
+        
+        self.leg_kds = [2., 2., 2., 4., 2., 2., 2., 2., 2., 4., 2., 2.]
+        self.upper_kds = [3., 3., 3., 
+                2., 2., 2., 2., 1., 1., 1.,
+                2., 2., 2., 2., 1., 1., 1.]
+        # Standing position (default joint positions but coud be different)
+        self.default_joint_legs = [-0.1,  0.0,  0.0,  0.3, -0.2, 0.0, 
+                  -0.1,  0.0,  0.0,  0.3, -0.2, 0.0]
+        self.target_pos_upper = [ 0., 0., 0.,
+                    0., 0., 0., 0., 0., 0., 0.,
+                    0., 0., 0., 0., 0., 0., 0.]
+        self.ang_vel_scale: 0.25
+        self.dof_pos_scale: 1.0
+        self.dof_vel_scale: 0.05
+        self.action_scale: 0.25
 
 
         # Load policy model
@@ -78,61 +111,20 @@ class Go2PolicyController(Node):
             else:
                 policy_name = "policy_teacher.pt"
                 
-        policy_path = os.path.join(share, "resources", "models", policy_name)
-        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # policy_path = os.path.join(share, "resources", "models", "g1", policy_name)
+        # self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        print(f"[INFO] Loading policy from: {policy_name}")
-        print(f"[INFO] Using device: {self.device}")
+        # print(f"[INFO] Loading policy from: {policy_name}")
+        # print(f"[INFO] Using device: {self.device}")
 
-        if not os.path.exists(policy_path):
-            raise FileNotFoundError(f"Policy file not found: {policy_path}")
-        self.policy = torch.jit.load(policy_path, map_location=self.device)
-        self.policy.eval()
-        print("[INFO] Policy loaded successfully")
+        # if not os.path.exists(policy_path):
+        #     raise FileNotFoundError(f"Policy file not found: {policy_path}")
+        # self.policy = torch.jit.load(policy_path, map_location=self.device)
+        # self.policy.eval()
+        # print("[INFO] Policy loaded successfully")
 
-        # Initialize the mapper for the joints and the actions
-        mapping_path = policy_path = os.path.join(
-            share, "resources", "mappings", "physx_to_mujoco_go2.yaml"
-        )
-        self.mapper = Mapper(mapping_yaml_path=mapping_path)
-
-        # Store latest action (for use between policy updates)
-        self.current_action = np.zeros(12)
-
-        # Store latest messages
-        self.latest_low_state = None
-        self.spacemouse_state = None
-
-        self.kp = 25.0  # Position gain
-        self.kd = 0.5  # Velocity gain
-        self.action_scale = 0.5  # Scale policy output
+    
         
-        
-        self.stifness = [
-                60, 60, 60, 100, 40, 40,     # legs
-                60, 60, 60, 100, 40, 40,     # legs
-                60, 40, 40,                  # waist
-                40, 40, 40, 40,  40, 40, 40, # arms
-                40, 40, 40, 40,  40, 40, 40  # arms 
-            ]
-        
-        self.dampings = [
-                1, 1, 1, 2, 1, 1,    # legs
-                1, 1, 1, 2, 1, 1,    # legs
-                1, 1, 1,             # waist
-                1, 1, 1, 1, 1, 1, 1, # arms
-                1, 1, 1, 1, 1, 1, 1  # arms
-            ]
-
-
-        # Standing position (default joint positions but coud be different)
-        self.stand_pos = np.array([-0.1,  0.0,  0.0,  0.3, -0.2, 0.0, 
-                -0.1,  0.0,  0.0,  0.3, -0.2, 0.0, 0, 0, 0,
-                0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0],
-            dtype=float,
-        )
         self.time_to_stand = 2.0  # Time to reach the standing position
 
         # Statistics - initialize BEFORE callbacks
@@ -194,7 +186,8 @@ class Go2PolicyController(Node):
         current_kd = self.kd * (1.0 - alpha)
 
         cmd = LowCmd()
-
+        cmd.mode_machine = 1
+        cmd.mode_pr = 0
         for i in range(G1_NUM_MOTOTS):
             q = self.latest_low_state.motor_state[i].q
             dq = self.latest_low_state.motor_state[i].dq
@@ -213,57 +206,65 @@ class Go2PolicyController(Node):
         self.low_cmd_pub.publish(cmd)
 
     def stand_control(self):
-        """PD control to standing position."""
-        if self.latest_low_state is None:
-            return
-        cmd = LowCmd()
+        print("Moving to default pos.")   
+        cmd = LowCmd()   
+        cmd.mode_machine = 1
+        cmd.mode_pr = 0
+        kps = self.leg_kps + self.upper_kps
+        kds = self.leg_kds + self.upper_kds
+        default_pos = np.concatenate((self.default_joint_legs, self.target_pos_upper), axis=0)
+        print(default_pos)
         r = min(
             (self.get_clock().now() - self.start_time).nanoseconds
             * 1e-9
             / self.time_to_stand,
             1,
         )
-        alpha = 1.0 - (1.0 - r) ** 3
+        alpha = 1 -r
+        # record the current pos
+        init_dof_pos = np.zeros(G1_NUM_MOTOTS, dtype=np.float32)
+        for i in range(G1_NUM_MOTOTS):
+            init_dof_pos[i] = self.latest_low_state.motor_state[i].q
+        
 
-        for i in range(12):
-            curr_kd = alpha * self.kd
-            curr_kp = alpha * self.kp
-            # tau = curr_kp * (self.stand_pos[i] - q) - curr_kd * dq
-            cmd.motor_cmd[i].mode = 1
-            cmd.motor_cmd[i].q = self.stand_pos[i]
-            cmd.motor_cmd[i].dq = 0.0
-            cmd.motor_cmd[i].kp = curr_kp
-            cmd.motor_cmd[i].kd = curr_kd
-            cmd.motor_cmd[i].tau = 0.0
-
+        for j in range(G1_NUM_MOTOTS):
+            target_pos = default_pos[j]
+            cmd.motor_cmd[j].q = 0.0
+            # cmd.motor_cmd[j].q = init_dof_pos[j] * (1 - alpha) + target_pos * alpha
+            cmd.motor_cmd[j].dq = 0.
+            cmd.motor_cmd[j].kp = kps[j]
+            cmd.motor_cmd[j].kd = kds[j]
+            cmd.motor_cmd[j].tau = 0.
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
 
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
-        # Convert current action from policy order to SDK order
-        actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
+        cmd = LowCmd()
+        cmd.mode_machine = 1
+        cmd.mode_pr = 0
         
         # Store last commanded positions for potential emergency mode
         self.last_commanded_positions = (
-            self.mapper.default_pos_sdk
-        )   + actions_sdk_order * self.action_scale
+            self.default_joint_legs
+        )   + self.current_action * self.action_scale
 
-        cmd = LowCmd()
-        cmd.head[0] = 0xFE
-        cmd.head[1] = 0xEF
-        cmd.level_flag = 0xFF
-        cmd.gpio = 0
-        # target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
-        # Set motor commands
-        for i in range(12):
-            cmd.motor_cmd[i].mode = 0x01  # PMSM mode
+        # Build low cmd
+        for i in range(NUM_ACTIONS):
+            
             cmd.motor_cmd[i].q = self.last_commanded_positions[i]
-            cmd.motor_cmd[i].kp = self.kp
-            cmd.motor_cmd[i].dq = 0.0
-            cmd.motor_cmd[i].kd = self.kd
-            cmd.motor_cmd[i].tau = 0.0
+            cmd.motor_cmd[i].dq = 0.
+            cmd.motor_cmd[i].kp = self.leg_kps[i]
+            cmd.motor_cmd[i].kd = self.leg_kds[i]
+            cmd.motor_cmd[i].tau = 0.
+
+        for i in range(len(G1_NUM_MOTOTS - NUM_ACTIONS)):
+            cmd.motor_cmd[i + NUM_ACTIONS].q = self.target_pos_upper[i]
+            cmd.motor_cmd[i + NUM_ACTIONS].dq = 0.
+            cmd.motor_cmd[i + NUM_ACTIONS].kp = self.upper_kps[i]
+            cmd.motor_cmd[i + NUM_ACTIONS].kd = self.upper_kds[i]
+            cmd.motor_cmd[i + NUM_ACTIONS].tau = 0.
 
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
@@ -323,7 +324,7 @@ class Go2PolicyController(Node):
         # Run policy
         elif (
             self.curr_time - self.start_time
-        ).nanoseconds * 1e-9 >= self.time_to_stand:# and self.run_policy:
+        ).nanoseconds * 1e-9 >= self.time_to_stand and self.run_policy:
             self.policy_control()
             
     def policy_control(self):
@@ -335,7 +336,6 @@ class Go2PolicyController(Node):
                 self.spacemouse_state,
                 height=0.3,
                 prev_actions=self.current_action,
-                mapper=self.mapper,
                 previous_vel= self.prev_vel
             )
             self.prev_vel = obs[0:3]
@@ -345,7 +345,6 @@ class Go2PolicyController(Node):
                 self.spacemouse_state,
                 height=0.3,
                 prev_actions=self.current_action,
-                mapper=self.mapper,
             )
         with torch.no_grad():
             obs_tensor = torch.tensor(

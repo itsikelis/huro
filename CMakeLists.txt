@@ -100,19 +100,18 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# add_executable(g1_low_level apps/g1_low_level.cc ${SRCS})
-# target_include_directories(g1_low_level PUBLIC
-#   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-#   $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
-# target_link_libraries(g1_low_level mujoco)
-# ament_target_dependencies(g1_low_level ${DEPENDENCY_LIST})
-# target_compile_options(g1_low_level PUBLIC "-Wall;-Wextra;-O3;")
-# target_compile_features(g1_low_level PUBLIC c_std_99 cxx_std_17)
-# install(
-#   TARGETS g1_low_level
-#   DESTINATION lib/${PROJECT_NAME}
-# )
-#
+add_executable(g1_low_level apps/g1_low_level.cc ${SRCS})
+target_include_directories(g1_low_level PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>)
+target_link_libraries(g1_low_level mujoco)
+ament_target_dependencies(g1_low_level ${DEPENDENCY_LIST})
+target_compile_options(g1_low_level PUBLIC "-Wall;-Wextra;-O3;")
+target_compile_features(g1_low_level PUBLIC c_std_99 cxx_std_17)
+install(
+  TARGETS g1_low_level
+  DESTINATION lib/${PROJECT_NAME}
+)
 ## Install Python Executables ##
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME}_py)
@@ -131,6 +130,10 @@ install(
 )
 install(
   PROGRAMS apps/rl_tasks/locomotion/go2/go2_publisher.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/rl_tasks/locomotion/g1/g1_publisher.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

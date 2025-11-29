@@ -10,14 +10,9 @@ class Mapper:
     """
     Buffer to maintain state needed for observation construction.
     """
-    def __init__(self, mapping_yaml_path):
+    def __init__(self, mapping_yaml_path, default_pos_sdk):
         
-        self.default_pos_sdk = np.array([
-            0.0, 0.8, -1.5,  # FR: hip, thigh, calf (actuators 0-2)
-            0.0, 0.8, -1.5,  # FL: hip, thigh, calf (actuators 3-5)
-            0.0, 0.8, -1.5,  # RR: hip, thigh, calf (actuators 6-8)
-            0.0, 0.8, -1.5   # RL: hip, thigh, calf (actuators 9-11)
-        ])
+        self.default_pos_sdk = default_pos_sdk
         
         
         self.target_to_source, self.source_to_target, self.source_names, self.target_names = self.load_joint_mapping(mapping_yaml_path)

@@ -73,7 +73,8 @@ class Go2PolicyController(Node):
         super().__init__("go2_policy_controller")
 
         self.step_dt = 1 / 50 # policy freq = 50Hz
-        self.control_gait = 0.02 # the phase updated at 2Hz
+        self.control_gait = 1/200 # the phase updated at 2Hz
+        self.phase = 0.0
         self.run_policy = False
         self.high_state = high_state
 
@@ -89,7 +90,7 @@ class Go2PolicyController(Node):
         if policy_name is None:
             if not self.high_state:
                 if training_type == "asymmetric":
-                    policy_name = "policy_asymmetric4.pt"
+                    policy_name = "policy_asymmetric5.pt"
                 elif training_type == "student":
                     policy_name = "policy_student.pt"
                 else:
@@ -97,7 +98,7 @@ class Go2PolicyController(Node):
             else:
                 policy_name = "policy_teacher.pt"
                 
-        policy_path = os.path.join(share, "resources", "models", policy_name)
+        policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
         print(f"[INFO] Loading policy from: {policy_name}")
@@ -111,9 +112,16 @@ class Go2PolicyController(Node):
 
         # Initialize the mapper for the joints and the actions
         mapping_path = policy_path = os.path.join(
-            share, "resources", "mappings", "physx_to_mujoco_go2.yaml"
+            share, "resources", "mappings", "go2", "physx_to_mujoco_go2.yaml"
         )
-        self.mapper = Mapper(mapping_yaml_path=mapping_path)
+        
+        self.default_pos_sdk = np.array([
+            0.0, 0.8, -1.5,  # FR: hip, thigh, calf (actuators 0-2)
+            0.0, 0.8, -1.5,  # FL: hip, thigh, calf (actuators 3-5)
+            0.0, 0.8, -1.5,  # RR: hip, thigh, calf (actuators 6-8)
+            0.0, 0.8, -1.5   # RL: hip, thigh, calf (actuators 9-11)
+        ])
+        self.mapper = Mapper(mapping_yaml_path=mapping_path, default_pos_sdk= self.default_pos_sdk)
 
         # Store latest action (for use between policy updates)
         self.current_action = np.zeros(12)
@@ -126,7 +134,7 @@ class Go2PolicyController(Node):
             self.prev_vel = None
 
         self.kp = 35.0  # Position gain
-        self.kd = 1.0  # Velocity gain
+        self.kd = 1.5  # Velocity gain
         self.action_scale = 0.5  # Scale policy output
 
         # Standing position (default joint positions but coud be different)

@@ -7,6 +7,8 @@ import numpy as np
 import yaml
 import os
 from huro_py.mapping import Mapper
+from huro_py.utils import rotate
+
 
 
 def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, height: float, prev_actions: np.array, phase: float, mapper: Mapper):
@@ -49,7 +51,7 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
     # FILLING OBS VECTOR
 
 
-    obs = np.zeros(46)
+    obs = np.zeros(48)
         
     # Base linear velocity (obs[0:3])
     
@@ -72,8 +74,8 @@ def get_obs_low_state(lowstate_msg: LowState, spacemouse_msg: SpaceMouseState, h
     gravity_world = np.array([0.0, 0.0, -1.0])
 
     gravity_b = rotate(quat,gravity_world)
-    gravity_b[0] *= 2.0
-    gravity_b[1] *= 2.0
+    # gravity_b[0] *= 2.0
+    # gravity_b[1] *= 2.0
     print(gravity_b)
     obs[3:6] = gravity_b
     # Command velocity (obs[9:12]) - default to zero (forward, lateral, yaw rate)
@@ -169,10 +171,4 @@ def get_obs_high_state(lowstate_msg: LowState, highstate_msg: SportModeState, sp
 
 
     
-def rotate(quat, grav):
-    # store shape
-    # reshape to (N, 3) for multiplication
-    # extract components from quaternions
-    xyz = quat[1:3]
-    t = np.cross(xyz, grav)*2.0
-    return grav - quat[0:1] * t + np.cross(xyz,t)
+

@@ -138,8 +138,9 @@ public:
     lowcmd_publisher_ =
         this->create_publisher<unitree_hg::msg::LowCmd>("/lowcmd", 10);
 
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(control_dt_ms_),
-                                     [this] { Control(); });
+    timer_ = this->create_wall_timer(
+        std::chrono::milliseconds(static_cast<int64_t>(control_dt_ms_ * 1000)),
+        [this] { Control(); });
   }
 
 private:
@@ -158,15 +159,18 @@ private:
     }
 
     if (ms) {
+      // Target zero posture for initialization
+      static const std::array<float, G1_NUM_MOTOR> q_init{}; // All zeros
+      
       unitree_hg::msg::LowCmd low_cmd;
-      low_cmd.mode_pr = mode_pr_; // pitch-roll or a-b mode for foot motors
+      low_cmd.mode_pr = static_cast<uint8_t>(mode_pr_); // pitch-roll or a-b mode for foot motors
       low_cmd.mode_machine = mode_machine_;
 
-      if (self.time < duration_s_) {
+      if (time_ < duration_s_) {
         for (size_t i = 0; i < G1_NUM_MOTOR; ++i) {
-          double ratio = clamp(time_ / self.init_duration_s, 0.0, 1.0);
+          double ratio = clamp(static_cast<float>(time_ / duration_s_), 0.0, 1.0);
           low_cmd.motor_cmd[i].q =
-              (1.0 - ratio) * ms.q.at(i) + ratio * q_init[i];
+              static_cast<float>((1.0 - ratio) * ms->q.at(i) + ratio * q_init[i]);
           low_cmd.motor_cmd[i].dq = 0.0;
           low_cmd.motor_cmd[i].tau = 0.0;
           low_cmd.motor_cmd[i].kp = Kp[i];

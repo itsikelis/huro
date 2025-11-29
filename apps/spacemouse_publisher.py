@@ -40,7 +40,7 @@ class SpaceMousePublisher(Node):
             msg.twist.linear.y = float(0.0)
             msg.twist.linear.z = float(0.0)
             msg.twist.angular.x = float(0.0)
-            msg.twist.angular.y = float(1.0)
+            msg.twist.angular.y = float(2.0)
             msg.twist.angular.z = float(0.0)
             msg.button_1_pressed = bool(False)
             msg.button_2_pressed = bool(False)
