@@ -370,7 +370,7 @@ class Go2PolicyController(Node):
                 self.spacemouse_state,
                 height=0.30,
                 prev_actions=self.current_action,
-                phase = phase
+                phase = phase,
                 mapper=self.mapper,
             )
         with torch.no_grad():
