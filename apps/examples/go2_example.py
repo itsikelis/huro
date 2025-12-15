@@ -4,6 +4,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.timer import Timer
 import math
+import numpy as np
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, IMUState, MotorState
@@ -18,20 +19,7 @@ from huro_py.crc_go import Crc
 
 GO2_NUM_MOTOR = 12
 
-Kp = [
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-    25.0,
-]
+Kp = np.ones(GO2_NUM_MOTOR) * 500
 
 Kd = [
     0.5,
@@ -72,6 +60,7 @@ class MoveExample(Node):
         self.timer_dt_ms = int(self.control_dt * 1000)
         self.time = 0.0
         self.init_duration_s = 5.0
+        self.q_start = None
 
         self.motors_on = 1
 
@@ -79,7 +68,7 @@ class MoveExample(Node):
         self.motor = [MotorState() for _ in range(GO2_NUM_MOTOR)]
 
         self.topic_name = (
-            "lowstate" if self.get_parameter_or("HIGH_FREQ", False) else "lf/lowstate"
+            "lowstate" if self.get_parameter_or("HIGH_FREQ", True) else "lf/lowstate"
         )
 
         self.lowcmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
@@ -117,11 +106,11 @@ class MoveExample(Node):
                 ratio = self.clamp(self.time / self.init_duration_s, 0.0, 1.0)
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
-                cmd.q = (1.0 - ratio) * self.motor[i].q + ratio * q_init[i]
-                cmd.dq = 0.0
-                cmd.tau = 0.0
+                cmd.q = (1.0 - ratio) * self.q_start[i] + ratio * q_init[i]
+                # cmd.dq = 0.0
+                # cmd.tau = 0.0
                 cmd.kp = Kp[i]
-                cmd.kd = Kd[i]
+                # cmd.kd = Kd[i]
         else:
             #####################
             # Control code here #
@@ -140,10 +129,14 @@ class MoveExample(Node):
         # self.get_logger().info("Published low_cmd")
 
     def low_state_handler(self, msg: LowState):
-        # self.get_logger().info(str(self.motors_on))
+        # self.get_logger().info("Readed Low_state")
         self.imu = msg.imu_state
         for i in range(GO2_NUM_MOTOR):
             self.motor[i] = msg.motor_state[i]
+
+        if self.q_start is None:
+            self.q_start = [self.motor[i].q for i in range(GO2_NUM_MOTOR)]
+            self.get_logger().info(f"Initialized q_start")
 
         ## Handle Controller Message
         self.controller_msg = msg.wireless_remote
