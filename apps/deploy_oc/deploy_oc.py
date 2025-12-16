@@ -20,25 +20,24 @@ from huro_py.crc_go import Crc
 
 GO2_NUM_MOTOR = 12
 
-Kp = np.ones(GO2_NUM_MOTOR) * 750
+Kp = np.ones(GO2_NUM_MOTOR) * 30.
 
-Kd =  np.ones(GO2_NUM_MOTOR) * 10
+Kd =  np.ones(GO2_NUM_MOTOR) * 0.5
 
 q_init = [
-    0.005,
-    0.72,
+    0.,
+    0.8,
     -1.4,
-    -0.005,
-    0.72,
+    -0.,
+    0.8,
     -1.4,
-    -0.005,
-    0.72,
+    -0.,
+    0.8,
     -1.4,
-    0.005,
-    0.72,
+    0.,
+    0.8,
     -1.4,
 ]
-
 
 class MoveExample(Node):
     def __init__(self):
@@ -47,7 +46,7 @@ class MoveExample(Node):
         self.control_dt = 0.01  # 10ms
         self.timer_dt_ms = int(self.control_dt * 1000)
         self.time = 0.0
-        self.init_duration_s = 5.0
+        self.init_duration_s = 2.0
         self.q_start = None
 
         self.motors_on = 1
@@ -101,7 +100,7 @@ class MoveExample(Node):
                 cmd.q = (1.0 - ratio) * self.q_start[i] + ratio * q_init[i]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.kp = Kp[i]
+                cmd.kp = Kp[i]*10
                 cmd.kd = Kd[i]
         else:
             
@@ -110,7 +109,7 @@ class MoveExample(Node):
                 cmd.mode = self.motors_on
                 cmd.q = self.joint_commands.position[i]
                 cmd.dq = self.joint_commands.velocity[i]
-                cmd.tau = 0.0
+                cmd.tau = self.joint_commands.effort[i]
                 cmd.kp = Kp[i]
                 cmd.kd = Kd[i]
 
