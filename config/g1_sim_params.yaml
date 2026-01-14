@@ -37,5 +37,5 @@ sim_g1:
      - 0.15
      - 0.0
      - 0.0     # arm
-    sim_dt_ms: 1
+    sim_dt_ms: 5
     n_motors: 29

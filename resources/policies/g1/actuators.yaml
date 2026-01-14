@@ -1,35 +1,3 @@
-num_motors: 29
-
-joint_names:
-  - left_hip_pitch_joint
-  - left_hip_roll_joint
-  - left_hip_yaw_joint
-  - left_knee_joint
-  - left_ankle_pitch_joint
-  - left_ankle_roll_joint
-  - right_hip_pitch_joint
-  - right_hip_roll_joint
-  - right_hip_yaw_joint
-  - right_knee_joint
-  - right_ankle_pitch_joint
-  - right_ankle_roll_joint
-  - waist_yaw_joint
-  - waist_roll_joint
-  - waist_pitch_joint
-  - left_shoulder_pitch_joint
-  - left_shoulder_roll_joint
-  - left_shoulder_yaw_joint
-  - left_elbow_joint
-  - left_wrist_roll_joint
-  - left_wrist_pitch_joint
-  - left_wrist_yaw_joint
-  - right_shoulder_pitch_joint
-  - right_shoulder_roll_joint
-  - right_shoulder_yaw_joint
-  - right_elbow_joint
-  - right_wrist_roll_joint
-  - right_wrist_pitch_joint
-  - right_wrist_yaw_joint
 
 left_hip_pitch_joint:
   index: 0
@@ -78,7 +46,7 @@ left_ankle_roll_joint:
   damping: 1.814445686584846
   effort_limit: 50.0
   action_scale: 0.43857731392336724
-
+  
 right_hip_pitch_joint:
   index: 6
   default_position: -0.3120
@@ -86,7 +54,7 @@ right_hip_pitch_joint:
   damping: 2.557889775413375
   effort_limit: 88.0
   action_scale: 0.5475464629911068
-
+  
 right_hip_roll_joint:
   index: 7
   default_position: 0.0000
@@ -94,7 +62,7 @@ right_hip_roll_joint:
   damping: 6.308801853496639
   effort_limit: 139.0
   action_scale: 0.35066146637882434
-
+  
 right_hip_yaw_joint:
   index: 8
   default_position: 0.0000
@@ -110,7 +78,6 @@ right_knee_joint:
   damping: 6.308801853496639
   effort_limit: 139.0
   action_scale: 0.35066146637882434
-
 
 right_ankle_pitch_joint:
   index: 10

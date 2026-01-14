@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -yy \
     libhidapi-dev \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install pyspacemouse torch pyyaml
+RUN pip install pyspacemouse torch pyyaml onnxruntime
 
 # MuJoCo
 RUN git clone https://github.com/deepmind/mujoco.git && \
