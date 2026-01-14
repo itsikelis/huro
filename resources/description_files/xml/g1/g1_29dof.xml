@@ -273,35 +273,35 @@
   </contact>
 
   <actuator>
-    <general name="left_shoulder_pitch_joint" joint="left_shoulder_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="left_shoulder_roll_joint" joint="left_shoulder_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="left_shoulder_yaw_joint" joint="left_shoulder_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="left_elbow_joint" joint="left_elbow_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="left_wrist_roll_joint" joint="left_wrist_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="right_shoulder_pitch_joint" joint="right_shoulder_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="right_shoulder_roll_joint" joint="right_shoulder_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="right_shoulder_yaw_joint" joint="right_shoulder_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="right_elbow_joint" joint="right_elbow_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="right_wrist_roll_joint" joint="right_wrist_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-25 25" biastype="affine" gainprm="14.2506" biasprm="0 -14.2506 -0.907223"/>
-    <general name="left_hip_pitch_joint" joint="left_hip_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-88 88" biastype="affine" gainprm="40.1792" biasprm="0 -40.1792 -2.55789"/>
-    <general name="left_hip_yaw_joint" joint="left_hip_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-88 88" biastype="affine" gainprm="40.1792" biasprm="0 -40.1792 -2.55789"/>
-    <general name="right_hip_pitch_joint" joint="right_hip_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-88 88" biastype="affine" gainprm="40.1792" biasprm="0 -40.1792 -2.55789"/>
-    <general name="right_hip_yaw_joint" joint="right_hip_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-88 88" biastype="affine" gainprm="40.1792" biasprm="0 -40.1792 -2.55789"/>
-    <general name="waist_yaw_joint" joint="waist_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-88 88" biastype="affine" gainprm="40.1792" biasprm="0 -40.1792 -2.55789"/>
-    <general name="left_hip_roll_joint" joint="left_hip_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-139 139" biastype="affine" gainprm="99.0984" biasprm="0 -99.0984 -6.3088"/>
-    <general name="left_knee_joint" joint="left_knee_joint" ctrllimited="false" forcelimited="true" forcerange="-139 139" biastype="affine" gainprm="99.0984" biasprm="0 -99.0984 -6.3088"/>
-    <general name="right_hip_roll_joint" joint="right_hip_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-139 139" biastype="affine" gainprm="99.0984" biasprm="0 -99.0984 -6.3088"/>
-    <general name="right_knee_joint" joint="right_knee_joint" ctrllimited="false" forcelimited="true" forcerange="-139 139" biastype="affine" gainprm="99.0984" biasprm="0 -99.0984 -6.3088"/>
-    <general name="left_wrist_pitch_joint" joint="left_wrist_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="16.7783" biasprm="0 -16.7783 -1.06814"/>
-    <general name="left_wrist_yaw_joint" joint="left_wrist_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="16.7783" biasprm="0 -16.7783 -1.06814"/>
-    <general name="right_wrist_pitch_joint" joint="right_wrist_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="16.7783" biasprm="0 -16.7783 -1.06814"/>
-    <general name="right_wrist_yaw_joint" joint="right_wrist_yaw_joint" ctrllimited="false" forcelimited="true" forcerange="-5 5" biastype="affine" gainprm="16.7783" biasprm="0 -16.7783 -1.06814"/>
-    <general name="waist_roll_joint" joint="waist_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
-    <general name="waist_pitch_joint" joint="waist_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
-    <general name="left_ankle_pitch_joint" joint="left_ankle_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
-    <general name="left_ankle_roll_joint" joint="left_ankle_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
-    <general name="right_ankle_pitch_joint" joint="right_ankle_pitch_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
-    <general name="right_ankle_roll_joint" joint="right_ankle_roll_joint" ctrllimited="false" forcelimited="true" forcerange="-50 50" biastype="affine" gainprm="28.5012" biasprm="0 -28.5012 -1.81445"/>
+    <motor name="left_hip_pitch" joint="left_hip_pitch_joint" ctrlrange="-88 88" />
+    <motor name="left_hip_roll" joint="left_hip_roll_joint" ctrlrange="-88 88" />
+    <motor name="left_hip_yaw" joint="left_hip_yaw_joint" ctrlrange="-88 88" />
+    <motor name="left_knee" joint="left_knee_joint" ctrlrange="-139 139" />
+    <motor name="left_ankle_pitch" joint="left_ankle_pitch_joint" ctrlrange="-50 50" />
+    <motor name="left_ankle_roll" joint="left_ankle_roll_joint" ctrlrange="-50 50" />
+    <motor name="right_hip_pitch" joint="right_hip_pitch_joint" ctrlrange="-88 88" />
+    <motor name="right_hip_roll" joint="right_hip_roll_joint" ctrlrange="-88 88" />
+    <motor name="right_hip_yaw" joint="right_hip_yaw_joint" ctrlrange="-88 88" />
+    <motor name="right_knee" joint="right_knee_joint" ctrlrange="-139 139" />
+    <motor name="right_ankle_pitch" joint="right_ankle_pitch_joint" ctrlrange="-50 50" />
+    <motor name="right_ankle_roll" joint="right_ankle_roll_joint" ctrlrange="-50 50" />
+    <motor name="waist_yaw" joint="waist_yaw_joint" ctrlrange="-88 88" />
+    <motor name="waist_roll" joint="waist_roll_joint" ctrlrange="-50 50" />
+    <motor name="waist_pitch" joint="waist_pitch_joint" ctrlrange="-50 50" />
+    <motor name="left_shoulder_pitch" joint="left_shoulder_pitch_joint" ctrlrange="-25 25" />
+    <motor name="left_shoulder_roll" joint="left_shoulder_roll_joint" ctrlrange="-25 25" />
+    <motor name="left_shoulder_yaw" joint="left_shoulder_yaw_joint" ctrlrange="-25 25" />
+    <motor name="left_elbow" joint="left_elbow_joint" ctrlrange="-25 25" />
+    <motor name="left_wrist_roll" joint="left_wrist_roll_joint" ctrlrange="-25 25" />
+    <motor name="left_wrist_pitch" joint="left_wrist_pitch_joint" ctrlrange="-5 5" />
+    <motor name="left_wrist_yaw" joint="left_wrist_yaw_joint" ctrlrange="-5 5" />
+    <motor name="right_shoulder_pitch" joint="right_shoulder_pitch_joint" ctrlrange="-25 25" />
+    <motor name="right_shoulder_roll" joint="right_shoulder_roll_joint" ctrlrange="-25 25" />
+    <motor name="right_shoulder_yaw" joint="right_shoulder_yaw_joint" ctrlrange="-25 25" />
+    <motor name="right_elbow" joint="right_elbow_joint" ctrlrange="-25 25" />
+    <motor name="right_wrist_roll" joint="right_wrist_roll_joint" ctrlrange="-25 25" />
+    <motor name="right_wrist_pitch" joint="right_wrist_pitch_joint" ctrlrange="-5 5" />
+    <motor name="right_wrist_yaw" joint="right_wrist_yaw_joint" ctrlrange="-5 5" />
   </actuator>
 
   <sensor>

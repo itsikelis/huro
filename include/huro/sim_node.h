@@ -78,7 +78,6 @@ protected:
         RCLCPP_INFO_STREAM(this->get_logger(), "Awaiting command");
         loop_count_ = 0;
       }
-      return;
     } else {
       time_s_ += static_cast<double>(sim_dt_ms_) / 1000.0;
 
@@ -96,21 +95,22 @@ protected:
 
         mj_data_->ctrl[i] = motor_mode * (kp * q_e + kd * qdot_e + tau_ff);
         // mj_data_->ctrl[i] = 0.0;
+        // RCLCPP_INFO(this->get_logger(), "u[%ld]: %f",i , mj_data_->ctrl[i]);
       }
 
       // Step the simulation
       mj_step(mj_model_, mj_data_);
-
-      // Publish the new state
-      // OdomMsg: world frame base position and linear velocity
-      // LowStateMsg: bodyframe base orientation and angular velocity and joint
-      // state
-      OdometryMsg odom_msg = GenerateOdometryMsg();
-      LowStateMsg lowstate_msg = GenerateLowStateMsg();
-
-      odom_pub_->publish(odom_msg);
-      lowstate_pub_->publish(lowstate_msg);
     }
+
+    // Publish the new state
+    // OdomMsg: world frame base position and linear velocity
+    // LowStateMsg: bodyframe base orientation and angular velocity and joint
+    // state
+    OdometryMsg odom_msg = GenerateOdometryMsg();
+    LowStateMsg lowstate_msg = GenerateLowStateMsg();
+
+    odom_pub_->publish(odom_msg);
+    lowstate_pub_->publish(lowstate_msg);
   }
 
   void LowCmdHandler(std::shared_ptr<LowCmdMsg> message) {

@@ -78,11 +78,9 @@ class MoveExample(Node):
         self.imu = IMUState()
         self.motor = [MotorState() for _ in range(GO2_NUM_MOTOR)]
 
-        self.topic_name = (
-            "lowstate" if self.get_parameter_or("HIGH_FREQ", False) else "lf/lowstate"
-        )
-
         self.lowcmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
+
+        self.topic_name = "/lowstate"
         self.lowstate_sub = self.create_subscription(
             LowState, self.topic_name, self.low_state_handler, 10
         )
