@@ -25,6 +25,8 @@ from tf2_ros import TransformBroadcaster
 import subprocess
 import time
 
+from std_msgs.msg import Bool
+
 # Custom PRorAB enum or constant
 # from hucebot_g1_ros.msg import MotorMode  # Assuming PRorAB is defined here
 
@@ -160,6 +162,16 @@ class G1OpenSotExample(Node):
         self.topic_name = "/lowstate"
         self.lowstate_sub = self.create_subscription(
             LowState, self.topic_name, self.low_state_handler, 10
+        )
+
+        ###### SUBSSCRIBERS
+
+        self.start_opensot_sub = self.create_subscription(
+            Bool, "/start_opensot", self.start_opensot_callback, 10
+        )
+
+        self.emergency_stop_sub = self.create_subscription(
+            Bool, "/emergency_stop", self.emergency_stop_callback, 10
         )
 
         # For bag playback
@@ -349,6 +361,17 @@ class G1OpenSotExample(Node):
         self.start_opensot = False
 
         #######################
+
+    def start_opensot_callback(self, msg: Bool):
+        if msg.data:
+            self.start_opensot = True
+        else:
+            self.start_opensot = False
+            # restart q_init
+
+    def emergency_stop_callback(self, msg: Bool):
+        if msg.data:
+            self.motors_on = 0
 
     def initialize_force_publishers(self, contact_frames):
         for contact_frame in contact_frames:

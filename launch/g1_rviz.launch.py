@@ -8,7 +8,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 urdf = "g1/g1_29dof.urdf"
-rviz_config = "g1_29dof.rviz"
+rviz_config = "g1_teleop.rviz"
 
 
 def generate_launch_description():
@@ -35,7 +35,7 @@ def generate_launch_description():
     ## RViz ##
     # Find rviz path
     rviz_file_path = os.path.join(
-        get_package_share_directory("huro") + "/resources/rviz/",
+        '/huro_ws/src/huro/config/',
         rviz_config,
     )
     # Create rviz node

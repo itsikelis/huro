@@ -1,0 +1,1 @@
+# https://github.com/ADVRHumanoids/OpenSoT/blob/ros2/bindings/python/examples/tiago_dual_collision_avoidance.py

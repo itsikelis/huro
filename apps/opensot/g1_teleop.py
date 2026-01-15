@@ -26,6 +26,8 @@ import tf_transformations
 import subprocess
 import time
 
+from std_msgs.msg import Bool
+
 # Custom PRorAB enum or constant
 # from hucebot_g1_ros.msg import MotorMode  # Assuming PRorAB is defined here
 
@@ -98,13 +100,46 @@ Kd = [
     1.0,  # arms
 ]
 
-q_init = [0.0 for _ in range(G1_NUM_MOTOR)]
-q_init[0] = -0.6
-q_init[3] = 1.2
-q_init[4] = -0.6
-q_init[6] = -0.6
-q_init[9] = 1.2
-q_init[10] = -0.6
+# q_init = [0.0 for _ in range(G1_NUM_MOTOR)]
+# q_init[0] = -0.6
+# q_init[3] = 1.2
+# q_init[4] = -0.6
+# q_init[6] = -0.6
+# q_init[9] = 1.2
+# q_init[10] = -0.6
+
+q_init = [
+    -0.1,
+    0.0,
+    0.0,  # hips
+    0.432,  # knee
+    -0.317,
+    0.0,  # ankles
+    -0.1,
+    0.0,
+    0.0,  # hips
+    0.432,  # knee
+    -0.317,
+    0.0,  # ankles
+    0.0,
+    0.0,
+    0.0,  # waist
+    0.3,
+    0.25,
+    0.0,
+    1.0,
+    0.15,
+    0.0,
+    0.0,  # arm
+    0.3,
+    -0.25,
+    0.0,
+    1.0,
+    0.15,
+    0.0,
+    0.0,
+]  # arm
+
 
 
 # q_init = [-3.42817396e-01, 2.31913421e-02,  9.70253372e-04, #hips
@@ -167,6 +202,17 @@ class MoveExample(Node):
         self.teleop_sub = self.create_subscription(
             PoseStamped, "right_hand_goal", self.teleop_callback, 10
         )
+
+         ###### SUBSSCRIBERS
+
+        self.start_opensot_sub = self.create_subscription(
+            Bool, "/start_opensot", self.start_opensot_callback, 10
+        )
+
+        self.emergency_stop_sub = self.create_subscription(
+            Bool, "/emergency_stop", self.emergency_stop_callback, 10
+        )
+
         self.right_hand_pose_ref = None
 
         # For bag playback
@@ -366,6 +412,17 @@ class MoveExample(Node):
         self.start_opensot = False
 
         #######################
+
+    def start_opensot_callback(self, msg: Bool):
+        if msg.data:
+            self.start_opensot = True
+        else:
+            self.start_opensot = False
+            # restart q_init
+
+    def emergency_stop_callback(self, msg: Bool):
+        if msg.data:
+            self.motors_on = 0
 
     def initialize_force_publishers(self, contact_frames):
         for contact_frame in contact_frames:
