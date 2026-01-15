@@ -2,7 +2,7 @@
 
 import os
 import numpy as np
-import torch
+import onnxruntime as ort
 
 import rclpy
 from rclpy.node import Node
@@ -16,7 +16,6 @@ from unitree_go.msg import SportModeState
 from unitree_hg.msg import LowCmd, LowState, IMUState, MotorState
 
 from huro_py.crc_hg import Crc
-from huro_py.utils import quat_rotate_inverse
 
 G1_NUM_MOTOR = 29
 
@@ -52,6 +51,109 @@ JOINT_NAMES = [
     "right_wrist_yaw_joint",
 ]
 
+Kp = [
+    1000.0,  # hips
+    400.0,
+    400.0,
+    500.0,  # knee
+    800.0,
+    800.0,  # legs
+    1000.0,  # hips
+    400.0,
+    400.0,
+    500.0,  # knee
+    800.0,
+    800.0,  # legs
+    800.0,
+    800.0,
+    800.0,  # waist
+    100.0,
+    100.0,
+    50.0,
+    50.0,
+    20.0,
+    20.0,
+    20.0,  # arms
+    100.0,
+    100.0,
+    50.0,
+    50.0,
+    20.0,
+    20.0,
+    20.0,  # arms
+]
+
+Kd = [
+    4.0,
+    4.0,
+    4.0,
+    6.0,
+    6.0,
+    4.0,  # legs
+    4.0,
+    4.0,
+    4.0,
+    6.0,
+    6.0,
+    4.0,  # legs
+    3.0,
+    3.0,
+    3.0,  # waist
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    1.0,
+    1.0,
+    1.0,  # arms
+    2.0,
+    2.0,
+    2.0,
+    2.0,
+    1.0,
+    1.0,
+    1.0,  # arms
+]
+
+q_start = [
+    -0.1,
+    0.0,
+    0.0,  # hips
+    0.432,  # knee
+    -0.317,
+    0.0,  # ankles
+    -0.1,
+    0.0,
+    0.0,  # hips
+    0.432,  # knee
+    -0.317,
+    0.0,  # ankles
+    0.0,
+    0.0,
+    0.0,  # waist
+    0.3,
+    0.25,
+    0.0,
+    1.0,
+    0.15,
+    0.0,
+    0.0,  # arm
+    0.3,
+    -0.25,
+    0.0,
+    1.0,
+    0.15,
+    0.0,
+    0.0,  # arm
+]
+
+
+def quat_rotate_inverse(q, v):
+    q_w, q_x, q_y, q_z = q[0], q[1], q[2], q[3]
+    q_conj = np.array([q_w, -q_x, -q_y, -q_z])
+    t = 2.0 * np.cross(q_conj[1:], v)  # ✅ Correct: q_conj[1:] = [x, y, z]
+    return v + q_conj[0] * t + np.cross(q_conj[1:], t)  # ✅ Complete formula
+
 
 class Mode:
     PR = 0  # Series Control for Pitch/Roll Joints
@@ -76,27 +178,17 @@ class G1PolicyRunner(Node):
 
         share = get_package_share_directory("huro")
         # Load yaml config
-        yaml_name = "g1_actuators.yaml"
-        yaml_path = os.path.join(share, "resources", "models", "g1", yaml_name)
+        yaml_name = "actuators.yaml"
+        yaml_path = os.path.join(share, "resources", "policies", "g1", yaml_name)
         with open(yaml_path, "r") as file:
             self.cfg = yaml.safe_load(file)
 
         # Load policy model params
-        obs_norm_name = "g1_actor_obs_normalizer.pt"
-        policy_name = "g1_actor.pt"
-
-        policy_path = os.path.join(share, "resources", "models", "g1", policy_name)
-        obs_norm_path = os.path.join(share, "resources", "models", "g1", obs_norm_name)
-        self.device = torch.device("cpu")
-        for path in [policy_path, obs_norm_path]:
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"File not found at: {path}")
-
-        self.obs_norm = torch.jit.load(obs_norm_path, map_location=self.device)
-        self.obs_norm.eval()
-        self.policy = torch.jit.load(policy_path, map_location=self.device)
-        self.policy.eval()
-
+        policy_name = "model.onnx"
+        policy_path = os.path.join(share, "resources", "policies", "g1", policy_name)
+        if not os.path.exists(policy_path):
+            raise FileNotFoundError(f"File not found at: {policy_path}")
+        self._load_onnx_model(policy_path)
         self.get_logger().info("Policy loaded successfully")
 
         self.odom_state = SportModeState()
@@ -104,6 +196,8 @@ class G1PolicyRunner(Node):
         self.motor = [MotorState() for _ in range(len(JOINT_NAMES))]
         self.joystick = Joy()
         self.prev_actions = np.zeros(len(JOINT_NAMES))
+
+        self.actions = np.zeros(G1_NUM_MOTOR)
 
         # Publishers
         self.lowcmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
@@ -126,54 +220,70 @@ class G1PolicyRunner(Node):
         low_cmd.mode_pr = self.mode_
         low_cmd.mode_machine = self.mode_machine
 
-        if self.time < self.init_duration_s or not self.run_policy:
+        if not self.run_policy:
             for name in JOINT_NAMES:
                 idx = self.cfg[name]["index"]
-                q_init = self.cfg[name]["default_position"]
-                ratio = self.clamp(self.time / self.init_duration_s, 0.0, 1.0)
                 cmd = low_cmd.motor_cmd[idx]
                 cmd.mode = self.motors_on
-                cmd.q = (1.0 - ratio) * self.motor[idx].q + ratio * q_init
+                cmd.q = q_start[idx]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.kp = self.cfg[name]["stiffness"]
-                cmd.kd = self.cfg[name]["damping"]
+                cmd.kp = Kp[idx]
+                cmd.kd = Kd[idx]
         else:  # If A (or cross) is pressed, run policy
-            # Get observations
-            obs = self.get_obs()
-            # Infer policy
-            with torch.no_grad():
-                obs = self.get_obs()
-                obs = self.obs_norm(obs)
-                actions = self.policy(obs)
-            actions = actions.squeeze(0).cpu().numpy()
-            self.prev_actions = actions.copy()
-            # Command robot
+            ## Get observations
+            o = self._get_obs()
+            ## Get action
+            a = self._get_raw_action(o)
+            ## Command robot
             for name in JOINT_NAMES:
                 idx = self.cfg[name]["index"]
                 q_init = self.cfg[name]["default_position"]
                 action_scale = self.cfg[name]["action_scale"]
                 cmd = low_cmd.motor_cmd[idx]
                 cmd.mode = self.motors_on
-                cmd.q = q_init + action_scale * actions[idx]
+                cmd.q = float(action_scale * a[idx] + q_init)
                 cmd.dq = 0.0
                 cmd.tau = 0.0
                 cmd.kp = self.cfg[name]["stiffness"]
                 cmd.kd = self.cfg[name]["damping"]
 
+            self.actions = a.copy()
+
         low_cmd.crc = Crc(low_cmd)
         self.lowcmd_pub.publish(low_cmd)
 
-    def get_obs(self):
-        # Base linear velocity [3]
-        # Base angular velocity [3]
-        # Proj grav [4]
-        # Joint pos [29]
-        # Joint vel [29]
-        # Actions [29]
-        # Command [3]
+    def _get_obs(self):
+        # +------------------------------------------------------------+
+        # | Active Observation Terms in Group: 'policy' (shape: (99,)) |
+        # +-----------+----------------------------------+-------------+
+        # |   Index   | Name                             |    Shape    |
+        # +-----------+----------------------------------+-------------+
+        # |     0     | base_lin_vel                     |     (3,)    |
+        # |     1     | base_ang_vel                     |     (3,)    |
+        # |     2     | projected_gravity                |     (3,)    |
+        # |     3     | joint_pos                        |    (29,)    |  (RELATIVE to default_joint_pos!)
+        # |     4     | joint_vel                        |    (29,)    |  (RELATIVE to default_joint_vel!)
+        # |     5     | actions                          |    (29,)    |
+        # |     6     | command                          |     (3,)    |
+        # +-----------+----------------------------------+-------------+
 
-        # proj_j = self.projected_gravity()
+        base_lin_vel = np.array(
+            [
+                self.odom_state.velocity[0],
+                self.odom_state.velocity[1],
+                self.odom_state.velocity[2],
+            ]
+        )
+
+        base_ang_vel = np.array(
+            [
+                self.imu.gyroscope[0],
+                self.imu.gyroscope[1],
+                self.imu.gyroscope[2],
+            ]
+        )
+
         quat = np.array(
             [
                 self.imu.quaternion[0],  # w
@@ -183,31 +293,33 @@ class G1PolicyRunner(Node):
             ]
         )
         gravity_world = np.array([0.0, 0.0, -1.0])
-        proj_g = quat_rotate_inverse(quat, gravity_world)
+        projected_gravity = quat_rotate_inverse(quat, gravity_world)
 
-        q = np.zeros(len(JOINT_NAMES))
-        dq = np.zeros(len(JOINT_NAMES))
+        joint_pos_rel = np.zeros(G1_NUM_MOTOR)
+        joint_vel_rel = np.zeros(G1_NUM_MOTOR)
+        dq = np.zeros(G1_NUM_MOTOR)
         for name in JOINT_NAMES:
             idx = self.cfg[name]["index"]
-            q[idx] = self.motor[idx].q
-            dq[idx] = self.motor[idx].dq
+            q_init = self.cfg[name]["default_position"]
+            joint_pos_rel[idx] = self.motor[idx].q - q_init
+            joint_vel_rel[idx] = self.motor[idx].dq - 0.0
 
-        command = np.array([0.0, 0.0, 0.0])
+        command = np.array(
+            [self.joystick.axes[3], self.joystick.axes[2], self.joystick.axes[0] * 0.5]
+        )
 
-        obs = torch.cat(
+        return np.concatenate(
             [
-                torch.tensor(self.odom_state.velocity, dtype=torch.float),
-                torch.tensor(self.imu.gyroscope, dtype=torch.float),
-                torch.tensor(proj_g, dtype=torch.float),
-                torch.tensor(q, dtype=torch.float),
-                torch.tensor(dq, dtype=torch.float),
-                torch.tensor(self.prev_actions, dtype=torch.float),
-                torch.tensor(command, dtype=torch.float),
+                base_lin_vel,
+                base_ang_vel,
+                projected_gravity,
+                joint_pos_rel,
+                joint_vel_rel,
+                self.actions,
+                command,
             ],
             axis=0,
         )
-
-        return obs
 
     def low_state_handler(self, msg: LowState):
         self.mode_machine = msg.mode_machine
@@ -221,8 +333,10 @@ class G1PolicyRunner(Node):
 
     def joy_handler(self, msg: Joy):
         self.joystick = msg
-        if msg.buttons[0] == 1:
+        if msg.buttons[1] == 1:
             self.run_policy = True
+        if msg.buttons[0] == 1:
+            self.motors_on = 0
 
     def clamp(self, value, low, high):
         if value < low:
@@ -230,6 +344,28 @@ class G1PolicyRunner(Node):
         if value > high:
             return high
         return value
+
+    def _load_onnx_model(self, model_path) -> None:
+        # Choose execution providers (CPU by default)
+        sess_options = ort.SessionOptions()
+        self._ort_sess = ort.InferenceSession(
+            model_path, sess_options=sess_options, providers=["CPUExecutionProvider"]
+        )
+        # Check runtime I/O
+        i = self._ort_sess.get_inputs()[0]
+        assert i.name == "obs"
+        self._obs_dim = i.shape[1]
+        o = self._ort_sess.get_outputs()[0]
+        assert o.shape[1] == G1_NUM_MOTOR
+
+    def _get_raw_action(self, obs: np.ndarray) -> np.ndarray:
+        obs = obs.astype(np.float32, copy=False)
+        inputs = {"obs": obs.reshape(1, -1)}
+        # start = time.monotonic()
+        outputs = self._ort_sess.run(None, inputs)
+        # elapsed = time.monotonic() - start
+        # print(f"Inference time: {elapsed * 1000:.2f} ms")
+        return outputs[0][0]
 
 
 def main(args=None):

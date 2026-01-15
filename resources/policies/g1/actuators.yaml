@@ -1,0 +1,232 @@
+
+left_hip_pitch_joint:
+  index: 0
+  default_position: -0.3120
+  stiffness: 40.17923863450712
+  damping: 2.557889775413375
+  effort_limit: 88.0
+  action_scale: 0.5475464629911068
+
+left_hip_roll_joint:
+  index: 1
+  default_position: 0.0000
+  stiffness: 99.09842777666111
+  damping: 6.308801853496639
+  effort_limit: 139.0
+  action_scale: 0.35066146637882434
+
+left_hip_yaw_joint:
+  index: 2
+  default_position: 0.0000
+  stiffness: 40.17923863450712
+  damping: 2.557889775413375
+  effort_limit: 88.0
+  action_scale: 0.5475464629911068
+
+left_knee_joint:
+  index: 3
+  default_position: 0.6690
+  stiffness: 99.09842777666111
+  damping: 6.308801853496639
+  effort_limit: 139.0
+  action_scale: 0.35066146637882434
+
+left_ankle_pitch_joint:
+  index: 4
+  default_position: -0.3630
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+
+left_ankle_roll_joint:
+  index: 5
+  default_position: 0.0000
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+  
+right_hip_pitch_joint:
+  index: 6
+  default_position: -0.3120
+  stiffness: 40.17923863450712
+  damping: 2.557889775413375
+  effort_limit: 88.0
+  action_scale: 0.5475464629911068
+  
+right_hip_roll_joint:
+  index: 7
+  default_position: 0.0000
+  stiffness: 99.09842777666111
+  damping: 6.308801853496639
+  effort_limit: 139.0
+  action_scale: 0.35066146637882434
+  
+right_hip_yaw_joint:
+  index: 8
+  default_position: 0.0000
+  stiffness: 40.17923863450712
+  damping: 2.557889775413375
+  effort_limit: 88.0
+  action_scale: 0.5475464629911068
+
+right_knee_joint:
+  index: 9
+  default_position: 0.6690
+  stiffness: 99.09842777666111
+  damping: 6.308801853496639
+  effort_limit: 139.0
+  action_scale: 0.35066146637882434
+
+right_ankle_pitch_joint:
+  index: 10
+  default_position: -0.3630
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+
+right_ankle_roll_joint:
+  index: 11
+  default_position: 0.0000
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+
+waist_yaw_joint:
+  index: 12
+  default_position: 0.0000
+  stiffness: 40.17923863450712
+  damping: 2.557889775413375
+  effort_limit: 88.0
+  action_scale: 0.5475464629911068
+
+waist_roll_joint:
+  index: 13
+  default_position: 0.0000
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+
+waist_pitch_joint:
+  index: 14
+  default_position: 0.0000
+  stiffness: 28.50124619574858
+  damping: 1.814445686584846
+  effort_limit: 50.0
+  action_scale: 0.43857731392336724
+
+left_shoulder_pitch_joint:
+  index: 15
+  default_position: 0.2000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+left_shoulder_roll_joint:
+  index: 16
+  default_position: 0.2000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+left_shoulder_yaw_joint:
+  index: 17
+  default_position: 0.0000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+left_elbow_joint:
+  index: 18
+  default_position: 0.6000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+left_wrist_roll_joint:
+  index: 19
+  default_position: 0.0000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+left_wrist_pitch_joint:
+  index: 20
+  default_position: 0.0000
+  stiffness: 16.77832748089279
+  damping: 1.06814150219
+  effort_limit: 5.0
+  action_scale: 0.07450087032950714
+
+left_wrist_yaw_joint:
+  index: 21
+  default_position: 0.0000
+  stiffness: 16.77832748089279
+  damping: 1.06814150219
+  effort_limit: 5.0
+  action_scale: 0.07450087032950714
+
+right_shoulder_pitch_joint:
+  index: 22
+  default_position: 0.2000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+right_shoulder_roll_joint:
+  index: 23
+  default_position: -0.2000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+right_shoulder_yaw_joint:
+  index: 24
+  default_position: 0.0000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+right_elbow_joint:
+  index: 25
+  default_position: 0.6000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+right_wrist_roll_joint:
+  index: 26
+  default_position: 0.0000
+  stiffness: 14.25062309787429
+  damping: 0.907222843292423
+  effort_limit: 25.0
+  action_scale: 0.43857731392336724
+
+right_wrist_pitch_joint:
+  index: 27
+  default_position: 0.0000
+  stiffness: 16.77832748089279
+  damping: 1.06814150219
+  effort_limit: 5.0
+  action_scale: 0.07450087032950714
+
+right_wrist_yaw_joint:
+  index: 28
+  default_position: 0.0000
+  stiffness: 16.77832748089279
+  damping: 1.06814150219
+  effort_limit: 5.0
+  action_scale: 0.07450087032950714

@@ -134,14 +134,6 @@ install(
   PROGRAMS apps/deploy_rl/g1.py
   DESTINATION lib/${PROJECT_NAME}
 )
-install(
-  PROGRAMS apps/rl_tasks/locomotion/go2/go2_publisher.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-install(
-  PROGRAMS apps/rl_tasks/locomotion/g1/g1_publisher.py
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 # OpenSoT Examples
 install(

@@ -49,6 +49,9 @@ def generate_launch_description():
         ],
     )
 
+    ## Joy Node ##
+    joy_node = Node(package="joy", executable="joy_node", name="joy_node")
+
     ## HURo Node ##
     core_node = Node(package="huro", executable="root_g1", name="root_g1")
 
@@ -75,5 +78,6 @@ def generate_launch_description():
             core_node,
             state_pub_node,
             rviz_node,
+            joy_node,
         ]
     )
