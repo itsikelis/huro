@@ -14,8 +14,8 @@ source /opt/ros/${ROS_DISTRO}/setup.bash
 source ./install/setup.bash
 
 # For autocompletion to work in terminal
-eval "$(register-python-argcomplete ros2)"
-eval "$(register-python-argcomplete colcon)"
+eval "$(register-python-argcomplete3 ros2)"
+eval "$(register-python-argcomplete3 colcon)"
 
 echo "Setting up DDS"
 export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
