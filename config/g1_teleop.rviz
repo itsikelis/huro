@@ -6,7 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /InteractiveMarkers1
+        - /TF1
       Splitter Ratio: 0.5
     Tree Height: 726
   - Class: rviz_common/Selection
@@ -338,21 +338,214 @@ Visualization Manager:
       Value: true
       Visual Enabled: true
     - Class: rviz_default_plugins/TF
-      Enabled: false
+      Enabled: true
       Filter (blacklist): ""
       Filter (whitelist): ""
       Frame Timeout: 15
       Frames:
         All Enabled: true
-      Marker Scale: 1
+        d435_link:
+          Value: true
+        head_link:
+          Value: true
+        imu_in_pelvis:
+          Value: true
+        imu_in_torso:
+          Value: true
+        left_ankle_pitch_link:
+          Value: true
+        left_ankle_roll_link:
+          Value: true
+        left_elbow_link:
+          Value: true
+        left_foot_line_contact_lower:
+          Value: true
+        left_foot_line_contact_upper:
+          Value: true
+        left_foot_lower_left:
+          Value: true
+        left_foot_lower_right:
+          Value: true
+        left_foot_point_contact:
+          Value: true
+        left_foot_upper_left:
+          Value: true
+        left_foot_upper_right:
+          Value: true
+        left_hand_point_contact:
+          Value: true
+        left_hip_pitch_link:
+          Value: true
+        left_hip_roll_link:
+          Value: true
+        left_hip_yaw_link:
+          Value: true
+        left_knee_link:
+          Value: true
+        left_rubber_hand:
+          Value: true
+        left_shoulder_pitch_link:
+          Value: true
+        left_shoulder_roll_link:
+          Value: true
+        left_shoulder_yaw_link:
+          Value: true
+        left_wrist_pitch_link:
+          Value: true
+        left_wrist_roll_link:
+          Value: true
+        left_wrist_yaw_link:
+          Value: true
+        livox_frame:
+          Value: true
+        logo_link:
+          Value: true
+        mid360_link:
+          Value: true
+        pelvis:
+          Value: true
+        pelvis_contour_link:
+          Value: true
+        right_ankle_pitch_link:
+          Value: true
+        right_ankle_roll_link:
+          Value: true
+        right_elbow_link:
+          Value: true
+        right_foot_line_contact_lower:
+          Value: true
+        right_foot_line_contact_upper:
+          Value: true
+        right_foot_lower_left:
+          Value: true
+        right_foot_lower_right:
+          Value: true
+        right_foot_point_contact:
+          Value: true
+        right_foot_upper_left:
+          Value: true
+        right_foot_upper_right:
+          Value: true
+        right_hand_point_contact:
+          Value: true
+        right_hip_pitch_link:
+          Value: true
+        right_hip_roll_link:
+          Value: true
+        right_hip_yaw_link:
+          Value: true
+        right_knee_link:
+          Value: true
+        right_rubber_hand:
+          Value: true
+        right_shoulder_pitch_link:
+          Value: true
+        right_shoulder_roll_link:
+          Value: true
+        right_shoulder_yaw_link:
+          Value: true
+        right_wrist_pitch_link:
+          Value: true
+        right_wrist_roll_link:
+          Value: true
+        right_wrist_yaw_link:
+          Value: true
+        torso_link:
+          Value: true
+        waist_roll_link:
+          Value: true
+        waist_yaw_link:
+          Value: true
+        world:
+          Value: true
+      Marker Scale: 0.5
       Name: TF
       Show Arrows: true
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        world:
+          pelvis:
+            imu_in_pelvis:
+              {}
+            left_hip_pitch_link:
+              left_hip_roll_link:
+                left_hip_yaw_link:
+                  left_knee_link:
+                    left_ankle_pitch_link:
+                      left_ankle_roll_link:
+                        left_foot_line_contact_lower:
+                          {}
+                        left_foot_line_contact_upper:
+                          {}
+                        left_foot_lower_left:
+                          {}
+                        left_foot_lower_right:
+                          {}
+                        left_foot_point_contact:
+                          {}
+                        left_foot_upper_left:
+                          {}
+                        left_foot_upper_right:
+                          {}
+            pelvis_contour_link:
+              {}
+            right_hip_pitch_link:
+              right_hip_roll_link:
+                right_hip_yaw_link:
+                  right_knee_link:
+                    right_ankle_pitch_link:
+                      right_ankle_roll_link:
+                        right_foot_line_contact_lower:
+                          {}
+                        right_foot_line_contact_upper:
+                          {}
+                        right_foot_lower_left:
+                          {}
+                        right_foot_lower_right:
+                          {}
+                        right_foot_point_contact:
+                          {}
+                        right_foot_upper_left:
+                          {}
+                        right_foot_upper_right:
+                          {}
+            waist_yaw_link:
+              waist_roll_link:
+                torso_link:
+                  d435_link:
+                    {}
+                  head_link:
+                    {}
+                  imu_in_torso:
+                    {}
+                  left_shoulder_pitch_link:
+                    left_shoulder_roll_link:
+                      left_shoulder_yaw_link:
+                        left_elbow_link:
+                          left_wrist_roll_link:
+                            left_wrist_pitch_link:
+                              left_wrist_yaw_link:
+                                left_rubber_hand:
+                                  left_hand_point_contact:
+                                    {}
+                  logo_link:
+                    {}
+                  mid360_link:
+                    livox_frame:
+                      {}
+                  right_shoulder_pitch_link:
+                    right_shoulder_roll_link:
+                      right_shoulder_yaw_link:
+                        right_elbow_link:
+                          right_wrist_roll_link:
+                            right_wrist_pitch_link:
+                              right_wrist_yaw_link:
+                                right_rubber_hand:
+                                  right_hand_point_contact:
+                                    {}
       Update Interval: 0
-      Value: false
+      Value: true
     - Alpha: 1
       Autocompute Intensity Bounds: true
       Autocompute Value Bounds:
@@ -365,7 +558,7 @@ Visualization Manager:
       Color: 255; 255; 255
       Color Transformer: Intensity
       Decay Time: 0.20000000298023224
-      Enabled: true
+      Enabled: false
       Invert Rainbow: false
       Max Color: 255; 255; 255
       Max Intensity: 254
@@ -385,12 +578,12 @@ Visualization Manager:
         Value: /livox/lidar
       Use Fixed Frame: true
       Use rainbow: true
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -404,12 +597,12 @@ Visualization Manager:
         Value: /wrench_left_foot_lower_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -423,12 +616,12 @@ Visualization Manager:
         Value: /wrench_left_foot_lower_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -442,12 +635,12 @@ Visualization Manager:
         Value: /wrench_left_foot_upper_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -461,12 +654,12 @@ Visualization Manager:
         Value: /wrench_left_foot_upper_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -480,7 +673,7 @@ Visualization Manager:
         Value: /wrench_right_foot_lower_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
@@ -504,7 +697,7 @@ Visualization Manager:
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -518,12 +711,12 @@ Visualization Manager:
         Value: /wrench_right_foot_upper_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: true
+      Enabled: false
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -537,11 +730,11 @@ Visualization Manager:
         Value: /wrench_right_foot_upper_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: true
+      Value: false
     - Class: rviz_default_plugins/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
-      Interactive Markers Namespace: /right_hand_goal_marker
+      Interactive Markers Namespace: /teleoperation_marker
       Name: InteractiveMarkers
       Show Axes: false
       Show Descriptions: true
@@ -593,25 +786,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 2.008525848388672
+      Distance: 1.7169651985168457
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.4132075011730194
-        Y: -0.01999220997095108
-        Z: 0.7048013210296631
+        X: 0.35426634550094604
+        Y: -0.011506681330502033
+        Z: 0.8706267476081848
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.280203640460968
+      Pitch: 0.1902037411928177
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.307222843170166
+      Yaw: 0.17903394997119904
     Saved: ~
 Window Geometry:
   Displays:

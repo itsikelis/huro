@@ -291,6 +291,16 @@ class G1CollisionAvoidanceNode(Node):
             'world',
             self.variables.getVariable('qddot'),
         )
+        self.right_hand.setLambda(0.1)
+
+        right_hand_pose_ref = self.right_hand.getReference()[0]
+        # left_hand_pose_ref = self.left_hand.getReference()
+
+        self.create_6dof_marker(
+            name = 'right_hand_marker',
+            pose = right_hand_pose_ref,
+            frame_id = 'pelvis',
+        )
 
         self.left_hand = Cartesian(
             'left_hand_point_contact',
@@ -447,7 +457,7 @@ class G1CollisionAvoidanceNode(Node):
         self.imarker_server.insert(marker = int_marker, feedback_callback = self.marker_feedback)
         self.imarker_server.applyChanges()
 
-    def process_feedback(self, feedback):
+    def marker_feedback(self, feedback):
         self.marker_pose.header = feedback.header
         self.marker_pose.pose = feedback.pose
 
