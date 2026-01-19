@@ -390,7 +390,7 @@ Visualization Manager:
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -404,12 +404,12 @@ Visualization Manager:
         Value: /wrench_left_foot_lower_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -423,12 +423,12 @@ Visualization Manager:
         Value: /wrench_left_foot_lower_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -442,12 +442,12 @@ Visualization Manager:
         Value: /wrench_left_foot_upper_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -461,12 +461,12 @@ Visualization Manager:
         Value: /wrench_left_foot_upper_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -480,7 +480,7 @@ Visualization Manager:
         Value: /wrench_right_foot_lower_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
@@ -504,7 +504,7 @@ Visualization Manager:
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -518,12 +518,12 @@ Visualization Manager:
         Value: /wrench_right_foot_upper_left
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Accept NaN Values: false
       Alpha: 1
       Arrow Width: 0.30000001192092896
       Class: rviz_default_plugins/Wrench
-      Enabled: false
+      Enabled: true
       Force Arrow Scale: 0.009999999776482582
       Force Color: 204; 51; 51
       History Length: 1
@@ -537,7 +537,7 @@ Visualization Manager:
         Value: /wrench_right_foot_upper_right
       Torque Arrow Scale: 2
       Torque Color: 204; 204; 51
-      Value: false
+      Value: true
     - Class: rviz_default_plugins/InteractiveMarkers
       Enable Transparency: true
       Enabled: true
@@ -593,25 +593,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 1.8730841875076294
+      Distance: 2.008525848388672
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.4134673476219177
-        Y: -0.006569709163159132
-        Z: 0.7460351586341858
+        X: 0.4132075011730194
+        Y: -0.01999220997095108
+        Z: 0.7048013210296631
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.26020368933677673
+      Pitch: 0.280203640460968
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 5.0722174644470215
+      Yaw: 5.307222843170166
     Saved: ~
 Window Geometry:
   Displays:
@@ -630,4 +630,4 @@ Window Geometry:
     collapsed: false
   Width: 2560
   X: 0
-  Y: 360
+  Y: 195

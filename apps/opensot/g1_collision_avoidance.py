@@ -263,14 +263,14 @@ class G1CollisionAvoidanceNode(Node):
             self.model,
             self.variables.getVariable('qddot'),
         )
-        idx = [18 + i for i in range(self.model.nv - 18)]
+        # idx = [18 + i for i in range(self.model.nv - 18)]
 
         self.stack = 1.0 * self.com + 0.0001 * self.posture
 
         #####
         force_variables = list()
         for force in range(len(self.contact_frames)):
-            self.stack =+ 5.0 * (contact_task[force] % [0, 1, 2])
+            self.stack = self.stack + 5.0 * (contact_task[force] % [0, 1, 2])
             force_variables.append(self.variables.getVariable(self.contact_frames[force]))
 
         self.torques = Torque(
@@ -280,8 +280,8 @@ class G1CollisionAvoidanceNode(Node):
             force_variables,
         )
 
-        self.stack =+ 1e-8 * MinimizeVariable('min_torque', self.torques)
-        self.stack =+ 1e-3 * MinimizeVariable('min_qddot', self.variables.getVariable('qddot'))
+        self.stack = self.stack + 1e-8 * MinimizeVariable('min_torque', self.torques)
+        self.stack = self.stack + 1e-3 * MinimizeVariable('min_qddot', self.variables.getVariable('qddot'))
 
         #####
         self.right_hand = Cartesian(
@@ -300,7 +300,7 @@ class G1CollisionAvoidanceNode(Node):
             self.variables.getVariable('qddot'),
         )
 
-        self.stack += 0.01 * (self.right_hand + self.left_hand)
+        self.stack = self.stack + 0.01 * (self.right_hand + self.left_hand)
 
         #####
         self.stack = pysot.AutoStack(self.stack) << DynamicFeasibility(
@@ -500,12 +500,12 @@ class G1CollisionAvoidanceNode(Node):
                 ratio = self.clamp(self.time / self.init_duration_s, 0.0, 1.0)
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
-                cmd.q = (1.0 - ratio) * self.motor[i].q + ratio * q_init[i]
-                # cmd.q = q_init[i]
+                # cmd.q = (1.0 - ratio) * self.motor[i].q + ratio * q_init[i]
+                cmd.q = q_init[i]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.Kp = Kp[i]
-                cmd.Kd = Kd[i]
+                cmd.kp = Kp[i]
+                cmd.kd = Kd[i]
 
         elif self.start_opensot:
             self.t =+ self.control_dt
@@ -592,18 +592,18 @@ class G1CollisionAvoidanceNode(Node):
                 cmd.q = self.q[i + 7]
                 cmd.dq = self.dq[i + 6]
                 cmd.tau = tau[i + 6]
-                cmd.Kp = Kp[i]
-                cmd.Kd = Kd[i]
+                cmd.kp = Kp[i]
+                cmd.kd = Kd[i]
 
         else:
             for i in range(G1_NUM_MOTOR):
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
-                cmd.q = self.motor[i].q
+                cmd.q = q_init[i]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.Kp = Kp[i]
-                cmd.Kd = Kd[i]
+                cmd.kp = Kp[i]
+                cmd.kd = Kd[i]
 
         low_cmd.crc = Crc(low_cmd)
         self.lowcmd_pub.publish(low_cmd)
