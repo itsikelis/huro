@@ -78,7 +78,7 @@ class Go2PolicyController(Node):
 
         if policy_name is None:
             if training_type == "asymmetric":
-                policy_name = "policy_asymmetric7.pt"
+                policy_name = "policy_asymmetric9.pt"
             elif training_type == "student":
                 policy_name = "policy_student.pt"
             else:
@@ -105,22 +105,41 @@ class Go2PolicyController(Node):
             share, "resources", "mappings", "go2", mapping_file
         )
 
-        self.default_pos_sdk = np.array(
-            [
-                0.0,
-                0.8,
-                -1.5,  # FR: hip, thigh, calf (actuators 0-2)
-                0.0,
-                0.8,
-                -1.5,  # FL: hip, thigh, calf (actuators 3-5)
-                0.0,
-                0.8,
-                -1.5,  # RR: hip, thigh, calf (actuators 6-8)
-                0.0,
-                0.8,
-                -1.5,  # RL: hip, thigh, calf (actuators 9-11)
-            ]
-        )
+        if not sim:
+            self.default_pos_sdk = np.array(
+                [
+                    -0.1,
+                    0.8,
+                    -1.5,  # FR: hip, thigh, calf (actuators 0-2)
+                    0.1,
+                    0.8,
+                    -1.5,  # FL: hip, thigh, calf (actuators 3-5)
+                    -0.1,
+                    1.0,
+                    -1.5,  # RR: hip, thigh, calf (actuators 6-8)
+                    0.1,
+                    1.0,
+                    -1.5,  # RL: hip, thigh, calf (actuators 9-11)
+                ]
+            )
+        else:
+            self.default_pos_sdk = np.array(
+                [
+                    0.1,
+                    0.8,
+                    -1.5,  # FL: hip, thigh, calf (actuators 0-2)
+                    -0.1,
+                    0.8,
+                    -1.5,  # FR: hip, thigh, calf (actuators 3-5)
+                    0.1,
+                    1.0,
+                    -1.5,  # RL: hip, thigh, calf (actuators 6-8)
+                    -0.1,
+                    1.0,
+                    -1.5,  # RR: hip, thigh, calf (actuators 9-11)
+                ]
+            )
+            
         self.mapper = Mapper(
             mapping_yaml_path=mapping_path, default_pos_sdk=self.default_pos_sdk
         )
