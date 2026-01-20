@@ -156,6 +156,7 @@ class G1CollisionAvoidanceNode(Node):
 
         self.right_hand_pose_ref = None
         self.left_hand_pose_ref = None
+        self.emergency_stop = False
 
         self.imu = IMUState()
         self.motor = [MotorState() for _ in range(G1_NUM_MOTOR)]
@@ -198,6 +199,11 @@ class G1CollisionAvoidanceNode(Node):
         self.base_link_broadcaster = TransformBroadcaster(self)
 
         self.interactive_marker_server = InteractiveMarkerServer(self, 'teleoperation_markers')
+        self.marker_poses = {}
+        self.marker_enabled = {}
+        self.menu_handler = {}
+        self.menu_entry_ids = {}
+
         self.marker_pose = PoseStamped()
 
         self.force_publishers = {}
@@ -246,7 +252,7 @@ class G1CollisionAvoidanceNode(Node):
                 cmd.kp = Kp[i]
                 cmd.kd = Kd[i]
 
-        elif True: # elif self.start_opensot and self.motors_on or True:
+        elif self.start_opensot and self.motors_on:
             self.model.setJointPosition(self.q)
             self.model.setJointVelocity(self.dq)
             self.model.update()
@@ -255,74 +261,109 @@ class G1CollisionAvoidanceNode(Node):
             self.base_ref = base_ref0.copy()
             self.base_vel_ref = vel_ref0
 
-            self.base_ref.translation[:] = [
-                self.marker_pose.pose.position.x,
-                self.marker_pose.pose.position.y,
-                self.marker_pose.pose.position.z,
-            ]
+            if self.marker_enabled.get("base_marker", True) and "base_marker" in self.marker_poses:
+                base_ps = self.marker_poses["base_marker"]
 
-            quaternion = [
-                self.marker_pose.pose.orientation.x,
-                self.marker_pose.pose.orientation.y,
-                self.marker_pose.pose.orientation.z,
-                self.marker_pose.pose.orientation.w,
-            ]
+                self.base_ref.translation[:] = [
+                    base_ps.pose.position.x,
+                    base_ps.pose.position.y,
+                    base_ps.pose.position.z,
+                ]
+                quaternion = [
+                    base_ps.pose.orientation.x,
+                    base_ps.pose.orientation.y,
+                    base_ps.pose.orientation.z,
+                    base_ps.pose.orientation.w,
+                ]
+                self.base_ref.linear = R.from_quat(quaternion).as_matrix()
+                self.base.setReference(self.base_ref, self.base_vel_ref)
 
-            # self.base_ref.translation[:] = p_fixed
-            self.base_ref.linear = R.from_quat(quaternion).as_matrix()
-            self.base.setReference(self.base_ref, self.base_vel_ref)
-            
-            com_ref, _ = self.com.getReference()
+                com_ref = np.array([
+                    base_ps.pose.position.x,
+                    base_ps.pose.position.y,
+                    base_ps.pose.position.z,
+                ])
+                self.com.setReference(com_ref)
 
-            com_ref = np.array([
-                self.marker_pose.pose.position.x,
-                self.marker_pose.pose.position.y,
-                self.marker_pose.pose.position.z,
-            ])
+            # --- RIGHT HAND ---
+            if self.marker_enabled.get("right_hand_marker", True) and "right_hand_marker" in self.marker_poses:
+                ps = self.marker_poses["right_hand_marker"]
+                T = pyaffine3.Affine3()
+                T.translation = np.array([ps.pose.position.x, ps.pose.position.y, ps.pose.position.z])
+                T.linear = R.from_quat([ps.pose.orientation.x, ps.pose.orientation.y, ps.pose.orientation.z, ps.pose.orientation.w]).as_matrix()
+                self.right_gripper.setReference(T)
 
-            self.com.setReference(com_ref)
+            # --- LEFT HAND ---
+            if self.marker_enabled.get("left_hand_marker", True) and "left_hand_marker" in self.marker_poses:
+                ps = self.marker_poses["left_hand_marker"]
+                T = pyaffine3.Affine3()
+                T.translation = np.array([ps.pose.position.x, ps.pose.position.y, ps.pose.position.z])
+                T.linear = R.from_quat([ps.pose.orientation.x, ps.pose.orientation.y, ps.pose.orientation.z, ps.pose.orientation.w]).as_matrix()
+                self.left_gripper.setReference(T)
 
             self.stack.update()
 
+            try:
+                dq = self.solver.solve()
+                self.q = self.model.sum(self.q, dq * self.control_dt)
+                self.dq = dq
 
-            dq = self.solver.solve()
-            self.q = self.model.sum(self.q, dq * self.control_dt)
-            self.dq = dq
+                msg = JointState()
+                msg.name = self.model.getJointNames()[1::]
+                msg.position = self.q[7: ]
+                msg.header.stamp = self.get_clock().now().to_msg()
 
-            msg = JointState()
-            msg.name = self.model.getJointNames()[1::]
-            msg.position = self.q[7: ]
-            msg.header.stamp = self.get_clock().now().to_msg()
+                w_t_b = TransformStamped()
+                w_t_b.header.frame_id = "world"
+                w_t_b.child_frame_id = "pelvis"
+                w_t_b.header.stamp = msg.header.stamp
+                w_t_b.transform.translation.x = self.q[0]
+                w_t_b.transform.translation.y = self.q[1]
+                w_t_b.transform.translation.z = self.q[2]
+                w_t_b.transform.rotation.x = self.q[3]
+                w_t_b.transform.rotation.y = self.q[4]
+                w_t_b.transform.rotation.z = self.q[5]
+                w_t_b.transform.rotation.w = self.q[6]
 
-            w_t_b = TransformStamped()
-            w_t_b.header.frame_id = "world"
-            w_t_b.child_frame_id = "pelvis"
-            w_t_b.header.stamp = msg.header.stamp
-            w_t_b.transform.translation.x = self.q[0]
-            w_t_b.transform.translation.y = self.q[1]
-            w_t_b.transform.translation.z = self.q[2]
-            w_t_b.transform.rotation.x = self.q[3]
-            w_t_b.transform.rotation.y = self.q[4]
-            w_t_b.transform.rotation.z = self.q[5]
-            w_t_b.transform.rotation.w = self.q[6]
+                # for contact_frame in self.contact_frames:
+                #     T = self.model.getPose(contact_frame)
+                #     self.forces_msgs[contact_frame].header.stamp = msg.header.stamp
+                #     f_local = T.linear.transpose() @ self.variables.getVariable(contact_frame).getValue(dq)
+                #     self.forces_msgs[contact_frame].wrench.force.x = f_local[0]
+                #     self.forces_msgs[contact_frame].wrench.force.y = f_local[1]
+                #     self.forces_msgs[contact_frame].wrench.force.z = f_local[2]
 
-            # for contact_frame in self.contact_frames:
-            #     T = self.model.getPose(contact_frame)
-            #     self.forces_msgs[contact_frame].header.stamp = msg.header.stamp
-            #     f_local = T.linear.transpose() @ self.variables.getVariable(contact_frame).getValue(dq)
-            #     self.forces_msgs[contact_frame].wrench.force.x = f_local[0]
-            #     self.forces_msgs[contact_frame].wrench.force.y = f_local[1]
-            #     self.forces_msgs[contact_frame].wrench.force.z = f_local[2]
+                if self.forces_msgs is not None:
+                    for contact_frame, force_msg in self.forces_msgs.items():
+                        self.force_publishers[contact_frame].publish(force_msg)
 
-            if self.forces_msgs is not None:
-                for contact_frame, force_msg in self.forces_msgs.items():
-                    self.force_publishers[contact_frame].publish(force_msg)
+                for i in range(G1_NUM_MOTOR):
+                    cmd = low_cmd.motor_cmd[i]
+                    cmd.mode = self.motors_on
+                    cmd.q = self.q[i + 7]
+                    cmd.dq = self.dq[i + 6]
+                    cmd.tau = 0.0
+                    cmd.kp = Kp[i]
+                    cmd.kd = Kd[i]
+            except Exception as e:
+                self.get_logger().error(f"OpenSoT Solver Error: {e}")
+                # MAINTAIN POSITION
+                for i in range(G1_NUM_MOTOR):
+                    cmd = low_cmd.motor_cmd[i]
+                    cmd.mode = self.motors_on
+                    cmd.q = self.q[i + 7]
+                    cmd.dq = 0.0
+                    cmd.tau = 0.0
+                    cmd.kp = Kp[i]
+                    cmd.kd = Kd[i]
 
+        elif self.emergency_stop:
             for i in range(G1_NUM_MOTOR):
+                self.motors_on = 0
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
                 cmd.q = self.q[i + 7]
-                cmd.dq = self.dq[i + 6]
+                cmd.dq = 0.0
                 cmd.tau = 0.0
                 cmd.kp = Kp[i]
                 cmd.kd = Kd[i]
@@ -331,7 +372,7 @@ class G1CollisionAvoidanceNode(Node):
             for i in range(G1_NUM_MOTOR):
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
-                cmd.q = q_init[i]
+                cmd.q = self.q[i + 7]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
                 cmd.kp = Kp[i]
@@ -391,7 +432,7 @@ class G1CollisionAvoidanceNode(Node):
                 cf,
                 "world", 
             )
-            t.setLambda(1.0)
+            t.setLambda(2.0)
             self.contacts.append(t)
 
         self.base = Cartesian(
@@ -400,7 +441,7 @@ class G1CollisionAvoidanceNode(Node):
             "pelvis",
             manipulation_frame
         )
-        self.base.setLambda(1.0) 
+        self.base.setLambda(2.0) 
 
         self.torso = Cartesian(
             "base_task",
@@ -408,7 +449,7 @@ class G1CollisionAvoidanceNode(Node):
             "torso_link",
             manipulation_frame
         )
-        self.torso.setLambda(1.0) 
+        self.torso.setLambda(2.0) 
 
         self.right_gripper = Cartesian(
             "right_gripper_task",
@@ -416,7 +457,7 @@ class G1CollisionAvoidanceNode(Node):
             "right_hand_point_contact",
             'pelvis',
         )
-        self.right_gripper.setLambda(1.0)
+        self.right_gripper.setLambda(2.0)
 
         self.left_gripper = Cartesian(
             "left_gripper_task",
@@ -424,10 +465,10 @@ class G1CollisionAvoidanceNode(Node):
             "left_hand_point_contact",
             'pelvis',
         )
-        self.left_gripper.setLambda(1.0)
+        self.left_gripper.setLambda(2.0)
 
         self.postural = Postural(self.model)
-        self.postural.setLambda(1.0)
+        self.postural.setLambda(2.0)
         self.W_postural = self.postural.getWeight()
         self.W_postural[0: 6] = 0.0
         self.W_postural[6: 10] = 0.0
@@ -450,7 +491,7 @@ class G1CollisionAvoidanceNode(Node):
             stack_contacts
             / (self.com + self.base%[3,4,5] + self.torso%[3,4,5]) 
             / self.postural
-            << (self.right_gripper + self.left_gripper)
+            / (self.right_gripper + self.left_gripper)
             << self.qlims
             << self.dqlims
         )
@@ -467,7 +508,9 @@ class G1CollisionAvoidanceNode(Node):
 
     def emergency_stop_callback(self, msg: Bool):
         if msg.data:
-            self.motors_on = 0
+            self.emergency_stop = True
+        else:
+            self.emergency_stop = False
 
     def low_state_handler(self, msg: LowState):
         # self.get_logger().info(str(self.motors_on))
@@ -508,7 +551,17 @@ class G1CollisionAvoidanceNode(Node):
         int_marker.pose.orientation.z = quat_xyzw[2]
         int_marker.pose.orientation.w = quat_xyzw[3]
 
-        self.marker_pose.pose = int_marker.pose
+        ps = PoseStamped()
+        ps.header.frame_id = frame_id
+        ps.pose = int_marker.pose
+        self.marker_poses[name] = ps
+
+        self.marker_home_poses = getattr(self, "marker_home_poses", {})
+        self.marker_home_poses[name] = PoseStamped()
+        self.marker_home_poses[name].header.frame_id = frame_id
+        self.marker_home_poses[name].pose = int_marker.pose
+
+
 
         # Add a visible marker (e.g., a cube)
         cube_marker = Marker()
@@ -529,11 +582,17 @@ class G1CollisionAvoidanceNode(Node):
         # Add 6-DOF controls
         self.add_6dof_controls(int_marker)
 
-        self.marker_enabled[name] = True
+        self.marker_enabled[name] = False
 
         menu = MenuHandler()
         h_enable = menu.insert("Enable", callback=self.process_menu)
         h_reset = menu.insert("Reset", callback=self.process_menu)
+
+        menu.setCheckState(
+            h_enable,
+            MenuHandler.CHECKED if self.marker_enabled.get(name, True) else MenuHandler.UNCHECKED
+        )
+
         self.menu_handler[name] = menu
 
         self.menu_entry_ids = getattr(self, "menu_entry_ids", {})
@@ -549,25 +608,43 @@ class G1CollisionAvoidanceNode(Node):
         self.interactive_marker_server.applyChanges()
 
     def process_feedback(self, feedback):
-        if hasattr(feedback, "event_type"):
-            pass
-
         name = feedback.marker_name
         if not self.marker_enabled.get(name, True):
-            return 
+            return
 
-        self.marker_pose.header = feedback.header
-        self.marker_pose.pose = feedback.pose
+        if name not in self.marker_poses:
+            self.marker_poses[name] = PoseStamped()
 
+        self.marker_poses[name].header = feedback.header
+        self.marker_poses[name].pose = feedback.pose
 
     def process_menu(self, feedback):
         name = feedback.marker_name
         ids = self.menu_entry_ids.get(name, {})
+
         if feedback.menu_entry_id == ids.get("enable"):
-            self.marker_enabled[name] = True
+            new_state = not self.marker_enabled.get(name, True)
+            self.marker_enabled[name] = new_state
+
+            menu = self.menu_handler.get(name, None)
+            if menu is not None:
+                menu.setCheckState(
+                    ids["enable"],
+                    MenuHandler.CHECKED if new_state else MenuHandler.UNCHECKED
+                )
+                menu.reApply(self.interactive_marker_server)
+                self.interactive_marker_server.applyChanges()
+
+
         elif feedback.menu_entry_id == ids.get("reset"):
-            self.marker_enabled[name] = False
-            pass
+            home = self.marker_home_poses.get(name, None)
+            if home is not None:
+                self.marker_poses[name] = PoseStamped()
+                self.marker_poses[name].header = home.header
+                self.marker_poses[name].pose = home.pose
+
+                self.interactive_marker_server.setPose(name, home.pose, home.header)
+                self.interactive_marker_server.applyChanges()
 
 
     def add_6dof_controls(self, marker):
