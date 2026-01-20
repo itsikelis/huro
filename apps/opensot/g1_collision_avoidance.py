@@ -239,10 +239,10 @@ class G1CollisionAvoidanceNode(Node):
         self.com0 = self.com_ref.copy()
 
         base = Cartesian(
-            'base',
+            'Cartesian',
             self.model,
-            'world',
             'pelvis',
+            'world',
             self.variables.getVariable('qddot'),
         )
         base.setLambda(1.2)
@@ -254,8 +254,8 @@ class G1CollisionAvoidanceNode(Node):
                 Cartesian(
                     contact_frame + '_kin',
                     self.model,
-                    'world',
                     contact_frame,
+                    'world',
                     self.variables.getVariable('qddot'),
                 )
             )
@@ -285,32 +285,32 @@ class G1CollisionAvoidanceNode(Node):
 
         #####
         self.right_hand = Cartesian(
-            'right_hand_point_contact',
+            'Cartesian',
             self.model,
             'right_hand_point_contact',
-            'world',
+            'pelvis',
             self.variables.getVariable('qddot'),
         )
         self.right_hand.setLambda(0.1)
 
         right_hand_pose_ref = self.right_hand.getReference()[0]
+        self.get_logger().warning(f"Initial Right Hand Pose: {right_hand_pose_ref.translation}")
         # left_hand_pose_ref = self.left_hand.getReference()
-
         self.create_6dof_marker(
-            name = 'right_hand_marker',
-            pose = right_hand_pose_ref,
-            frame_id = 'pelvis',
+            name='right_hand_marker',
+            pose=right_hand_pose_ref,
+            frame_id='pelvis'
         )
 
-        self.left_hand = Cartesian(
-            'left_hand_point_contact',
-            self.model,
-            'left_hand_point_contact',
-            'world',
-            self.variables.getVariable('qddot'),
-        )
+        # self.left_hand = Cartesian(
+        #     'Cartesian',
+        #     self.model,
+        #     'left_hand_point_contact',
+        #     'world',
+        #     self.variables.getVariable('qddot'),
+        # )
 
-        self.stack = self.stack + 0.01 * (self.right_hand + self.left_hand)
+        self.stack = self.stack + 0.01 * (self.right_hand )#+ self.left_hand)
 
         #####
         self.stack = pysot.AutoStack(self.stack) << DynamicFeasibility(
@@ -460,6 +460,8 @@ class G1CollisionAvoidanceNode(Node):
     def marker_feedback(self, feedback):
         self.marker_pose.header = feedback.header
         self.marker_pose.pose = feedback.pose
+        if feedback.marker_name == 'right_hand_marker':
+            self.right_hand_pose_ref = self.marker_pose
 
     def add_6dof_controls(self, marker):
         axes = ['x', 'y', 'z']
@@ -518,11 +520,17 @@ class G1CollisionAvoidanceNode(Node):
                 cmd.kd = Kd[i]
 
         elif self.start_opensot:
-            self.t =+ self.control_dt
+            self.t += self.control_dt
             dt = self.control_dt
             self.model.setJointPosition(self.q)
             self.model.setJointVelocity(self.dq)
             self.model.update()
+
+            T_w_h = self.model.getPose('right_hand_point_contact')
+            T_w_p = self.model.getPose('pelvis')
+
+            self.get_logger().warning(f"T(model) pelvis: p = {T_w_p.translation}")
+            self.get_logger().warning(f"T(model) hand : p = {T_w_h.translation}")
 
             self.com_ref[2] = self.com0[2]
             

@@ -152,6 +152,10 @@ install(
   PROGRAMS apps/opensot/g1_collision_avoidance.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(
+  PROGRAMS apps/opensot/g1_velocity.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 
 ## Generate Custom Message Types ##
