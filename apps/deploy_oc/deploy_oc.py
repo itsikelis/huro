@@ -98,7 +98,6 @@ class MoveExample(Node):
         # low_cmd.levelFlag = 0xFF
         low_cmd.gpio = 0
 
-        self.time += self.control_dt
 
         if self.time < self.init_duration_s:
             for i in range(GO2_NUM_MOTOR):
@@ -120,6 +119,9 @@ class MoveExample(Node):
                 cmd.kp = 200.
                 cmd.kd = Kd[i]
         else:
+            if np.linalg.norm(np.array(self.last_joint_commands.velocity)-np.array(self.joint_commands.velocity)) >=15.:
+                self.get_logger().info("Emergency STOP")
+                self.motors_on = 0
             ratio = self.clamp((self.time-self.last_cmd_time) / self.mpc_control_dt, 0.0, 1.0)
             for i in range(GO2_NUM_MOTOR):
                 cmd = low_cmd.motor_cmd[i]
