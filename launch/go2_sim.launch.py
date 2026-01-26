@@ -19,6 +19,8 @@ def generate_launch_description():
     ## HURo Node ##
     core_node = Node(package="huro", executable="root_go2", name="root_go2")
 
+    ## Joy Node ##
+    joy_node = Node(package="joy", executable="joy_node", name="joy_node")
 
     ## HURo Sim Node ##
     config = os.path.join(share_dir, "config", "go2_sim_params.yaml")
@@ -79,5 +81,6 @@ def generate_launch_description():
             state_pub_node,
             state_pub_commands_node,
             rviz_node,
+            joy_node,
         ]
     )

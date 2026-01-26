@@ -32,6 +32,21 @@ def generate_launch_description():
         arguments=[urdf_path],
     )
 
+    state_pub_commands_node = Node(
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        output='screen',
+        name='robot_state_publisher_controls',
+        parameters=[{
+            'robot_description': robot_desc,
+            'frame_prefix': "commands/",
+        }],
+        remappings=[
+            ('robot_description', '/robot_description_commands'),  # Remap the topic
+            ('joint_states', '/joint_commands'),
+        ],
+    )
+
     ## RViz ##
     # Find rviz path
     rviz_file_path = os.path.join(
@@ -77,6 +92,7 @@ def generate_launch_description():
             ),
             core_node,
             state_pub_node,
+            state_pub_commands_node,
             rviz_node,
             joy_node,
         ]
