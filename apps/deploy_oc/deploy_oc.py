@@ -20,22 +20,22 @@ from huro_py.crc_go import Crc
 
 GO2_NUM_MOTOR = 12
 
-Kp = np.ones(GO2_NUM_MOTOR) * 30.
+Kp = np.ones(GO2_NUM_MOTOR) * 50.
 
-Kd =  np.ones(GO2_NUM_MOTOR) * 0.5
+Kd =  np.ones(GO2_NUM_MOTOR) * 1.
 
 q_init = [
-    0.,
-    0.8,
+    0.05,
+    0.72,
     -1.4,
-    -0.,
-    0.8,
+    -0.05,
+    0.72,
     -1.4,
-    -0.,
-    0.8,
+    -0.05,
+    0.72,
     -1.4,
-    0.,
-    0.8,
+    0.05,
+    0.72,
     -1.4,
 ]
 
@@ -48,6 +48,7 @@ class MoveExample(Node):
         self.time = 0.0
         self.init_duration_s = 2.0
         self.q_start = None
+        self.first_command = False
 
         self.motors_on = 1
 
@@ -100,7 +101,16 @@ class MoveExample(Node):
                 cmd.q = (1.0 - ratio) * self.q_start[i] + ratio * q_init[i]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.kp = Kp[i]*10
+                cmd.kp = 200.
+                cmd.kd = Kd[i]
+        elif not self.first_command:
+            for i in range(GO2_NUM_MOTOR):
+                cmd = low_cmd.motor_cmd[i]
+                cmd.mode = self.motors_on
+                cmd.q = q_init[i]
+                cmd.dq = 0.0
+                cmd.tau = 0.0
+                cmd.kp = 200.
                 cmd.kd = Kd[i]
         else:
             
@@ -112,6 +122,8 @@ class MoveExample(Node):
                 cmd.tau = self.joint_commands.effort[i]
                 cmd.kp = Kp[i]
                 cmd.kd = Kd[i]
+        
+        self.time += self.control_dt
 
         low_cmd.crc = Crc(low_cmd)
         self.lowcmd_pub.publish(low_cmd)
@@ -139,6 +151,9 @@ class MoveExample(Node):
             self.motors_on = 0
 
     def joint_commands_handler(self, msg: JointState):
+        if not self.first_command:
+            self.first_command = True
+        
         self.joint_commands = msg
 
 
