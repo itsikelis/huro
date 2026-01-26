@@ -17,7 +17,6 @@ else
         --rm \
         --network host \
         --env DISPLAY=$DISPLAY \
-        --env ROS_DOMAIN_ID=69 \
         --privileged \
         --volume /tmp/.X11-unix:/tmp/.X11-unix \
         --volume $(pwd)/setup_uri.sh:/huro_ws/setup_uri.sh \
