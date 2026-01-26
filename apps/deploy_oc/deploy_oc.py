@@ -8,7 +8,7 @@ import numpy as np
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, IMUState, MotorState
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Joy
 
 from huro_py.crc_go import Crc
 
@@ -69,6 +69,12 @@ class MoveExample(Node):
             JointState, "/joint_commands", self.joint_commands_handler, 10
         )
 
+        self.joy_subsriber = self.create_subscription(
+            Joy,             # message type
+            '/joy',      # topic name
+            self.joy_callback,      # callback function
+            10                       # QoS (queue size)
+        )
         self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
         ROBOT_SPORT_API_ID_STANDDOWN = 1005
         req = Request()
@@ -159,6 +165,15 @@ class MoveExample(Node):
         self.last_cmd_time = self.time
         self.last_joint_commands = self.joint_commands
         self.joint_commands = msg
+
+    def joy_callback(self, msg: Joy):
+        if msg.buttons[10]==1:
+            self.motors_on = 0
+        if msg.buttons[10]==1 and msg.buttons[9]==1:
+            self.motors_on = 1
+            self.time=0.
+            self.q_start = [self.motor[i].q for i in range(GO2_NUM_MOTOR)]
+        
 
 
     def clamp(self, value, low, high):
