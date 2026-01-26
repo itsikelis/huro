@@ -5,6 +5,7 @@ from rclpy.node import Node
 from rclpy.timer import Timer
 import math
 import numpy as np
+import time
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState, IMUState, MotorState
@@ -75,12 +76,17 @@ class MoveExample(Node):
             self.joy_callback,      # callback function
             10                       # QoS (queue size)
         )
+
+        self.get_logger().info("ROBOT_SPORT_API_ID_STANDDOWN")
         self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
         ROBOT_SPORT_API_ID_STANDDOWN = 1005
         req = Request()
         req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
         self.sport_pub.publish(req)
+        
+        # time.sleep(5)
 
+        self.get_logger().info("ROBOT_MOTION_SWITCHER_API_RELEASEMODE")
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
         )
@@ -88,6 +94,8 @@ class MoveExample(Node):
         req = Request()
         req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
         self.motion_pub.publish(req)
+
+        # time.sleep(5)
 
         self.timer = self.create_timer(self.control_dt, self.control)
 
