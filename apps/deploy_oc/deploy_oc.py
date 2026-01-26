@@ -46,7 +46,8 @@ class MoveExample(Node):
         self.control_dt = 0.01  # 10ms
         self.timer_dt_ms = int(self.control_dt * 1000)
         self.time = 0.0
-        self.init_duration_s = 2.0
+        self.init_duration_s = 3.0
+        self.mpc_control_dt = 0.03
         self.q_start = None
         self.first_command = False
 
@@ -113,12 +114,13 @@ class MoveExample(Node):
                 cmd.kp = 200.
                 cmd.kd = Kd[i]
         else:
-            
+            ratio = self.clamp((self.time-self.last_cmd_time) / self.mpc_control_dt, 0.0, 1.0)
             for i in range(GO2_NUM_MOTOR):
                 cmd = low_cmd.motor_cmd[i]
                 cmd.mode = self.motors_on
-                cmd.q = self.joint_commands.position[i]
-                cmd.dq = self.joint_commands.velocity[i]
+                cmd.q =  (1.0 - ratio) * self.last_joint_commands.position[i] + ratio * self.joint_commands.position[i]
+                cmd.dq =  (1.0 - ratio) * self.last_joint_commands.velocity[i] + ratio * self.joint_commands.velocity[i]
+                # cmd.tau = (1.0 - ratio) * self.last_joint_commands.effort[i] + ratio * self.joint_commands.effort[i]
                 cmd.tau = self.joint_commands.effort[i]
                 cmd.kp = Kp[i]
                 cmd.kd = Kd[i]
@@ -154,6 +156,8 @@ class MoveExample(Node):
         if not self.first_command:
             self.first_command = True
         
+        self.last_cmd_time = self.time
+        self.last_joint_commands = self.joint_commands
         self.joint_commands = msg
 
 
