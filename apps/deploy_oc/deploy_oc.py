@@ -21,24 +21,39 @@ from huro_py.crc_go import Crc
 
 GO2_NUM_MOTOR = 12
 
-Kp = np.ones(GO2_NUM_MOTOR) * 50.
+Kp = np.ones(GO2_NUM_MOTOR) * 300.
 
 Kd =  np.ones(GO2_NUM_MOTOR) * 1.
 
 q_init = [
-    0.05,
+    0.0,
     0.72,
     -1.4,
-    -0.05,
+    -0.0,
     0.72,
     -1.4,
-    -0.05,
+    -0.0,
     0.72,
     -1.4,
-    0.05,
+    0.0,
     0.72,
     -1.4,
 ]
+
+joint_order = {
+    "FR_hip_joint":0, 
+    "FR_thigh_joint":1, 
+    "FR_calf_joint":2,
+    "FL_hip_joint":3, 
+    "FL_thigh_joint":4, 
+    "FL_calf_joint":5,
+    "RR_hip_joint":6, 
+    "RR_thigh_joint":7, 
+    "RR_calf_joint":8,
+    "RL_hip_joint":9, 
+    "RL_thigh_joint":10, 
+    "RL_calf_joint":11
+}
 
 class MoveExample(Node):
     def __init__(self):
@@ -84,7 +99,7 @@ class MoveExample(Node):
         req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
         self.sport_pub.publish(req)
         
-        # time.sleep(5)
+        # time.sleep(10)
 
         self.get_logger().info("ROBOT_MOTION_SWITCHER_API_RELEASEMODE")
         self.motion_pub = self.create_publisher(
@@ -132,14 +147,15 @@ class MoveExample(Node):
                 self.motors_on = 0
             ratio = self.clamp((self.time-self.last_cmd_time) / self.mpc_control_dt, 0.0, 1.0)
             for i in range(GO2_NUM_MOTOR):
-                cmd = low_cmd.motor_cmd[i]
+                idx = joint_order[self.joint_commands.name[i]]
+                cmd = low_cmd.motor_cmd[idx]
                 cmd.mode = self.motors_on
                 cmd.q =  (1.0 - ratio) * self.last_joint_commands.position[i] + ratio * self.joint_commands.position[i]
                 cmd.dq =  (1.0 - ratio) * self.last_joint_commands.velocity[i] + ratio * self.joint_commands.velocity[i]
                 # cmd.tau = (1.0 - ratio) * self.last_joint_commands.effort[i] + ratio * self.joint_commands.effort[i]
                 cmd.tau = self.joint_commands.effort[i]
-                cmd.kp = Kp[i]
-                cmd.kd = Kd[i]
+                cmd.kp = Kp[idx]
+                cmd.kd = Kd[idx]
         
         self.time += self.control_dt
 
@@ -169,12 +185,14 @@ class MoveExample(Node):
             self.motors_on = 0
 
     def joint_commands_handler(self, msg: JointState):
-        if not self.first_command:
-            self.first_command = True
         
         self.last_cmd_time = self.time
         self.last_joint_commands = self.joint_commands
         self.joint_commands = msg
+        if not self.first_command:
+            self.first_command = True
+            self.last_joint_commands = self.joint_commands
+            
 
     def joy_callback(self, msg: Joy):
         if msg.buttons[10]==1:

@@ -8,7 +8,7 @@ from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
 
 urdf = "go2/go2.urdf"
-rviz_config = "go2.rviz"
+rviz_config = "go2_real.rviz"
 
 
 def generate_launch_description():
