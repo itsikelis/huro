@@ -1,0 +1,84 @@
+FL_hip_joint:
+  index: 0
+  default_position: -0.10000000149011612
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+FL_thigh_joint:
+  index: 1
+  default_position: 0.8999999761581421
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+FL_calf_joint:
+  index: 2
+  default_position: -1.7999999523162842
+  stiffness: 65.01541022880684
+  damping: 4.139009566143095
+  effort_limit: 45.43
+  action_scale: 0.17468935251235962
+FR_hip_joint:
+  index: 3
+  default_position: 0.10000000149011612
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+FR_thigh_joint:
+  index: 4
+  default_position: 0.8999999761581421
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+FR_calf_joint:
+  index: 5
+  default_position: -1.7999999523162842
+  stiffness: 65.01541022880684
+  damping: 4.139009566143095
+  effort_limit: 45.43
+  action_scale: 0.17468935251235962
+RL_hip_joint:
+  index: 6
+  default_position: -0.10000000149011612
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+RL_thigh_joint:
+  index: 7
+  default_position: 0.8999999761581421
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+RL_calf_joint:
+  index: 8
+  default_position: -1.7999999523162842
+  stiffness: 65.01541022880684
+  damping: 4.139009566143095
+  effort_limit: 45.43
+  action_scale: 0.17468935251235962
+RR_hip_joint:
+  index: 9
+  default_position: 0.10000000149011612
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+RR_thigh_joint:
+  index: 10
+  default_position: 0.8999999761581421
+  stiffness: 17.6918024541168
+  damping: 1.1262951251433972
+  effort_limit: 23.7
+  action_scale: 0.3349008560180664
+RR_calf_joint:
+  index: 11
+  default_position: -1.7999999523162842
+  stiffness: 65.01541022880684
+  damping: 4.139009566143095
+  effort_limit: 45.43
+  action_scale: 0.17468935251235962

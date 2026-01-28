@@ -1,0 +1,24 @@
+sim_go2:
+  ros__parameters:
+    robot_name: "go2"
+    lowstate_topic: "/lowstate"
+    lowcmd_topic: "/lowcmd"
+    odom_topic: "/sportmodestate"
+    xml_filename: "go2/go2.xml"
+    base_link_name: "base"
+    sole_link_name: "RR_point"
+    q_init:
+      - 0.005
+      - 0.72
+      - -1.4
+      - -0.005
+      - 0.72
+      - -1.4
+      - -0.005
+      - 0.72
+      - -1.4
+      - 0.005
+      - 0.72
+      - -1.4
+    sim_dt_ms: 1
+    n_motors: 12

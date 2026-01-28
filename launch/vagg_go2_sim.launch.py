@@ -6,19 +6,16 @@ from ament_index_python.packages import get_package_share_directory
 
 
 def generate_launch_description():
-    share_dir = get_package_share_directory("huro")
-    rviz_launch = IncludeLaunchDescription(
-        launch.launch_description_sources.PythonLaunchDescriptionSource(
-            share_dir + "/launch/go2_rviz.launch.py"
-        )
+
+    urdf_path = os.path.join(
+        get_package_share_directory("huro") + "/resources/description_files/urdf/",
+        "go2/go2.urdf",
     )
     with open(urdf_path, "r") as infp:
         robot_desc = infp.read()
 
-
     ## HURo Node ##
     core_node = Node(package="huro", executable="root_go2", name="root_go2")
-
 
     ## HURo Sim Node ##
     config = os.path.join(share_dir, "config", "go2_sim_params.yaml")
@@ -40,20 +37,21 @@ def generate_launch_description():
     )
 
     state_pub_commands_node = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        output='screen',
-        name='robot_state_publisher_controls',
-        parameters=[{
-            'robot_description': robot_desc,
-            'frame_prefix': "commands/",
-        }],
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        output="screen",
+        name="robot_state_publisher_controls",
+        parameters=[
+            {
+                "robot_description": robot_desc,
+                "frame_prefix": "commands/",
+            }
+        ],
         remappings=[
-            ('robot_description', '/robot_description_commands'),  # Remap the topic
-            ('joint_states', '/joint_commands'),
+            ("robot_description", "/robot_description_commands"),  # Remap the topic
+            ("joint_states", "/joint_commands"),
         ],
     )
-
 
     ## RViz ##
     # Find rviz path

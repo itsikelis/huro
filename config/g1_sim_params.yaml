@@ -1,0 +1,41 @@
+sim_g1:
+  ros__parameters:
+    robot_name: "g1"
+    lowstate_topic: "/lowstate"
+    lowcmd_topic: "/lowcmd"
+    odom_topic: "/odommodestate"
+    xml_filename: "g1/g1_29dof.xml"
+    base_link_name: "pelvis"
+    sole_link_name: "right_foot_point_contact"
+    q_init:
+     - -0.1
+     - 0.0
+     - 0.0     # hips
+     - 0.432   # knee
+     - -0.317
+     - 0.0     # ankles
+     - -0.1
+     - 0.0
+     - 0.0     # hips
+     - 0.432   # knee
+     - -0.317
+     - 0.0     # ankles
+     - 0.0
+     - 0.0
+     - 0.0     # waist
+     - 0.3
+     - 0.25
+     - 0.0
+     - 1.0
+     - 0.15
+     - 0.0
+     - 0.0     # arm
+     - 0.3
+     - -0.25
+     - 0.0
+     - 1.0
+     - 0.15
+     - 0.0
+     - 0.0     # arm
+    sim_dt_ms: 5
+    n_motors: 29
