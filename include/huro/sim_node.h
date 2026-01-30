@@ -83,6 +83,7 @@ protected:
 
       // Calculate control
       for (size_t i = 0; i < n_motors_; ++i) {
+        RCLCPP_INFO_STREAM(this->get_logger(), "i: " << i);
         int motor_mode = static_cast<int>(low_cmd_->motor_cmd[i].mode);
         mjtNum q_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].q);
         mjtNum qdot_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].dq);
@@ -207,6 +208,7 @@ protected:
 
     // Motor states
     for (size_t i = 0; i < n_motors_; ++i) {
+
       float q = static_cast<float>(mj_data_->qpos[7 + i]);
       float qdot = static_cast<float>(mj_data_->qvel[6 + i]);
       float qddot = static_cast<float>(mj_data_->qacc[6 + i]);
