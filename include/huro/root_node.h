@@ -54,6 +54,7 @@ public:
     bool print_imu_info;
     bool print_motor_info;
     size_t n_motors;
+    size_t n_gripper_motors;
     std::string lowstate_topic_name;
     std::string odom_topic_name;
     std::string base_link_name;
@@ -74,6 +75,7 @@ public:
     this->declare_parameter("print_imu_info", rclcpp::PARAMETER_BOOL);
     this->declare_parameter("print_motor_info", rclcpp::PARAMETER_BOOL);
     this->declare_parameter("n_motors", rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("n_gripper_motors", rclcpp::PARAMETER_INTEGER);
     this->declare_parameter("lowstate_topic_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("odom_topic_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("base_link_name", rclcpp::PARAMETER_STRING);
@@ -84,6 +86,8 @@ public:
         this->get_parameter("print_motor_info").as_bool();
     params_.n_motors =
         static_cast<size_t>(this->get_parameter("n_motors").as_int());
+    params_.n_gripper_motors =
+        static_cast<size_t>(this->get_parameter("n_gripper_motors").as_int());
     params_.lowstate_topic_name =
         this->get_parameter("lowstate_topic_name").as_string();
     params_.odom_topic_name =
@@ -153,6 +157,14 @@ protected:
       jointstate_msg.position.push_back(message->motor_state[i].q);
       jointstate_msg.velocity.push_back(message->motor_state[i].dq);
       jointstate_msg.effort.push_back(message->motor_state[i].tau_est);
+    }
+
+    for (size_t i = 0; i < params_.n_gripper_motors; ++i) {
+      std::string joint_name = params_.joint_names[params_.n_motors + i];
+      jointstate_msg.name.push_back(joint_name);
+      jointstate_msg.position.push_back(0.0);
+      jointstate_msg.velocity.push_back(0.0);
+      jointstate_msg.effort.push_back(0.0);
     }
 
     jointstate_pub_->publish(jointstate_msg);

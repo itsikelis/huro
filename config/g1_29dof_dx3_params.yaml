@@ -1,5 +1,5 @@
 # ROOT NODE PARAMETERS
-root_g1:
+root_g1_dx3:
   ros__parameters:
     print_imu_info: false
     print_motor_info: false
@@ -7,7 +7,7 @@ root_g1:
     odom_topic_name: "/odommodestate"
     base_link_name: "pelvis"
     n_motors: 29
-    n_gripper_motors: 0
+    n_gripper_motors: 14
     joint_names:
       - "left_hip_pitch_joint"
       - "left_hip_roll_joint"
@@ -38,20 +38,34 @@ root_g1:
       - "right_wrist_roll_joint"
       - "right_wrist_pitch_joint"
       - "right_wrist_yaw_joint"
+      - "left_hand_thumb_0_joint"
+      - "left_hand_thumb_1_joint"
+      - "left_hand_thumb_2_joint"
+      - "left_hand_middle_0_joint"
+      - "left_hand_middle_1_joint"
+      - "left_hand_index_0_joint"
+      - "left_hand_index_1_joint"
+      - "right_hand_thumb_0_joint"
+      - "right_hand_thumb_1_joint"
+      - "right_hand_thumb_2_joint"
+      - "right_hand_middle_0_joint"
+      - "right_hand_middle_1_joint"
+      - "right_hand_index_0_joint"
+      - "right_hand_index_1_joint"
 
 # SIMULATION NODE PARAMETERS
-sim_g1:
+sim_g1_dx3:
   ros__parameters:
-    robot_name: "g1"
+    robot_name: "g1_dx3"
     lowstate_topic_name: "/lowstate"
     lowcmd_topic_name: "/lowcmd"
     odom_topic_name: "/odommodestate"
-    xml_filename: "g1/g1_29dof.xml"
+    xml_filename: "g1/g1_29dof_dx3.xml"
     base_link_name: "pelvis"
     sole_link_name: "right_foot_point_contact"
     sim_dt_ms: 5
     n_motors: 29
-    n_gripper_motors: 0
+    n_gripper_motors: 14
     q_init:
      - -0.1
      - 0.0
@@ -82,3 +96,17 @@ sim_g1:
      - 0.15
      - 0.0
      - 0.0     # arm
+     - 0.0     # left_hand_thumb_0
+     - 0.0     # left_hand_t"humb_1
+     - 0.0     # left_hand_thumb_2
+     - 0.0     # left_hand_middle_0
+     - 0.0     # left_hand_middle_1
+     - 0.0     # left_hand_index_0
+     - 0.0     # left_hand_index_1
+     - 0.0     # right_hand_thumb_0
+     - 0.0     # right_hand_thumb_1
+     - 0.0     # right_hand_thumb_2
+     - 0.0     # right_hand_middle_0
+     - 0.0     # right_hand_middle_1
+     - 0.0     # right_hand_index_0
+     - 0.0     # right_hand_index_1

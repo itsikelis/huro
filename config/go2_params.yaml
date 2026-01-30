@@ -7,6 +7,7 @@ root_go2:
     odom_topic_name: "/sportmodestate"
     base_link_name: "base"
     n_motors: 12
+    n_gripper_motors: 0
     joint_names:
       - "FL_hip_joint"
       - "FL_thigh_joint"
@@ -25,12 +26,15 @@ root_go2:
 sim_go2:
   ros__parameters:
     robot_name: "go2"
-    lowstate_topic: "/lowstate"
-    lowcmd_topic: "/lowcmd"
-    odom_topic: "/sportmodestate"
+    lowstate_topic_name: "/lowstate"
+    lowcmd_topic_name: "/lowcmd"
+    odom_topic_name: "/sportmodestate"
     xml_filename: "go2/go2.xml"
     base_link_name: "base"
     sole_link_name: "RR_point"
+    sim_dt_ms: 1
+    n_motors: 12
+    n_gripper_motors: 0
     q_init:
       - 0.005
       - 0.72
@@ -44,5 +48,3 @@ sim_go2:
       - 0.005
       - 0.72
       - -1.4
-    sim_dt_ms: 1
-    n_motors: 12

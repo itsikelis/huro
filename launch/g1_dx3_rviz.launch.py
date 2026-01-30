@@ -1,0 +1,91 @@
+import os
+from launch import LaunchDescription
+from launch_ros.substitutions import FindPackageShare
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
+from launch_ros.actions import Node
+from ament_index_python.packages import get_package_share_directory
+
+urdf = "g1/g1_29dof_dx3.urdf"
+rviz_config = "g1_teleop.rviz"
+
+
+def generate_launch_description():
+
+    ## Robot State Publisher ##
+    # Find and load robot description
+    urdf_path = os.path.join(
+        get_package_share_directory("huro") + "/resources/description_files/urdf/",
+        urdf,
+    )
+    with open(urdf_path, "r") as infp:
+        robot_desc = infp.read()
+
+    # Create robot state publisher node
+    state_pub_node = Node(
+        package="robot_state_publisher",
+        executable="robot_state_publisher",
+        name="robot_state_publisher",
+        output="screen",
+        parameters=[{"robot_description": robot_desc}],
+        arguments=[urdf_path],
+    )
+
+    ## RViz ##
+    # Find rviz path
+    ## TODO: change this to shared directory
+    rviz_file_path = os.path.join(
+        "/huro_ws/src/huro/config/",
+        rviz_config,
+    )
+    # Create rviz node
+    rviz_node = Node(
+        package="rviz2",
+        namespace="",
+        executable="rviz2",
+        name="rviz2",
+        arguments=[
+            "-d" + rviz_file_path,
+        ],
+    )
+
+    ## Joy Node ##
+    joy_node = Node(package="joy", executable="joy_node", name="joy_node")
+
+    ## HURo Node ##
+    share_dir = get_package_share_directory("huro")
+    config = os.path.join(share_dir, "config", "g1_29dof_dx3_params.yaml")
+    core_node = Node(
+        package="huro",
+        executable="root_g1",
+        name="root_g1_dx3",
+        parameters=[config],
+    )
+
+    # # Livox Lidar Launch File
+    # lidar_launch = IncludeLaunchDescription(
+    #     PythonLaunchDescriptionSource(
+    #         PathJoinSubstitution(
+    #             [
+    #                 FindPackageShare("livox_ros_driver2"),
+    #                 "launch_ROS2",
+    #                 "rviz_MID360_launch.py",
+    #             ]
+    #         )
+    #     ),
+    # )
+
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "use_sim_time",
+                default_value="false",
+                description="Use simulation (Gazebo) clock if true",
+            ),
+            core_node,
+            state_pub_node,
+            rviz_node,
+            joy_node,
+        ]
+    )

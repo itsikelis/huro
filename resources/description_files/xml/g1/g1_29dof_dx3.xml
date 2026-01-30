@@ -1,5 +1,5 @@
 <mujoco model="g1_29dof_with_hand_rev_1_0">
-  <compiler angle="radian" meshdir="meshes"/>
+  <compiler angle="radian" meshdir="../../meshes/g1"/>
 
   <asset>
     <mesh name="pelvis" file="pelvis.STL"/>
@@ -94,6 +94,10 @@
                   <geom size="0.005" pos="-0.05 -0.025 -0.03" rgba="0.2 0.2 0.2 1"/>
                   <geom size="0.005" pos="0.12 0.03 -0.03" rgba="0.2 0.2 0.2 1"/>
                   <geom size="0.005" pos="0.12 -0.03 -0.03" rgba="0.2 0.2 0.2 1"/>
+                  <!-- Added sole frame -->
+                  <body name="left_foot_point_contact" pos="0 0 -0.03">
+                    <!-- <geom type="sphere" size="0.005" rgba="1 0 0 1"/> -->
+                  </body>
                 </body>
               </body>
             </body>
@@ -133,6 +137,10 @@
                   <geom size="0.005" pos="-0.05 -0.025 -0.03" rgba="0.2 0.2 0.2 1"/>
                   <geom size="0.005" pos="0.12 0.03 -0.03" rgba="0.2 0.2 0.2 1"/>
                   <geom size="0.005" pos="0.12 -0.03 -0.03" rgba="0.2 0.2 0.2 1"/>
+                  <!-- Added sole frame -->
+                  <body name="right_foot_point_contact" pos="0 0 -0.03">
+                    <!-- <geom type="sphere" size="0.005" rgba="1 0 0 1"/> -->
+                  </body>
                 </body>
               </body>
             </body>
@@ -358,13 +366,6 @@
     <motor name="left_wrist_roll_joint" joint="left_wrist_roll_joint"/>
     <motor name="left_wrist_pitch_joint" joint="left_wrist_pitch_joint"/>
     <motor name="left_wrist_yaw_joint" joint="left_wrist_yaw_joint"/>
-    <motor name="left_hand_thumb_0_joint" joint="left_hand_thumb_0_joint"/>
-    <motor name="left_hand_thumb_1_joint" joint="left_hand_thumb_1_joint"/>
-    <motor name="left_hand_thumb_2_joint" joint="left_hand_thumb_2_joint"/>
-    <motor name="left_hand_middle_0_joint" joint="left_hand_middle_0_joint"/>
-    <motor name="left_hand_middle_1_joint" joint="left_hand_middle_1_joint"/>
-    <motor name="left_hand_index_0_joint" joint="left_hand_index_0_joint"/>
-    <motor name="left_hand_index_1_joint" joint="left_hand_index_1_joint"/>
     <motor name="right_shoulder_pitch_joint" joint="right_shoulder_pitch_joint"/>
     <motor name="right_shoulder_roll_joint" joint="right_shoulder_roll_joint"/>
     <motor name="right_shoulder_yaw_joint" joint="right_shoulder_yaw_joint"/>
@@ -372,6 +373,13 @@
     <motor name="right_wrist_roll_joint" joint="right_wrist_roll_joint"/>
     <motor name="right_wrist_pitch_joint" joint="right_wrist_pitch_joint"/>
     <motor name="right_wrist_yaw_joint" joint="right_wrist_yaw_joint"/>
+    <motor name="left_hand_thumb_0_joint" joint="left_hand_thumb_0_joint"/>
+    <motor name="left_hand_thumb_1_joint" joint="left_hand_thumb_1_joint"/>
+    <motor name="left_hand_thumb_2_joint" joint="left_hand_thumb_2_joint"/>
+    <motor name="left_hand_middle_0_joint" joint="left_hand_middle_0_joint"/>
+    <motor name="left_hand_middle_1_joint" joint="left_hand_middle_1_joint"/>
+    <motor name="left_hand_index_0_joint" joint="left_hand_index_0_joint"/>
+    <motor name="left_hand_index_1_joint" joint="left_hand_index_1_joint"/>
     <motor name="right_hand_thumb_0_joint" joint="right_hand_thumb_0_joint"/>
     <motor name="right_hand_thumb_1_joint" joint="right_hand_thumb_1_joint"/>
     <motor name="right_hand_thumb_2_joint" joint="right_hand_thumb_2_joint"/>
