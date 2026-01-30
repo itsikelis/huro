@@ -233,6 +233,8 @@ RUN apt-get update && apt-get install -yy ros-${ROS_DISTRO}-tf-transformations
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && \
     echo "source /huro_ws/install/setup.bash" >> /root/.bashrc
 
+WORKDIR /huro_ws/src
+RUN git clone https://github.com/CDonosoK/astroviz_interfaces.git
 
 RUN echo "export LD_LIBRARY_PATH=/usr/local/lib:\$LD_LIBRARY_PATH" >> /root/.bashrc
 

@@ -30,6 +30,8 @@ else
         --tty \
         --rm \
         --network host \
+        -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
+        -e ROS_DOMAIN_ID=0 \
         --env DISPLAY=$DISPLAY \
         --privileged \
         --volume /tmp/.X11-unix:/tmp/.X11-unix \

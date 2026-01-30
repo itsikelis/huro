@@ -141,19 +141,19 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
-  PROGRAMS apps/opensot/g1_teleop.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-install(
-  PROGRAMS apps/opensot/marker_teleop.py
-  DESTINATION lib/${PROJECT_NAME}
-)
-install(
   PROGRAMS apps/opensot/g1_collision_avoidance.py
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
-  PROGRAMS apps/opensot/g1_velocity.py
+  PROGRAMS apps/opensot/g1_full_body.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/teleoperation/mouse/mouse_node.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/dx3/g1_dx3_hand.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

@@ -178,6 +178,14 @@ class G1CollisionAvoidanceNode(Node):
             Bool, "/emergency_stop", self.emergency_stop_callback, 10
         )
 
+        self.righ_hand_subscriber = self.create_subscription(
+            PoseStamped, "/right_hand/pose_ref", self.right_hand_pose_ref_callback, 10
+        )
+
+        self.left_hand_subscriber = self.create_subscription(
+            PoseStamped, "/left_hand/pose_ref", self.left_hand_pose_ref_callback, 10
+        )
+
         while not self.client.wait_for_service(timeout_sec=1.0):
             self.get_logger().warn('Service /robot_state_publisher/get_parameters not available, waiting...')
 
@@ -208,10 +216,19 @@ class G1CollisionAvoidanceNode(Node):
 
         self.force_publishers = {}
 
+        self.right_hand_frame_ref = 'world'
+        self.left_hand_frame_ref = 'pelvis'
+
         self.initialize()
         self.initialize_imarkers()
 
         self.control_timer = self.create_timer(self.control_dt, self.control_loop)
+
+    def right_hand_pose_ref_callback(self, msg: PoseStamped):
+        self.right_hand_pose_ref = msg
+
+    def left_hand_pose_ref_callback(self, msg: PoseStamped):
+        self.left_hand_pose_ref = msg
 
     def initialize_imarkers(self):
         self.marker_enabled = {}
@@ -223,14 +240,14 @@ class G1CollisionAvoidanceNode(Node):
         pose_ref.linear = base_ref.linear.copy()
         self.get_logger().info(f"Initial base pose:\n{pose_ref}")
         self.make_6dof_marker('base_marker', pose_ref, 'world')
-
+        
         right_hand_ref = self.right_gripper.getReference()
         self.get_logger().info(f"Initial right hand pose:\n{right_hand_ref}")
-        self.make_6dof_marker('right_hand_marker', right_hand_ref[0], 'pelvis')
-
+        self.make_6dof_marker('right_hand_marker', right_hand_ref[0], self.right_hand_frame_ref)
+        
         left_hand_ref = self.left_gripper.getReference()
         self.get_logger().info(f"Initial left hand pose:\n{left_hand_ref}")
-        self.make_6dof_marker('left_hand_marker', left_hand_ref[0], 'pelvis')
+        self.make_6dof_marker('left_hand_marker', left_hand_ref[0], self.left_hand_frame_ref)
 
     def control_loop(self):
         if not hasattr(self, 'start_opensot'):
@@ -278,27 +295,73 @@ class G1CollisionAvoidanceNode(Node):
                 self.base_ref.linear = R.from_quat(quaternion).as_matrix()
                 self.base.setReference(self.base_ref, self.base_vel_ref)
 
-                com_ref = np.array([
-                    base_ps.pose.position.x,
-                    base_ps.pose.position.y,
-                    base_ps.pose.position.z,
-                ])
+                # com_ref = np.array([
+                #     base_ps.pose.position.x,
+                #     base_ps.pose.position.y,
+                #     base_ps.pose.position.z,
+                # ])
+                T_L = self.model.getPose("left_ankle_roll_link")
+                T_R = self.model.getPose("right_ankle_roll_link")
+
+                pL = T_L.translation
+                pR = T_R.translation
+                com_ref = self.com.getReference()[0].copy()
+                com_ref[:2] = 0.5*(pL+pR)[:2]
                 self.com.setReference(com_ref)
 
+            use_marker_right = self.marker_enabled.get("right_hand_marker", False) and "right_hand_marker" in self.marker_poses
+
             # --- RIGHT HAND ---
-            if self.marker_enabled.get("right_hand_marker", True) and "right_hand_marker" in self.marker_poses:
+            if use_marker_right:
                 ps = self.marker_poses["right_hand_marker"]
                 T = pyaffine3.Affine3()
                 T.translation = np.array([ps.pose.position.x, ps.pose.position.y, ps.pose.position.z])
                 T.linear = R.from_quat([ps.pose.orientation.x, ps.pose.orientation.y, ps.pose.orientation.z, ps.pose.orientation.w]).as_matrix()
                 self.right_gripper.setReference(T)
 
+            elif self.right_hand_pose_ref is not None:
+                ps = self.right_hand_pose_ref
+
+                T = pyaffine3.Affine3()
+                T.translation = np.array([
+                    ps.pose.position.x,
+                    ps.pose.position.y,
+                    ps.pose.position.z
+                ])
+                T.linear = R.from_quat([
+                    ps.pose.orientation.x,
+                    ps.pose.orientation.y,
+                    ps.pose.orientation.z,
+                    ps.pose.orientation.w
+                ]).as_matrix()
+
+                self.right_gripper.setReference(T)
+
+            use_marker_left = self.marker_enabled.get("left_hand_marker", False) and "left_hand_marker" in self.marker_poses
             # --- LEFT HAND ---
-            if self.marker_enabled.get("left_hand_marker", True) and "left_hand_marker" in self.marker_poses:
+            if use_marker_left:
                 ps = self.marker_poses["left_hand_marker"]
                 T = pyaffine3.Affine3()
                 T.translation = np.array([ps.pose.position.x, ps.pose.position.y, ps.pose.position.z])
                 T.linear = R.from_quat([ps.pose.orientation.x, ps.pose.orientation.y, ps.pose.orientation.z, ps.pose.orientation.w]).as_matrix()
+                self.left_gripper.setReference(T)
+
+            elif self.left_hand_pose_ref is not None:
+                ps = self.left_hand_pose_ref
+
+                T = pyaffine3.Affine3()
+                T.translation = np.array([
+                    ps.pose.position.x,
+                    ps.pose.position.y,
+                    ps.pose.position.z
+                ])
+                T.linear = R.from_quat([
+                    ps.pose.orientation.x,
+                    ps.pose.orientation.y,
+                    ps.pose.orientation.z,
+                    ps.pose.orientation.w
+                ]).as_matrix()
+
                 self.left_gripper.setReference(T)
 
             self.stack.update()
@@ -455,15 +518,15 @@ class G1CollisionAvoidanceNode(Node):
             "right_gripper_task",
             self.model,
             "right_hand_point_contact",
-            'pelvis',
+            self.right_hand_frame_ref,
         )
-        self.right_gripper.setLambda(2.0)
+        self.right_gripper.setLambda(5.0)
 
         self.left_gripper = Cartesian(
             "left_gripper_task",
             self.model,
             "left_hand_point_contact",
-            'pelvis',
+            self.left_hand_frame_ref,
         )
         self.left_gripper.setLambda(2.0)
 
@@ -487,11 +550,12 @@ class G1CollisionAvoidanceNode(Node):
         for t in self.contacts[1:]:
             stack_contacts = stack_contacts / t
 
+        self.com_xy = self.com %[0, 1]
         self.stack = (
             stack_contacts
-            / (self.com + self.base%[3,4,5] + self.torso%[3,4,5]) 
+            / self.com_xy
+            / (self.base%[3,4,5] + self.torso%[3,4,5] + self.right_gripper + self.left_gripper)
             / self.postural
-            / (self.right_gripper + self.left_gripper)
             << self.qlims
             << self.dqlims
         )
