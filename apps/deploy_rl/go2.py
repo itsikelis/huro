@@ -12,139 +12,71 @@ import math
 import yaml
 
 from sensor_msgs.msg import Joy
-from unitree_go.msg import SportModeState
-from unitree_hg.msg import LowCmd, LowState, IMUState, MotorState
+from unitree_api.msg import Request
+from unitree_go.msg import LowCmd, LowState, IMUState, MotorState
 
-from huro_py.crc_hg import Crc
+from huro_py.crc_go import Crc
 
-G1_NUM_MOTOR = 29
+GO2_NUM_MOTOR = 12
 
 JOINT_NAMES = [
-    "left_hip_pitch_joint",
-    "left_hip_roll_joint",
-    "left_hip_yaw_joint",
-    "left_knee_joint",
-    "left_ankle_pitch_joint",
-    "left_ankle_roll_joint",
-    "right_hip_pitch_joint",
-    "right_hip_roll_joint",
-    "right_hip_yaw_joint",
-    "right_knee_joint",
-    "right_ankle_pitch_joint",
-    "right_ankle_roll_joint",
-    "waist_yaw_joint",
-    "waist_roll_joint",
-    "waist_pitch_joint",
-    "left_shoulder_pitch_joint",
-    "left_shoulder_roll_joint",
-    "left_shoulder_yaw_joint",
-    "left_elbow_joint",
-    "left_wrist_roll_joint",
-    "left_wrist_pitch_joint",
-    "left_wrist_yaw_joint",
-    "right_shoulder_pitch_joint",
-    "right_shoulder_roll_joint",
-    "right_shoulder_yaw_joint",
-    "right_elbow_joint",
-    "right_wrist_roll_joint",
-    "right_wrist_pitch_joint",
-    "right_wrist_yaw_joint",
+    "FL_hip_joint",
+    "FL_thigh_joint",
+    "FL_calf_joint",
+    "FR_hip_joint",
+    "FR_thigh_joint",
+    "FR_calf_joint",
+    "RL_hip_joint",
+    "RL_thigh_joint",
+    "RL_calf_joint",
+    "RR_hip_joint",
+    "RR_thigh_joint",
+    "RR_calf_joint",
 ]
 
 Kp = [
-    1000.0,  # hips
-    400.0,
-    400.0,
-    500.0,  # knee
-    800.0,
-    800.0,  # legs
-    1000.0,  # hips
-    400.0,
-    400.0,
-    500.0,  # knee
-    800.0,
-    800.0,  # legs
-    800.0,
-    800.0,
-    800.0,  # waist
-    100.0,
-    100.0,
-    50.0,
-    50.0,
-    20.0,
-    20.0,
-    20.0,  # arms
-    100.0,
-    100.0,
-    50.0,
-    50.0,
-    20.0,
-    20.0,
-    20.0,  # arms
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
+    25.0,
 ]
 
 Kd = [
-    4.0,
-    4.0,
-    4.0,
-    6.0,
-    6.0,
-    4.0,  # legs
-    4.0,
-    4.0,
-    4.0,
-    6.0,
-    6.0,
-    4.0,  # legs
-    3.0,
-    3.0,
-    3.0,  # waist
-    2.0,
-    2.0,
-    2.0,
-    2.0,
-    1.0,
-    1.0,
-    1.0,  # arms
-    2.0,
-    2.0,
-    2.0,
-    2.0,
-    1.0,
-    1.0,
-    1.0,  # arms
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
 ]
 
 q_start = [
-    -0.1,
-    0.0,
-    0.0,  # hips
-    0.432,  # knee
-    -0.317,
-    0.0,  # ankles
-    -0.1,
-    0.0,
-    0.0,  # hips
-    0.432,  # knee
-    -0.317,
-    0.0,  # ankles
-    0.0,
-    0.0,
-    0.0,  # waist
-    0.3,
-    0.25,
-    0.0,
-    1.0,
-    0.15,
-    0.0,
-    0.0,  # arm
-    0.3,
-    -0.25,
-    0.0,
-    1.0,
-    0.15,
-    0.0,
-    0.0,  # arm
+    0.005,
+    0.72,
+    -1.4,
+    -0.005,
+    0.72,
+    -1.4,
+    -0.005,
+    0.72,
+    -1.4,
+    0.005,
+    0.72,
+    -1.4,
 ]
 
 
@@ -160,9 +92,9 @@ class Mode:
     AB = 1  # Parallel Control for A/B Joints
 
 
-class G1PolicyRunner(Node):
+class GO2PolicyRunner(Node):
     def __init__(self):
-        super().__init__("g1_policy_runner")
+        super().__init__("go2_policy_runner")
 
         self.control_freq_hz = 50  # 10ms
         self.control_dt = 1.0 / self.control_freq_hz
@@ -170,34 +102,30 @@ class G1PolicyRunner(Node):
         self.time = 0.0
         self.init_duration_s = 3.0
 
-        self.mode_ = Mode.PR
-        self.mode_machine = 0
-
         self.run_policy = False
         self.motors_on = 1
 
         share = get_package_share_directory("huro")
         # Load yaml config
-        yaml_name = "actuators.yaml"
-        yaml_path = os.path.join(share, "resources", "policies", "g1", yaml_name)
+        yaml_name = "action-info-Mjlab-Velocity-Flat-Unitree-Go2.yaml"
+        yaml_path = os.path.join(share, "resources", "policies", "go2", yaml_name)
         with open(yaml_path, "r") as file:
             self.cfg = yaml.safe_load(file)
 
         # Load policy model params
-        policy_name = "model.onnx"
-        policy_path = os.path.join(share, "resources", "policies", "g1", policy_name)
+        policy_name = "policy-Mjlab-Velocity-Flat-Unitree-Go2.onnx"
+        policy_path = os.path.join(share, "resources", "policies", "go2", policy_name)
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"File not found at: {policy_path}")
         self._load_onnx_model(policy_path)
         self.get_logger().info("Policy loaded successfully")
 
-        self.odom_state = SportModeState()
         self.imu = IMUState()
         self.motor = [MotorState() for _ in range(len(JOINT_NAMES))]
         self.joystick = Joy()
         self.prev_actions = np.zeros(len(JOINT_NAMES))
 
-        self.actions = np.zeros(G1_NUM_MOTOR)
+        self.actions = np.zeros(GO2_NUM_MOTOR)
 
         # Publishers
         self.lowcmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
@@ -206,19 +134,34 @@ class G1PolicyRunner(Node):
         self.lowstate_sub = self.create_subscription(
             LowState, "/lowstate", self.low_state_handler, 10
         )
-        self.odommodestate_sub = self.create_subscription(
-            SportModeState, "/odommodestate", self.odom_handler, 10
-        )
+
         self.joystick_sub = self.create_subscription(Joy, "/joy", self.joy_handler, 10)
+
+        # To enter Go2 low-level control mode
+        self.sport_pub = self.create_publisher(Request, "/api/sport/request", 10)
+        ROBOT_SPORT_API_ID_STANDDOWN = 1005
+        req = Request()
+        req.header.identity.api_id = ROBOT_SPORT_API_ID_STANDDOWN
+        self.sport_pub.publish(req)
+
+        self.motion_pub = self.create_publisher(
+            Request, "/api/motion_switcher/request", 10
+        )
+        ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
+        req = Request()
+        req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
+        self.motion_pub.publish(req)
 
         self.timer = self.create_timer(self.control_dt, self.control)
 
     def control(self):
         low_cmd = LowCmd()
-        self.time += self.control_dt
+        low_cmd.head[0] = 0xFE
+        low_cmd.head[1] = 0xEF
+        # low_cmd.levelFlag = 0xFF
+        low_cmd.gpio = 0
 
-        low_cmd.mode_pr = self.mode_
-        low_cmd.mode_machine = self.mode_machine
+        self.time += self.control_dt
 
         if not self.run_policy:
             for name in JOINT_NAMES:
@@ -256,27 +199,20 @@ class G1PolicyRunner(Node):
         self.lowcmd_pub.publish(low_cmd)
 
     def _get_obs(self):
-        # +------------------------------------------------------------+
-        # | Active Observation Terms in Group: 'policy' (shape: (99,)) |
-        # +-----------+----------------------------------+-------------+
-        # |   Index   | Name                             |    Shape    |
-        # +-----------+----------------------------------+-------------+
-        # |     0     | base_lin_vel                     |     (3,)    |
-        # |     1     | base_ang_vel                     |     (3,)    |
-        # |     2     | projected_gravity                |     (3,)    |
-        # |     3     | joint_pos                        |    (29,)    |  (RELATIVE to default_joint_pos!)
-        # |     4     | joint_vel                        |    (29,)    |  (RELATIVE to default_joint_vel!)
-        # |     5     | actions                          |    (29,)    |
-        # |     6     | command                          |     (3,)    |
-        # +-----------+----------------------------------+-------------+
-
-        base_lin_vel = np.array(
-            [
-                self.odom_state.velocity[0],
-                self.odom_state.velocity[1],
-                self.odom_state.velocity[2],
-            ]
-        )
+        """
+        +------------------------------------------------------------+
+        | Active Observation Terms in Group: 'policy' (shape: (45,)) |
+        +-----------+----------------------------------+-------------+
+        |   Index   | Name                             |    Shape    |
+        +-----------+----------------------------------+-------------+
+        |     0     | base_ang_vel                     |     (3,)    |
+        |     1     | projected_gravity                |     (3,)    |
+        |     2     | joint_pos                        |    (12,)    |
+        |     3     | joint_vel                        |    (12,)    |
+        |     4     | actions                          |    (12,)    |
+        |     5     | command                          |     (3,)    |
+        +-----------+----------------------------------+-------------+
+        """
 
         base_ang_vel = np.array(
             [
@@ -297,9 +233,8 @@ class G1PolicyRunner(Node):
         gravity_world = np.array([0.0, 0.0, -1.0])
         projected_gravity = quat_rotate_inverse(quat, gravity_world)
 
-        joint_pos_rel = np.zeros(G1_NUM_MOTOR)
-        joint_vel_rel = np.zeros(G1_NUM_MOTOR)
-        dq = np.zeros(G1_NUM_MOTOR)
+        joint_pos_rel = np.zeros(GO2_NUM_MOTOR)
+        joint_vel_rel = np.zeros(GO2_NUM_MOTOR)
         for name in JOINT_NAMES:
             idx = self.cfg[name]["index"]
             q_init = self.cfg[name]["default_position"]
@@ -308,7 +243,7 @@ class G1PolicyRunner(Node):
 
         command = np.array(
             [
-                self.joystick.axes[3] * 3,
+                self.joystick.axes[3] * 2,
                 self.joystick.axes[2] * 1,
                 self.joystick.axes[0] * 0.7,
             ]
@@ -316,7 +251,6 @@ class G1PolicyRunner(Node):
 
         return np.concatenate(
             [
-                base_lin_vel,
                 base_ang_vel,
                 projected_gravity,
                 joint_pos_rel,
@@ -328,14 +262,10 @@ class G1PolicyRunner(Node):
         )
 
     def low_state_handler(self, msg: LowState):
-        self.mode_machine = msg.mode_machine
         self.imu = msg.imu_state
         for name in JOINT_NAMES:
             idx = self.cfg[name]["index"]
             self.motor[idx] = msg.motor_state[idx]
-
-    def odom_handler(self, msg: SportModeState):
-        self.odom_state = msg
 
     def joy_handler(self, msg: Joy):
         self.joystick = msg
@@ -362,7 +292,7 @@ class G1PolicyRunner(Node):
         assert i.name == "obs"
         self._obs_dim = i.shape[1]
         o = self._ort_sess.get_outputs()[0]
-        assert o.shape[1] == G1_NUM_MOTOR
+        assert o.shape[1] == GO2_NUM_MOTOR
 
     def _get_raw_action(self, obs: np.ndarray) -> np.ndarray:
         obs = obs.astype(np.float32, copy=False)
@@ -376,7 +306,7 @@ class G1PolicyRunner(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = G1PolicyRunner()
+    node = GO2PolicyRunner()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()

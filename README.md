@@ -4,108 +4,77 @@
 
 ### Docker
 
-To build the docker image, navigate to the repository root folder and type
+We provide utility scripts to build and run the HURo docker image in the docker folder:
+```bash
+cd docker
+```
+
+To build the docker image:
 ```bash
 cd docker && ./build.sh
 ```
 
-To launch the docker container (first or recurring instances) execute
+To launch a docker container (first or subsequent instances):
 ```bash
-cd docker && ./run.sh
+./run.sh
 ```
 
 ## Usage
 
-At the moment, HURo has been tested on the Unitree G1 humanoid and Unitree Go2 quadruped robots. It supports deployment both on hardware and on a MuJoCo simulation.
+Until now, HURo has been tested on the Unitree G1 humanoid and Unitree Go2 quadruped robots. It supports deployment both on hardware and on a MuJoCo simulation.
 
 ### Workspace preparation
 
-To build the package code, from an interactive container session run:
+To build the workspace code and examples, launch an interactive container session:
+```bash
+cd docker && ./run.sh
+```
 
+Then build with colcon:
 ```bash
 colcon build
 ```
 
-Then, set up the CycloneDDS network interface by running:
+HURo supports seamless simulation (MuJoCo) and real robot deployment.
+This is achieved by selecting the appropriate network interface and setting it up on CycloneDDS.
 
+#### Simulation deployment
+
+In each docker terminal source the setup_uri script and pass lo (loopback) as an argument:
 ```bash
-source setup_uri.sh INTERFACE_NAME
+docker> source setup_uri.sh lo
 ```
 
-Replace INTERFACE_NAME with the name of the network interface (Ethernet, WiFi or lo). To check the available network interfaces you can run:
-
+Run the root, simulation and rviz node:
 ```bash
-ip a
+ros2 launch huro ROBOT_sim.launch.py
 ```
 
-**Important note**: To run a simulation node, you should use lo (the loopback address).
+replacing robot with either "g1" or "go2".
 
-**Important note**: If you wish to execute things over Ethernet, you need to set up a wired connection with a static IP in Linux. Set the following in NetworkManager:
+
+#### Robot deployment (Ethernet only for now)
+
+Set up a wired connection with the following:
 
 ```
-IP address: 192.168.123.222
+IP address: 192.168.123.222 (static)
 Netmask: 24
 Gateway: 192.168.123.1
 ```
 
-### Run the root node
+Check the available network interfaces and note down your ethernet interface by running:
+```bash
+ip a
+```
 
-The root node acts as an intermediary between the custom Unitree message types and the standard ROS2 messages used by RViz.
+In each docker terminal source the setup_uri script and pass the ethernet interface name as an argument:
+```bash
+docker> source setup_uri.sh ETH_INTERFACE
+```
 
-In the future, the Root node will also act as a safety layer to monitor joint or effort limit violation and motor temperatures.
-
-To run the Root node, spawn a container interactive session and run:
-
+Run the root, and rviz node:
 ```bash
 ros2 launch huro ROBOT_rviz.launch.py
 ```
-
-replacing robot with either "g1" or "go2".
-
 If you are connected to a robot, this will open up an RViz window that updates joint and floating base position as these move.
-
-### Run the simulation node
-
-If you wish to see a simulated robot, open a different container interactive session and run:
-
-```bash
-ros2 run huro sim_ROBOT
-```
-
-replacing robot with either "g1" or "go2".
-
-### Example to run a policy for go2 in simulation:
-
-```bash
-colcon build
-source setup_uri.sh lo
-ros2 launch huro go2_rviz.launch.py
-ros2 run huro sim_go2
-```
-
-
-To run the policy with a joystick controller (xbox type):
-```bash
-apt update
-apt-get install ros-humble-teleop-twist-joy 
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='xbox'
-ros2 run huro go2_publisher.py 
-```
-The robot will enter a stand up phase.
-Once this is done, press one of the back button to launch the policy.
-To stop it (emergency mode), you can press the two back buttons simultaneously.
-
-
-
-To run the policy with a space mouse:
-```bash
-ros2 run huro spacemouse_publisher.py
-ros2 run huro go2_publisher.py ros2 run huro go2_publisher.py --use_spacemouse True
-```
-The robot will enter a stand up phase.
-Once this is done, press one of the side buttons to launch the policy.
-To stop it (emergency mode), you can press the two side buttons simultaneously.
-
-
-### With the real robot:
-add --sim False when runing go2_publisher.py
