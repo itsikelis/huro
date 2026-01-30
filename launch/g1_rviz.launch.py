@@ -34,6 +34,7 @@ def generate_launch_description():
 
     ## RViz ##
     # Find rviz path
+    ## TODO: change this to shared directory
     rviz_file_path = os.path.join(
         get_package_share_directory("huro") + "/resources/rviz/",
         rviz_config,
@@ -53,7 +54,14 @@ def generate_launch_description():
     joy_node = Node(package="joy", executable="joy_node", name="joy_node")
 
     ## HURo Node ##
-    core_node = Node(package="huro", executable="root_g1", name="root_g1")
+    share_dir = get_package_share_directory("huro")
+    config = os.path.join(share_dir, "config", "g1_29dof_params.yaml")
+    core_node = Node(
+        package="huro",
+        executable="root_g1",
+        name="root_g1",
+        parameters=[config],
+    )
 
     # # Livox Lidar Launch File
     # lidar_launch = IncludeLaunchDescription(

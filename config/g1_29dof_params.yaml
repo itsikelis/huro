@@ -1,0 +1,82 @@
+# ROOT NODE PARAMETERS
+root_g1:
+  ros__parameters:
+    print_imu_info: false
+    print_motor_info: false
+    lowstate_topic_name: "/lowstate"
+    odom_topic_name: "/odommodestate"
+    base_link_name: "pelvis"
+    n_motors: 29
+    joint_names:
+      - "left_hip_pitch_joint"
+      - "left_hip_roll_joint"
+      - "left_hip_yaw_joint"
+      - "left_knee_joint"
+      - "left_ankle_pitch_joint"
+      - "left_ankle_roll_joint"
+      - "right_hip_pitch_joint"
+      - "right_hip_roll_joint"
+      - "right_hip_yaw_joint"
+      - "right_knee_joint"
+      - "right_ankle_pitch_joint"
+      - "right_ankle_roll_joint"
+      - "waist_yaw_joint"
+      - "waist_roll_joint"
+      - "waist_pitch_joint"
+      - "left_shoulder_pitch_joint"
+      - "left_shoulder_roll_joint"
+      - "left_shoulder_yaw_joint"
+      - "left_elbow_joint"
+      - "left_wrist_roll_joint"
+      - "left_wrist_pitch_joint"
+      - "left_wrist_yaw_joint"
+      - "right_shoulder_pitch_joint"
+      - "right_shoulder_roll_joint"
+      - "right_shoulder_yaw_joint"
+      - "right_elbow_joint"
+      - "right_wrist_roll_joint"
+      - "right_wrist_pitch_joint"
+      - "right_wrist_yaw_joint"
+
+# SIMULATION NODE PARAMETERS
+sim_g1:
+  ros__parameters:
+    robot_name: "g1"
+    lowstate_topic: "/lowstate"
+    lowcmd_topic: "/lowcmd"
+    odom_topic: "/odommodestate"
+    xml_filename: "g1/g1_29dof.xml"
+    base_link_name: "pelvis"
+    sole_link_name: "right_foot_point_contact"
+    q_init:
+     - -0.1
+     - 0.0
+     - 0.0     # hips
+     - 0.432   # knee
+     - -0.317
+     - 0.0     # ankles
+     - -0.1
+     - 0.0
+     - 0.0     # hips
+     - 0.432   # knee
+     - -0.317
+     - 0.0     # ankles
+     - 0.0
+     - 0.0
+     - 0.0     # waist
+     - 0.3
+     - 0.25
+     - 0.0
+     - 1.0
+     - 0.15
+     - 0.0
+     - 0.0     # arm
+     - 0.3
+     - -0.25
+     - 0.0
+     - 1.0
+     - 0.15
+     - 0.0
+     - 0.0     # arm
+    sim_dt_ms: 5
+    n_motors: 29

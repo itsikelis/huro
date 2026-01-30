@@ -14,7 +14,7 @@ def generate_launch_description():
     )
 
     ## HURo Sim Node ##
-    config = os.path.join(share_dir, "config", "go2_sim_params.yaml")
+    config = os.path.join(share_dir, "config", "go2_params.yaml")
     sim_node = Node(
         package="huro",
         executable="sim_go2",
