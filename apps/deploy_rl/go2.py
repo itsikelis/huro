@@ -20,21 +20,21 @@ from huro_py.crc_go import Crc
 GO2_NUM_MOTOR = 12
 
 JOINT_NAMES = [
-    "FL_hip_joint",
-    "FL_thigh_joint",
-    "FL_calf_joint",
     "FR_hip_joint",
     "FR_thigh_joint",
     "FR_calf_joint",
-    "RL_hip_joint",
-    "RL_thigh_joint",
-    "RL_calf_joint",
+    "FL_hip_joint",
+    "FL_thigh_joint",
+    "FL_calf_joint",
     "RR_hip_joint",
     "RR_thigh_joint",
     "RR_calf_joint",
+    "RL_hip_joint",
+    "RL_thigh_joint",
+    "RL_calf_joint",
 ]
 
-Kp = [
+KP = [
     25.0,
     25.0,
     25.0,
@@ -49,7 +49,7 @@ Kp = [
     25.0,
 ]
 
-Kd = [
+KD = [
     0.5,
     0.5,
     0.5,
@@ -64,17 +64,17 @@ Kd = [
     0.5,
 ]
 
-q_start = [
+Q0 = [
+    -0.005,
+    0.72,
+    -1.4,
+    0.005,
+    0.72,
+    -1.4,
     0.005,
     0.72,
     -1.4,
     -0.005,
-    0.72,
-    -1.4,
-    -0.005,
-    0.72,
-    -1.4,
-    0.005,
     0.72,
     -1.4,
 ]
@@ -164,30 +164,28 @@ class GO2PolicyRunner(Node):
         self.time += self.control_dt
 
         if not self.run_policy:
-            for name in JOINT_NAMES:
+            for idx, _ in enumerate(JOINT_NAMES):
                 ratio = self.clamp(self.time / self.init_duration_s, 0.0, 1.0)
-                idx = self.cfg[name]["index"]
                 cmd = low_cmd.motor_cmd[idx]
                 cmd.mode = self.motors_on
-                cmd.q = (1.0 - ratio) * self.motor[idx].q + ratio * q_start[idx]
-                # cmd.q = q_start[idx]
+                cmd.q = (1.0 - ratio) * self.motor[idx].q + ratio * Q0[idx]
                 cmd.dq = 0.0
                 cmd.tau = 0.0
-                cmd.kp = Kp[idx]
-                cmd.kd = Kd[idx]
+                cmd.kp = KP[idx]
+                cmd.kd = KD[idx]
         else:  # If A (or cross) is pressed, run policy
-            ## Get observations
+            # Get observations
             o = self._get_obs()
-            ## Get action
+            # Get action
             a = self._get_raw_action(o)
-            ## Command robot
-            for name in JOINT_NAMES:
-                idx = self.cfg[name]["index"]
-                q_init = self.cfg[name]["default_position"]
+            # Command robot
+            for idx, name in enumerate(JOINT_NAMES):
+                q_def = self.cfg[name]["default_position"]
                 action_scale = self.cfg[name]["action_scale"]
+                p_idx = self.cfg[name]["index"]
                 cmd = low_cmd.motor_cmd[idx]
                 cmd.mode = self.motors_on
-                cmd.q = float(action_scale * a[idx] + q_init)
+                cmd.q = float(action_scale * a[p_idx] + q_def)
                 cmd.dq = 0.0
                 cmd.tau = 0.0
                 cmd.kp = self.cfg[name]["stiffness"]
@@ -235,11 +233,11 @@ class GO2PolicyRunner(Node):
 
         joint_pos_rel = np.zeros(GO2_NUM_MOTOR)
         joint_vel_rel = np.zeros(GO2_NUM_MOTOR)
-        for name in JOINT_NAMES:
-            idx = self.cfg[name]["index"]
-            q_init = self.cfg[name]["default_position"]
-            joint_pos_rel[idx] = self.motor[idx].q - q_init
-            joint_vel_rel[idx] = self.motor[idx].dq - 0.0
+        for idx, name in enumerate(JOINT_NAMES):
+            p_idx = self.cfg[name]["index"]
+            q_def = self.cfg[name]["default_position"]
+            joint_pos_rel[p_idx] = self.motor[idx].q - q_def
+            joint_vel_rel[p_idx] = self.motor[idx].dq - 0.0
 
         command = np.array(
             [
