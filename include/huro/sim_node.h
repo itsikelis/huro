@@ -20,6 +20,24 @@
 namespace huro {
 template <typename LowCmdMsg, typename LowStateMsg, typename OdometryMsg>
 class SimNode : public rclcpp::Node {
+
+public:
+  struct SimNodeParams {
+    std::string robot_name;
+    std::string lowstate_topic_name;
+    std::string lowcmd_topic_name;
+    std::string odom_topic_name;
+    std::string xml_filename;
+    std::string base_link_name;
+    std::string sole_link_name;
+    std::vector<std::string> joint_names;
+    std::vector<std::string> actuator_names;
+    std::vector<double> q_init;
+    size_t sim_dt_ms;
+    size_t n_motors;
+    size_t n_gripper_motors;
+  };
+
 public:
   SimNode() : Node("sim_node") {
 
@@ -31,41 +49,53 @@ public:
     this->declare_parameter("xml_filename", rclcpp::PARAMETER_STRING);
     this->declare_parameter("base_link_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("sole_link_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("joint_names", rclcpp::PARAMETER_STRING_ARRAY);
+    this->declare_parameter("actuator_names", rclcpp::PARAMETER_STRING_ARRAY);
     this->declare_parameter("q_init", rclcpp::PARAMETER_DOUBLE_ARRAY);
     this->declare_parameter("sim_dt_ms", rclcpp::PARAMETER_INTEGER);
     this->declare_parameter("n_motors", rclcpp::PARAMETER_INTEGER);
 
-    robot_name_ = this->get_parameter("robot_name").as_string();
-    lowstate_topic_ = this->get_parameter("lowstate_topic").as_string();
-    lowcmd_topic_ = this->get_parameter("lowcmd_topic").as_string();
-    odom_topic_ = this->get_parameter("odom_topic").as_string();
-    xml_filename_ = this->get_parameter("xml_filename").as_string();
-    base_link_name_ = this->get_parameter("base_link_name").as_string();
-    sole_link_name_ = this->get_parameter("sole_link_name").as_string();
-    q_init_ = this->get_parameter("q_init").as_double_array();
-    sim_dt_ms_ = static_cast<size_t>(this->get_parameter("sim_dt_ms").as_int());
-    n_motors_ = static_cast<size_t>(this->get_parameter("n_motors").as_int());
+    params_.robot_name = this->get_parameter("robot_name").as_string();
+    params_.lowstate_topic_name =
+        this->get_parameter("lowstate_topic_name").as_string();
+    params_.lowcmd_topic_name =
+        this->get_parameter("lowcmd_topic_name").as_string();
+    params_.odom_topic_name =
+        this->get_parameter("odom_topic_name").as_string();
+    params_.xml_filename = this->get_parameter("xml_filename").as_string();
+    params_.base_link_name = this->get_parameter("base_link_name").as_string();
+    params_.sole_link_name = this->get_parameter("sole_link_name").as_string();
+    params_.joint_names = this->get_parameter("joint_names").as_string_array();
+    params_.actuator_names =
+        this->get_parameter("actuator_names").as_string_array();
+    params_.q_init = this->get_parameter("q_init").as_double_array();
+    params_.sim_dt_ms =
+        static_cast<size_t>(this->get_parameter("sim_dt_ms").as_int());
+    params_.n_motors =
+        static_cast<size_t>(this->get_parameter("n_motors").as_int());
 
     // Initialize publishers and subscripbers
-    lowstate_pub_ = this->create_publisher<LowStateMsg>(lowstate_topic_, 10);
-    odom_pub_ = this->create_publisher<OdometryMsg>(odom_topic_, 10);
+    lowstate_pub_ =
+        this->create_publisher<LowStateMsg>(params_.lowstate_topic_name, 10);
+    odom_pub_ =
+        this->create_publisher<OdometryMsg>(params_.odom_topic_name, 10);
 
     lowmcd_sub_ = this->create_subscription<LowCmdMsg>(
-        lowcmd_topic_, 10,
+        params_.lowcmd_topic_name, 10,
         std::bind(&SimNode::LowCmdHandler, this, std::placeholders::_1));
 
     // 500Hz control loop
-    timer_ = this->create_wall_timer(std::chrono::milliseconds(sim_dt_ms_),
-                                     std::bind(&SimNode::Step, this));
+    timer_ =
+        this->create_wall_timer(std::chrono::milliseconds(params_.sim_dt_ms),
+                                std::bind(&SimNode::Step, this));
 
     // Initialize robot
     auto xml_path = ament_index_cpp::get_package_share_directory("huro") +
-                    "/resources/description_files/xml/" + xml_filename_;
+                    "/resources/description_files/xml/" + params_.xml_filename;
     InitRobot(xml_path);
 
     // Flags and time keeping
     loop_count_ = 0;
-    time_s_ = 0;
   }
 
   ~SimNode() {}
@@ -79,11 +109,9 @@ protected:
         loop_count_ = 0;
       }
     } else {
-      time_s_ += static_cast<double>(sim_dt_ms_) / 1000.0;
 
       // Calculate control
-      for (size_t i = 0; i < n_motors_; ++i) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "i: " << i);
+      for (size_t i = 0; i < params_.n_motors; ++i) {
         int motor_mode = static_cast<int>(low_cmd_->motor_cmd[i].mode);
         mjtNum q_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].q);
         mjtNum qdot_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].dq);
@@ -91,12 +119,11 @@ protected:
         mjtNum kp = static_cast<mjtNum>(low_cmd_->motor_cmd[i].kp);
         mjtNum kd = static_cast<mjtNum>(low_cmd_->motor_cmd[i].kd);
 
-        mjtNum q_e = q_des - mj_data_->qpos[7 + i];
-        mjtNum qdot_e = qdot_des - mj_data_->qvel[6 + i];
-
-        mj_data_->ctrl[i] = motor_mode * (kp * q_e + kd * qdot_e + tau_ff);
-        // mj_data_->ctrl[i] = 0.0;
-        // RCLCPP_INFO(this->get_logger(), "u[%ld]: %f",i , mj_data_->ctrl[i]);
+        int j_idx = GetMjJointIndex(i);
+        int a_idx = GetMjActuatorIndex(i);
+        mjtNum q_e = q_des - mj_data_->qpos[7 + j_idx];
+        mjtNum qdot_e = qdot_des - mj_data_->qvel[6 + j_idx];
+        mj_data_->ctrl[a_idx] = motor_mode * (kp * q_e + kd * qdot_e + tau_ff);
       }
 
       // Step the simulation
@@ -131,9 +158,10 @@ protected:
     mj_data_ = mj_makeData(mj_model_);
 
     // Set joint positions
-    for (size_t i = 0; i < n_motors_; ++i) {
-      mj_data_->qpos[7 + i] = static_cast<mjtNum>(q_init_[i]);
-      mj_data_->qvel[6 + i] = 0.0;
+    for (size_t i = 0; i < params_.n_motors; ++i) {
+      int j_idx = GetMjJointIndex(i);
+      mj_data_->qpos[7 + j_idx] = static_cast<mjtNum>(params_.q_init[i]);
+      mj_data_->qvel[6 + j_idx] = 0.0;
     }
 
     // Place robot on the floor
@@ -207,11 +235,11 @@ protected:
     lowstate.imu_state.gyroscope[2] = omegaz;
 
     // Motor states
-    for (size_t i = 0; i < n_motors_; ++i) {
-
-      float q = static_cast<float>(mj_data_->qpos[7 + i]);
-      float qdot = static_cast<float>(mj_data_->qvel[6 + i]);
-      float qddot = static_cast<float>(mj_data_->qacc[6 + i]);
+    for (size_t i = 0; i < params_.n_motors; ++i) {
+      int j_idx = GetMjJointIndex(i);
+      float q = static_cast<float>(mj_data_->qpos[7 + j_idx]);
+      float qdot = static_cast<float>(mj_data_->qvel[6 + j_idx]);
+      float qddot = static_cast<float>(mj_data_->qacc[6 + j_idx]);
 
       lowstate.motor_state[i].q = q;
       lowstate.motor_state[i].dq = qdot;
@@ -219,7 +247,7 @@ protected:
     }
 
     // Foot contact forces from MuJoCo contact data for go2
-    // if constexpr (robot_name_ == "go_2") {
+    // if constexpr (params_.robot_name == "go_2") {
     //   for (size_t i = 0; i < 4; ++i) {
     //     lowstate.foot_force[i] = 0;
     //     lowstate.foot_force_est[i] = 0;
@@ -264,8 +292,8 @@ protected:
   mjtNum GetZDistanceFromSoleToBaseLink() {
     mj_fwdPosition(mj_model_, mj_data_);
 
-    int pelvis_id = mj_name2id(mj_model_, mjOBJ_BODY, base_link_name_.c_str());
-    int sole_id = mj_name2id(mj_model_, mjOBJ_BODY, sole_link_name_.c_str());
+    int pelvis_id = GetMjBodyIndex(params_.base_link_name.c_str());
+    int sole_id = GetMjBodyIndex(params_.sole_link_name.c_str());
 
     if (pelvis_id == -1 || sole_id == -1) {
       std::string msg = "Invalid body name(s) during model z calculation";
@@ -279,21 +307,25 @@ protected:
     return pelvis_pos[2] - sole_pos[2];
   }
 
+  int GetMjBodyIndex(char *name) const {
+    return mj_name2id(mj_model_, mjOBJ_BODY, name);
+  }
+
+  int GetMjJointIndex(int i) const {
+    return mj_name2id(mj_model_, mjOBJ_JOINT, params_.joint_names[i].c_str()) -
+           1;
+  }
+
+  int GetMjActuatorIndex(int i) const {
+    return mj_name2id(mj_model_, mjOBJ_ACTUATOR,
+                      params_.actuator_names[i].c_str());
+  }
+
 protected:
   const size_t kLogInterval = 500; // Logging frequency
 
-  std::string robot_name_;     // robot name (g1 or go2)
-  std::string lowstate_topic_; // lostate topic name
-  std::string lowcmd_topic_;   // lowcmd topic name
-  std::string odom_topic_;     // Odometry topic name
-  std::string xml_filename_;   // XML file description name
-  std::string base_link_name_; // Base link name
-  std::string sole_link_name_; // Sole link name (for z height calculation)
-  std::vector<double> q_init_; // Initial joint position
-  size_t sim_dt_ms_;           // Sim dt
-  size_t n_motors_;            // Track loop count for logging
-  double time_s_;              // Running time count (in seconds)
-  size_t loop_count_;          // Track loop count for logging
+  SimNodeParams params_;
+  size_t loop_count_; // Track loop count for logging
   int mode_machine;
 
   std::shared_ptr<rclcpp::Publisher<LowStateMsg>> lowstate_pub_;

@@ -8,29 +8,32 @@ root_go2:
     base_link_name: "base"
     n_motors: 12
     joint_names:
-      - "FL_hip_joint"
-      - "FL_thigh_joint"
-      - "FL_calf_joint"
       - "FR_hip_joint"
       - "FR_thigh_joint"
       - "FR_calf_joint"
-      - "RL_hip_joint"
-      - "RL_thigh_joint"
-      - "RL_calf_joint"
+      - "FL_hip_joint"
+      - "FL_thigh_joint"
+      - "FL_calf_joint"
       - "RR_hip_joint"
       - "RR_thigh_joint"
       - "RR_calf_joint"
+      - "RL_hip_joint"
+      - "RL_thigh_joint"
+      - "RL_calf_joint"
 
 # SIM NODE PARAMETERS
 sim_go2:
   ros__parameters:
     robot_name: "go2"
-    lowstate_topic: "/lowstate"
-    lowcmd_topic: "/lowcmd"
-    odom_topic: "/sportmodestate"
+    lowstate_topic_name: "/lowstate"
+    lowcmd_topic_name: "/lowcmd"
+    odom_topic_name: "/sportmodestate"
     xml_filename: "go2/go2.xml"
     base_link_name: "base"
     sole_link_name: "RR_point"
+    sim_dt_ms: 1
+    n_motors: 12
+    n_gripper_motors: 0
     q_init:
       - 0.005
       - 0.72
@@ -44,5 +47,29 @@ sim_go2:
       - 0.005
       - 0.72
       - -1.4
-    sim_dt_ms: 1
-    n_motors: 12
+    joint_names:
+      - "FR_hip_joint"
+      - "FR_thigh_joint"
+      - "FR_calf_joint"
+      - "FL_hip_joint"
+      - "FL_thigh_joint"
+      - "FL_calf_joint"
+      - "RR_hip_joint"
+      - "RR_thigh_joint"
+      - "RR_calf_joint"
+      - "RL_hip_joint"
+      - "RL_thigh_joint"
+      - "RL_calf_joint"
+    actuator_names:
+      - "FR_hip"
+      - "FR_thigh"
+      - "FR_calf"
+      - "FL_hip"
+      - "FL_thigh"
+      - "FL_calf"
+      - "RR_hip"
+      - "RR_thigh"
+      - "RR_calf"
+      - "RL_hip"
+      - "RL_thigh"
+      - "RL_calf"
