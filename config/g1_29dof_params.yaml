@@ -50,7 +50,6 @@ sim_g1:
     sole_link_name: "right_foot_point_contact"
     sim_dt_ms: 5
     n_motors: 29
-    n_gripper_motors: 0
     q_init:
      - -0.1
      - 0.0

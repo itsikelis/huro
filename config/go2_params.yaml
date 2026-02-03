@@ -33,7 +33,6 @@ sim_go2:
     sole_link_name: "RR_point"
     sim_dt_ms: 1
     n_motors: 12
-    n_gripper_motors: 0
     q_init:
       - 0.005
       - 0.72

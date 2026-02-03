@@ -43,9 +43,9 @@ public:
 
     // Declare parameters used
     this->declare_parameter("robot_name", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("lowstate_topic", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("lowcmd_topic", rclcpp::PARAMETER_STRING);
-    this->declare_parameter("odom_topic", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("lowstate_topic_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("lowcmd_topic_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("odom_topic_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("xml_filename", rclcpp::PARAMETER_STRING);
     this->declare_parameter("base_link_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("sole_link_name", rclcpp::PARAMETER_STRING);
@@ -307,7 +307,7 @@ protected:
     return pelvis_pos[2] - sole_pos[2];
   }
 
-  int GetMjBodyIndex(char *name) const {
+  int GetMjBodyIndex(const char *name) const {
     return mj_name2id(mj_model_, mjOBJ_BODY, name);
   }
 

@@ -3,8 +3,6 @@
 #ifndef HURO_ROOT_NODE_H_
 #define HURO_ROOT_NODE_H_
 
-#include <huro/params.h>
-
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <memory>
@@ -67,7 +65,6 @@ public:
    * Initializes publishers, subscribers, and the transform broadcaster based on
    * the provided parameters.
    *
-   * @param params A Params struct specified in huro/params.h
    */
   RootNode() : Node("root_node") {
 
