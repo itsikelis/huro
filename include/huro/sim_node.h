@@ -30,6 +30,8 @@ public:
     std::string xml_filename;
     std::string base_link_name;
     std::string sole_link_name;
+    std::vector<std::string> joint_names;
+    std::vector<std::string> actuator_names;
     std::vector<double> q_init;
     size_t sim_dt_ms;
     size_t n_motors;
@@ -47,6 +49,8 @@ public:
     this->declare_parameter("xml_filename", rclcpp::PARAMETER_STRING);
     this->declare_parameter("base_link_name", rclcpp::PARAMETER_STRING);
     this->declare_parameter("sole_link_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("joint_names", rclcpp::PARAMETER_STRING_ARRAY);
+    this->declare_parameter("actuator_names", rclcpp::PARAMETER_STRING_ARRAY);
     this->declare_parameter("q_init", rclcpp::PARAMETER_DOUBLE_ARRAY);
     this->declare_parameter("sim_dt_ms", rclcpp::PARAMETER_INTEGER);
     this->declare_parameter("n_motors", rclcpp::PARAMETER_INTEGER);
@@ -62,6 +66,9 @@ public:
     params_.xml_filename = this->get_parameter("xml_filename").as_string();
     params_.base_link_name = this->get_parameter("base_link_name").as_string();
     params_.sole_link_name = this->get_parameter("sole_link_name").as_string();
+    params_.joint_names = this->get_parameter("joint_names").as_string_array();
+    params_.actuator_names =
+        this->get_parameter("actuator_names").as_string_array();
     params_.q_init = this->get_parameter("q_init").as_double_array();
     params_.sim_dt_ms =
         static_cast<size_t>(this->get_parameter("sim_dt_ms").as_int());
@@ -108,7 +115,6 @@ protected:
 
       // Calculate control
       for (size_t i = 0; i < params_.n_motors; ++i) {
-        RCLCPP_INFO_STREAM(this->get_logger(), "i: " << i);
         int motor_mode = static_cast<int>(low_cmd_->motor_cmd[i].mode);
         mjtNum q_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].q);
         mjtNum qdot_des = static_cast<mjtNum>(low_cmd_->motor_cmd[i].dq);
@@ -116,12 +122,11 @@ protected:
         mjtNum kp = static_cast<mjtNum>(low_cmd_->motor_cmd[i].kp);
         mjtNum kd = static_cast<mjtNum>(low_cmd_->motor_cmd[i].kd);
 
-        mjtNum q_e = q_des - mj_data_->qpos[7 + i];
-        mjtNum qdot_e = qdot_des - mj_data_->qvel[6 + i];
-
-        mj_data_->ctrl[i] = motor_mode * (kp * q_e + kd * qdot_e + tau_ff);
-        // mj_data_->ctrl[i] = 0.0;
-        // RCLCPP_INFO(this->get_logger(), "u[%ld]: %f",i , mj_data_->ctrl[i]);
+        int j_idx = GetMjJointIndex(i);
+        int a_idx = GetMjActuatorIndex(i);
+        mjtNum q_e = q_des - mj_data_->qpos[7 + j_idx];
+        mjtNum qdot_e = qdot_des - mj_data_->qvel[6 + j_idx];
+        mj_data_->ctrl[a_idx] = motor_mode * (kp * q_e + kd * qdot_e + tau_ff);
       }
 
       // Step the simulation
@@ -157,14 +162,16 @@ protected:
 
     // Set joint positions
     for (size_t i = 0; i < params_.n_motors; ++i) {
-      mj_data_->qpos[7 + i] = static_cast<mjtNum>(params_.q_init[i]);
-      mj_data_->qvel[6 + i] = 0.0;
+      int j_idx = GetMjJointIndex(i);
+      mj_data_->qpos[7 + j_idx] = static_cast<mjtNum>(params_.q_init[i]);
+      mj_data_->qvel[6 + j_idx] = 0.0;
     }
 
     for (size_t i = 0; i < params_.n_gripper_motors; ++i) {
-      mj_data_->qpos[7 + params_.n_motors + i] =
+      int j_idx = GetMjJointIndex(params_.n_motors + i);
+      mj_data_->qpos[7 + params_.n_motors + j_idx] =
           static_cast<mjtNum>(params_.q_init[params_.n_motors + i]);
-      mj_data_->qvel[6 + params_.n_motors + i] = 0.0;
+      mj_data_->qvel[6 + params_.n_motors + j_idx] = 0.0;
     }
 
     // Place robot on the floor
@@ -239,9 +246,10 @@ protected:
 
     // Motor states
     for (size_t i = 0; i < params_.n_motors; ++i) {
-      float q = static_cast<float>(mj_data_->qpos[7 + i]);
-      float qdot = static_cast<float>(mj_data_->qvel[6 + i]);
-      float qddot = static_cast<float>(mj_data_->qacc[6 + i]);
+      int j_idx = GetMjJointIndex(i);
+      float q = static_cast<float>(mj_data_->qpos[7 + j_idx]);
+      float qdot = static_cast<float>(mj_data_->qvel[6 + j_idx]);
+      float qddot = static_cast<float>(mj_data_->qacc[6 + j_idx]);
 
       lowstate.motor_state[i].q = q;
       lowstate.motor_state[i].dq = qdot;
@@ -294,10 +302,8 @@ protected:
   mjtNum GetZDistanceFromSoleToBaseLink() {
     mj_fwdPosition(mj_model_, mj_data_);
 
-    int pelvis_id =
-        mj_name2id(mj_model_, mjOBJ_BODY, params_.base_link_name.c_str());
-    int sole_id =
-        mj_name2id(mj_model_, mjOBJ_BODY, params_.sole_link_name.c_str());
+    int pelvis_id = GetMjBodyIndex(params_.base_link_name.c_str());
+    int sole_id = GetMjBodyIndex(params_.sole_link_name.c_str());
 
     if (pelvis_id == -1 || sole_id == -1) {
       std::string msg = "Invalid body name(s) during model z calculation";
@@ -309,6 +315,20 @@ protected:
     const mjtNum *sole_pos = mj_data_->xpos + 3 * sole_id;
 
     return pelvis_pos[2] - sole_pos[2];
+  }
+
+  int GetMjBodyIndex(char *name) static {
+    return mj_name2id(mj_model_, mjOBJ_BODY, name);
+  }
+
+  int GetMjJointIndex(int i) static {
+    return mj_name2id(mj_model_, mjOBJ_JOINT, params_.joint_names[i].c_str()) -
+           1;
+  }
+
+  int GetMjActuatorIndex(int i) static {
+    return mj_name2id(mj_model_, mjOBJ_ACTUATOR,
+                      params_.actuator_names[i].c_str());
   }
 
 protected:
