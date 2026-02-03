@@ -15,8 +15,6 @@
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
-  auto params = huro::Params();
-
   auto node = std::make_shared<
       huro::RootNode<unitree_go::msg::LowCmd, unitree_go::msg::IMUState,
                      unitree_go::msg::MotorState, unitree_go::msg::LowState,
