@@ -103,11 +103,11 @@
                   <geom name="left_foot5_collision" class="foot_capsule" size="0.01 0.091" pos="0.039 0.01 -0.025" quat="0.707107 0 -0.707107 0" priority="1" friction="0.6"/>
                   <geom name="left_foot6_collision" class="foot_capsule" size="0.01 0.0835" pos="0.0395 0.018 -0.025" quat="0.707107 0 -0.707107 0" priority="1" friction="0.6"/>
                   <geom name="left_foot7_collision" class="foot_capsule" size="0.01 0.025" pos="0.075 0.026 -0.025" quat="0.707107 0 0.707107 0" priority="1" friction="0.6"/>
+                  <site name="left_foot" pos="0.04 0 -0.037"/>
                     <!-- Added sole frame -->
                     <body name="left_foot_point_contact" pos="0 0 -0.03">
                       <!-- <geom type="sphere" size="0.005" rgba="1 0 0 1"/> -->
                     </body>
-                  <site name="left_foot" pos="0.04 0 -0.037"/>
                 </body>
               </body>
             </body>
@@ -150,10 +150,10 @@
                   <geom name="right_foot6_collision" class="foot_capsule" size="0.01 0.0835" pos="0.0395 0.018 -0.025" quat="0.707107 0 -0.707107 0" priority="1" friction="0.6"/>
                   <geom name="right_foot7_collision" class="foot_capsule" size="0.01 0.025" pos="0.075 0.026 -0.025" quat="0.707107 0 0.707107 0" priority="1" friction="0.6"/>
                   <site name="right_foot" pos="0.04 0 -0.037"/>
-                    <!-- Added sole frame -->
-                    <body name="right_foot_point_contact" pos="0 0 -0.03">
-                      <!-- <geom type="sphere" size="0.005" rgba="1 0 0 1"/> -->
-                    </body>
+                  <!-- Added sole frame -->
+                  <body name="right_foot_point_contact" pos="0 0 -0.03">
+                    <!-- <geom type="sphere" size="0.005" rgba="1 0 0 1"/> -->
+                  </body>
                 </body>
               </body>
             </body>

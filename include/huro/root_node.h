@@ -3,8 +3,6 @@
 #ifndef HURO_ROOT_NODE_H_
 #define HURO_ROOT_NODE_H_
 
-#include <huro/params.h>
-
 #include <tf2_ros/transform_broadcaster.h>
 
 #include <memory>
@@ -50,15 +48,46 @@ public:
   using TransformBroadcaster = tf2_ros::TransformBroadcaster;
 
 public:
+  struct RootNodeParams {
+    bool print_imu_info;
+    bool print_motor_info;
+    size_t n_motors;
+    std::string lowstate_topic_name;
+    std::string odom_topic_name;
+    std::string base_link_name;
+    std::vector<std::string> joint_names;
+  };
+
+public:
   /**
    * @brief Constructs the RootNode.
    *
    * Initializes publishers, subscribers, and the transform broadcaster based on
    * the provided parameters.
    *
-   * @param params A Params struct specified in huro/params.h
    */
-  RootNode(Params params) : Node("root_node"), params_(params) {
+  RootNode() : Node("root_node") {
+
+    this->declare_parameter("print_imu_info", rclcpp::PARAMETER_BOOL);
+    this->declare_parameter("print_motor_info", rclcpp::PARAMETER_BOOL);
+    this->declare_parameter("n_motors", rclcpp::PARAMETER_INTEGER);
+    this->declare_parameter("lowstate_topic_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("odom_topic_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("base_link_name", rclcpp::PARAMETER_STRING);
+    this->declare_parameter("joint_names", rclcpp::PARAMETER_STRING_ARRAY);
+
+    params_.print_imu_info = this->get_parameter("print_imu_info").as_bool();
+    params_.print_motor_info =
+        this->get_parameter("print_motor_info").as_bool();
+    params_.n_motors =
+        static_cast<size_t>(this->get_parameter("n_motors").as_int());
+    params_.lowstate_topic_name =
+        this->get_parameter("lowstate_topic_name").as_string();
+    params_.odom_topic_name =
+        this->get_parameter("odom_topic_name").as_string();
+    params_.base_link_name = this->get_parameter("base_link_name").as_string();
+    params_.joint_names = this->get_parameter("joint_names").as_string_array();
+
     // Update topic names conditionally
     // TODO: Add topic names in params
     std::string ls_topic = params_.lowstate_topic_name;
@@ -89,7 +118,7 @@ protected:
    * @param message Shared pointer to the incoming LowStateMsg.
    */
   void LowStateHandler(std::shared_ptr<LowStateMsg> message) {
-    if (params_.info_imu) {
+    if (params_.print_imu_info) {
       ImuStateMsg imu = message->imu_state;
       RCLCPP_INFO(this->get_logger(),
                   "Euler angle -- roll: %f; pitch: %f; yaw: %f", imu.rpy[0],
@@ -104,7 +133,7 @@ protected:
                   imu.accelerometer[0], imu.accelerometer[1],
                   imu.accelerometer[2]);
     }
-    if (params_.info_motors) {
+    if (params_.print_motor_info) {
       for (size_t i = 0; i < params_.n_motors; ++i) {
         MotorStateMsg motor = message->motor_state[i];
         RCLCPP_INFO(this->get_logger(),
@@ -167,7 +196,7 @@ protected:
   }
 
 protected:
-  Params params_;
+  RootNodeParams params_;
   std::shared_ptr<rclcpp::Publisher<JointStateMsg>> jointstate_pub_;
   std::shared_ptr<rclcpp::TimerBase> timer_;
   std::shared_ptr<rclcpp::Subscription<LowStateMsg>> lowstate_sub_;

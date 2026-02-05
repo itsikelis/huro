@@ -53,7 +53,14 @@ def generate_launch_description():
     joy_node = Node(package="joy", executable="joy_node", name="joy_node")
 
     ## HURo Node ##
-    core_node = Node(package="huro", executable="root_go2", name="root_go2")
+    share_dir = get_package_share_directory("huro")
+    config = os.path.join(share_dir, "config", "go2_params.yaml")
+    core_node = Node(
+        package="huro",
+        executable="root_go2",
+        name="root_go2",
+        parameters=[config],
+    )
 
     # # Livox Lidar Launch File
     # lidar_launch = IncludeLaunchDescription(
