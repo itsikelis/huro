@@ -546,7 +546,7 @@
     </inertial>
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0"/>
-      <geometry>
+      <geometry>μ
         <mesh filename="package://huro/resources/description_files/meshes/g1/waist_yaw_link_rev_1_0.STL"/>
       </geometry>
       <material name="white">
@@ -936,6 +936,14 @@
       </material>
     </visual>
   </link>
+
+    <!-- Left Hand Point Contact Frames -->
+    <link name="head_custom_link"/>
+    <joint name="head_custom_fix_joint" type="fixed">
+        <parent link="imu_in_torso"/>
+        <child link="head_custom_link"/>
+        <origin rpy="0 0 0" xyz="0.05 0.0 0.2"/>
+    </joint>
 
     <!-- Left Hand Point Contact Frames -->
     <link name="left_hand_point_contact"/>
