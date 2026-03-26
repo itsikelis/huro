@@ -135,6 +135,10 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
+  PROGRAMS apps/deploy_rl/g1_motion_tracking.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
   PROGRAMS apps/deploy_rl/go2.py
   DESTINATION lib/${PROJECT_NAME}
 )
