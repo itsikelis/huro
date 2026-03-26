@@ -84,7 +84,7 @@ public:
         params_.lowcmd_topic_name, 10,
         std::bind(&SimNode::LowCmdHandler, this, std::placeholders::_1));
 
-    // 500Hz control loop
+    // Simulation loop period is configured per robot through `sim_dt_ms`.
     timer_ =
         this->create_wall_timer(std::chrono::milliseconds(params_.sim_dt_ms),
                                 std::bind(&SimNode::Step, this));

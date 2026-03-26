@@ -1,5 +1,17 @@
 <mujoco model="g1_29dof_rev_1_0">
   <compiler angle="radian" meshdir="../../meshes/g1"/>
+  <option
+      timestep="0.005"
+      gravity="0 0 -9.81"
+      integrator="implicitfast"
+      solver="Newton"
+      cone="pyramidal"
+      jacobian="auto"
+      iterations="10"
+      tolerance="1e-08"
+      ls_iterations="20"
+      ls_tolerance="0.01"
+      impratio="1"/>
 
   <size nkey="1"/>
 
@@ -332,4 +344,3 @@
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
   </worldbody>
 </mujoco>
-
