@@ -17,7 +17,11 @@
   <depend>unitree_go</depend>
   <depend>unitree_api</depend>
   <depend>geometry_msgs</depend>
+  <depend>interactive_markers</depend>
   <depend>std_msgs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_ros_py</depend>
+  <depend>visualization_msgs</depend>
   <depend>rosbag2_cpp</depend>
 
   <buildtool_depend>rosidl_default_generators</buildtool_depend>

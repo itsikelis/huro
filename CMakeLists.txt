@@ -139,6 +139,18 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
+  PROGRAMS apps/deploy_rl/g1_hand_base.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/deploy_rl/g1_hand_base_policy.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/deploy_rl/g1_hand_base_teleop.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
   PROGRAMS apps/deploy_rl/go2.py
   DESTINATION lib/${PROJECT_NAME}
 )

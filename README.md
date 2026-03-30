@@ -104,4 +104,44 @@ ros2 run huro g1_motion_tracking.py \
 Some example motions are available inside `src/huro/resources/motions/accad_subset/`.
 
 The app starts in default-reference mode and keeps running the policy, using a frozen standing pose as the motion-command reference.
-Press `Space` or `Enter` in the terminal to start the motion clip from the beginning, with a smooth transition into the clip start. When  he clip finishes, the command automatically transitions back to the standing reference pose and waits for the next key press. Press `x` in the terminal to disable the motors.
+Press `Space` or `Enter` in the terminal to start the motion clip from the beginning, with a smooth transition into the clip start. When the clip finishes, the command automatically transitions back to the standing reference pose and waits for the next key press. Press `x` in the terminal to disable the motors.
+
+### G1 Hand-Base Deployment
+
+For G1 Hand-Base policies exported to ONNX, use the dedicated `g1_hand_base.py` deploy app. It reads the embedded ONNX deployment metadata, loads a motion `.npz`, and reconstructs the 22-D Hand-Base command online from the clip's pelvis and wrist poses.
+
+Example:
+
+```bash
+ros2 run huro g1_hand_base.py \
+  --onnx-path /path/to/g1_hand_base.onnx \
+  --motion-npz /path/to/reference_motion.npz
+```
+
+This first version uses the motion clip itself as the Hand-Base command source. Later it can be extended to accept direct base velocity and hand pose targets instead of an `.npz`.
+
+### G1 Hand-Base Interactive Control
+
+For direct keyboard + RViz control of a G1 Hand-Base policy, use the split-node setup:
+
+```bash
+ros2 run huro g1_hand_base_policy.py \
+  --onnx-path /path/to/g1_hand_base.onnx
+```
+
+In a second terminal:
+
+```bash
+ros2 run huro g1_hand_base_teleop.py
+```
+
+When running inside Docker, start the teleop node from an interactive shell so it has a real TTY for keyboard input. If you attach with `docker exec`, make sure to use `-it`.
+
+The policy node runs the Hand-Base policy directly, using hard-coded default command values until the teleop topics overwrite them: zero base velocity, a fixed default height, and fixed default left/right hand references. The ONNX export is expected to use `joint_position` action semantics. The teleop node publishes:
+
+- `/g1_hand_base/cmd_vel` from keyboard input for planar base velocity and yaw rate
+- `/g1_hand_base/height` from keyboard input for base height
+- `/g1_hand_base/left_hand_target` and `/g1_hand_base/right_hand_target` from RViz interactive markers
+
+The interactive markers are initialized from the live TF pose of `left_wrist_yaw_link` and `right_wrist_yaw_link`, so this setup expects `root_g1` and `robot_state_publisher` to already be running.
+RViz and the teleop node must also share the same ROS graph as the policy node, whether they are running in the same container or across host/container terminals.
