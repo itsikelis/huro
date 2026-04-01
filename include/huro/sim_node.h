@@ -8,8 +8,13 @@
 #include <mujoco/mujoco.h>
 
 #include <array>
+#include <cstdlib>
+#include <filesystem>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
 #include <string>
+#include <vector>
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -26,6 +31,10 @@ template <typename LowCmdMsg, typename LowStateMsg, typename OdometryMsg,
 class SimNode : public rclcpp::Node {
 public:
   SimNode(Params params) : Node("sim_node"), params_(params) {
+    // MuJoCo decoders can be provided by plugin libraries in some builds.
+    // Load them before parsing XML so mesh resources (obj/stl/...) are decodable.
+    LoadMuJoCoPluginLibraries();
+
     std::string ls_topic = params_.lowstate_topic_name;
     std::string odom_topic = params_.odom_topic_name;
 
@@ -33,12 +42,25 @@ public:
         ament_index_cpp::get_package_share_directory("huro") +
         "/resources/description_files/xml/" + params_.xml_filename;
 
-    mj_model_ = mj_loadXML(xml_path.c_str(), nullptr, nullptr, 0);
+    char mj_error[1024] = {0};
+    mj_model_ =
+        mj_loadXML(xml_path.c_str(), nullptr, mj_error, sizeof(mj_error));
     if (!mj_model_) {
-      std::string error_msg = "Mujoco XML Model Loading. The XML path is: \n";
-      RCLCPP_ERROR_STREAM(this->get_logger(), error_msg << xml_path);
+      std::string error_msg =
+          "MuJoCo XML model loading failed. The XML path is:\n" + xml_path +
+          "\nMuJoCo parser error: " +
+          (mj_error[0] != '\0' ? std::string(mj_error)
+                               : std::string("<no error text from MuJoCo>"));
+      RCLCPP_ERROR_STREAM(this->get_logger(), error_msg);
+      throw std::runtime_error(error_msg);
     }
     mj_data_ = mj_makeData(mj_model_);
+    if (!mj_data_) {
+      std::string error_msg =
+          "MuJoCo data allocation failed for XML path:\n" + xml_path;
+      RCLCPP_ERROR_STREAM(this->get_logger(), error_msg);
+      throw std::runtime_error(error_msg);
+    }
 
     mjtNum z_dist = GetZDistanceFromSoleToBaseLink();
     mj_data_->qpos[0] = 0.;
@@ -95,6 +117,77 @@ public:
   }
 
   ~SimNode() {}
+
+  void LoadMuJoCoPluginLibraries() {
+    static bool plugins_initialized = false;
+    if (plugins_initialized) {
+      return;
+    }
+
+    auto load_plugin_lib = [this](const std::string &lib_path) {
+      if (lib_path.empty() || !std::filesystem::exists(lib_path) ||
+          !std::filesystem::is_regular_file(lib_path)) {
+        return;
+      }
+      RCLCPP_INFO_STREAM(this->get_logger(),
+                         "MuJoCo: loading plugin library: " << lib_path);
+      mj_loadPluginLibrary(lib_path.c_str());
+    };
+
+    auto load_plugin_dir = [this, &load_plugin_lib](const std::string &dir) {
+      if (dir.empty() || !std::filesystem::exists(dir) ||
+          !std::filesystem::is_directory(dir)) {
+        return;
+      }
+
+      RCLCPP_INFO_STREAM(this->get_logger(),
+                         "MuJoCo: scanning plugin directory: " << dir);
+
+      for (const auto &entry : std::filesystem::directory_iterator(dir)) {
+        if (!entry.is_regular_file()) {
+          continue;
+        }
+
+        if (entry.path().extension() != ".so") {
+          continue;
+        }
+
+        load_plugin_lib(entry.path().string());
+      }
+    };
+
+    std::vector<std::string> plugin_entries;
+    if (const char *plugin_path = std::getenv("MUJOCO_PLUGIN_PATH");
+        plugin_path && plugin_path[0] != '\0') {
+      std::stringstream ss(plugin_path);
+      std::string token;
+      while (std::getline(ss, token, ':')) {
+        const auto first = token.find_first_not_of(" \t\n\r");
+        if (first == std::string::npos) {
+          continue;
+        }
+        const auto last = token.find_last_not_of(" \t\n\r");
+        plugin_entries.emplace_back(token.substr(first, last - first + 1));
+      }
+    }
+
+    if (plugin_entries.empty()) {
+      plugin_entries = {
+          "/usr/local/bin/mujoco_plugin",
+          "/usr/bin/mujoco_plugin",
+      };
+    }
+
+    for (const auto &entry : plugin_entries) {
+      if (std::filesystem::is_regular_file(entry)) {
+        load_plugin_lib(entry);
+      } else {
+        load_plugin_dir(entry);
+      }
+    }
+
+    plugins_initialized = true;
+  }
 
 protected:
   void Step() {

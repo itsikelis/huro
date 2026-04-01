@@ -5,6 +5,7 @@ ENV TZ="UTC"
 ENV ROS_DISTRO=humble
 ENV DISPLAY=:0
 ENV LIBGL_ALWAYS_INDIRECT=0
+ENV MUJOCO_PLUGIN_PATH=/usr/local/bin/mujoco_plugin:/usr/bin/mujoco_plugin
 
 WORKDIR /deps
 
@@ -72,5 +73,6 @@ RUN git clone https://github.com/unitreerobotics/unitree_ros2 && \
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && echo "source /huro_ws/install/setup.bash" >> /root/.bashrc
 
 RUN echo "export LD_LIBRARY_PATH=/usr/local/lib:\$LD_LIBRARY_PATH" >> /root/.bashrc
+RUN echo "export MUJOCO_PLUGIN_PATH=/usr/local/bin/mujoco_plugin:/usr/bin/mujoco_plugin" >> /root/.bashrc
 
 CMD ["bash"]
