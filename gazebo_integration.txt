@@ -1,6 +1,7 @@
 # Gazebo + Docker run commands
 
-# 1) Install Gazebo packages (host or base image prep)
+Added in the Dockerfile:
+
 sudo apt-get update
 sudo apt-get install -y ros-humble-ros-gz
 sudo curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
@@ -9,3 +10,9 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-
 	| sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
 sudo apt-get update
 sudo apt-get install -y gz-harmonic
+
+To add in dockerfile:
+sudo apt-get update && sudo apt-get install ros-humble-rqt-graph
+
+To add in launch file:
+ros2 run robot_state_publisher robot_state_publisher /huro_ws/install/huro/share/huro/resources/description_files/urdf/go2/go2.urdf

@@ -24,6 +24,16 @@ export CYCLONEDDS_URI='<CycloneDDS><Domain><General>
                         <NetworkInterface name="'$1'" priority="default" multicast="default" />
                         </Interfaces></General></Domain></CycloneDDS>'
 
+echo "Setting up Gazebo resource paths"
+HURO_PREFIX=$(ros2 pkg prefix huro 2>/dev/null)
+if [ -n "$HURO_PREFIX" ]
+then
+    HURO_SHARE="$HURO_PREFIX/share"
+    export GZ_SIM_RESOURCE_PATH="$HURO_SHARE:${GZ_SIM_RESOURCE_PATH}"
+    export IGN_GAZEBO_RESOURCE_PATH="$HURO_SHARE:${IGN_GAZEBO_RESOURCE_PATH}"
+    echo "Gazebo resource root: $HURO_SHARE"
+fi
+
 if [ "$1" = "lo"  ]
 then
     # Need to enable multicast if using localhost
