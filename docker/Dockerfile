@@ -10,6 +10,9 @@ ENV MUJOCO_PLUGIN_PATH=/usr/local/bin/mujoco_plugin:/usr/bin/mujoco_plugin
 WORKDIR /deps
 
 RUN apt-get update && apt-get install -yy \
+    curl \
+    lsb-release \
+    ca-certificates \
     python3-pip \
     python3-colcon-common-extensions \
     ros-${ROS_DISTRO}-xacro \
@@ -33,6 +36,14 @@ RUN apt-get update && apt-get install -yy \
     iproute2 \
     libhidapi-dev \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
+    --output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/gazebo-stable.list && \
+    apt-get update && \
+    apt-get install -yy gz-harmonic ros-${ROS_DISTRO}-ros-gz && \
+    rm -rf /var/lib/apt/lists/*
 
 RUN pip install pyspacemouse torch pyyaml
 

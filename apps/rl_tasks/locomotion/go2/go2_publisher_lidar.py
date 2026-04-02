@@ -174,6 +174,9 @@ class Go2PolicyController(Node):
         self.low_state_sub = self.create_subscription(
             LowState, "/lowstate", self.low_state_callback, 10
         )
+        self.low_state_sub = self.create_subscription(
+            PointCloud2, "/utlidat/cloud", self.lidar_callback, 10
+        )
 
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
@@ -194,9 +197,6 @@ class Go2PolicyController(Node):
         """Log low state message."""
         self.latest_low_state = msg
 
-    def joy_callback(self, msg: SpaceMouseState):
-        """Log spacemouse state"""
-        self.controller_state = msg
         
     def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
@@ -350,6 +350,7 @@ class Go2PolicyController(Node):
 
         obs = get_obs_lidar(
             self.latest_low_state,
+            self.lidar_state,
             self.controller_state,
             height=0.30,
             prev_actions=self.current_action,

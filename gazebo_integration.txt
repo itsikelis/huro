@@ -1,0 +1,11 @@
+# Gazebo + Docker run commands
+
+# 1) Install Gazebo packages (host or base image prep)
+sudo apt-get update
+sudo apt-get install -y ros-humble-ros-gz
+sudo curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
+	--output /usr/share/keyrings/pkgs-osrf-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/pkgs-osrf-archive-keyring.gpg] https://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
+	| sudo tee /etc/apt/sources.list.d/gazebo-stable.list > /dev/null
+sudo apt-get update
+sudo apt-get install -y gz-harmonic

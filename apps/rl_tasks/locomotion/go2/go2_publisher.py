@@ -25,7 +25,6 @@ import time
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState
 from huro.msg import SpaceMouseState
-from sensor_msgs.msg import PointCloud2
 
 
 from huro_py.crc_go import Crc
@@ -199,9 +198,6 @@ class Go2PolicyController(Node):
         """Log spacemouse state"""
         self.controller_state = msg
         
-    def lidar_callback(self, msg: SpaceMouseState):
-        """Log spacemouse state"""
-        self.lidar_state = msg
 
     def emergency_mode_control(self):
         """Smoothly reduce gains and torque to zero over release_duration."""
