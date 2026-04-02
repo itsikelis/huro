@@ -147,6 +147,7 @@ class Go2PolicyController(Node):
         # Store latest messages
         self.latest_low_state = None
         self.controller_state = None
+        self.lidar_state = None
 
         self.kp = 25.0  # Position gain
         self.kd = 0.5  # Velocity gain
@@ -201,6 +202,10 @@ class Go2PolicyController(Node):
     def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
         self.lidar_state = msg
+        
+    def joy_callback(self, msg: Joy):
+        """Log spacemouse state"""
+        self.controller_state = msg
 
     def emergency_mode_control(self):
         """Smoothly reduce gains and torque to zero over release_duration."""
