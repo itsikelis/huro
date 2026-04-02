@@ -1,4 +1,5 @@
 import numpy as np
+# from unitree_go.msg import PointCloud2
 
 def quat_rotate_inverse(q, v):
     q_w, q_x, q_y, q_z = q[0], q[1], q[2], q[3]
@@ -11,6 +12,23 @@ def quat_rotate_inverse(q, v):
 import numpy as np
 import yaml
 import os
+
+
+class MockController:
+    """Minimal controller-like object used by get_obs in headless runs."""
+
+    def __init__(self, vel=None, height_axis=0.0):
+        if vel is None:
+            vel = [0.0, 0.0, 0.0]
+
+        vx, vy, wz = float(vel[0]), float(vel[1]), float(vel[2])
+
+        # Match get_obs_low_state convention:
+        # forward = axes[1], lateral = axes[0], yaw = axes[2], height = axes[3]
+        self.axes = [vy, vx, wz, float(height_axis)]
+
+        # Keep emergency buttons always released.
+        self.buttons = [0] * 10
 
 
 
@@ -124,9 +142,9 @@ Utility functions for processing LiDAR data and creating height maps.
 """
 
 import numpy as np
-from unitree_sdk2_python.unitree_sdk2py.idl.sensor_msgs.msg.dds_ import PointCloud2_
 import struct
 import sys
+from sensor_msgs.msg import PointCloud2
 np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
 
 
@@ -134,8 +152,8 @@ LIDAR_PITCH_DEG = 15.0
 LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH = np.cos(LIDAR_PITCH_RAD)
 SIN_PITCH = np.sin(LIDAR_PITCH_RAD)
-
-def process_height_map(height_map: np.array, lidar_msg: PointCloud2_, max_dist: float, delete_count: int = 100):
+# replace with https://github.com/anybotics/grid_map
+def process_height_map(height_map: np.array, lidar_msg: PointCloud2, max_dist: float, delete_count: int = 100):
     grid_size = height_map.shape[0]
     map_range = 2.0 * max_dist
     cell_size = map_range / grid_size  # meters per cell

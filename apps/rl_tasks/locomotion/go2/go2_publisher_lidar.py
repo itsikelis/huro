@@ -11,7 +11,7 @@ TO RUN:
 ros2 launch huro go2_rviz.launch.py
 ros2 run huro spacemouse_publisher.py
 ros2 run huro sim_go2
-ros2 run huro go2_publisher.py --use_spacemouse True
+ros2 run huro go2_publisher.py 
 
 """
 import rclpy
@@ -23,14 +23,14 @@ import os
 import time
 
 from unitree_api.msg import Request
-from unitree_go.msg import LowCmd, LowState, PointCloud2
+from unitree_go.msg import LowCmd, LowState
 from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_obs_low_state
-from huro_py.utils import Mapper
-from sensor_msgs.msg import Joy
+from huro_py.get_obs import get_obs_lidar
+from huro_py.utils import Mapper, MockController
+from sensor_msgs.msg import Joy, PointCloud2
 
 np.set_printoptions(precision=3)
 
@@ -42,6 +42,7 @@ class Go2PolicyController(Node):
         self,
         policy_name="policy.pt",
         sim=True,
+        vel=[0.0, 0.0, 0.0]
     ):
         """
         Initialize the policy controller.
@@ -55,6 +56,8 @@ class Go2PolicyController(Node):
             action_scale: Scale factor for policy actions (default: 0.25)
         """
         params = []
+        
+        
         if sim:
             params.append(rclpy.parameter.Parameter("use_sim_time", value=True))
         super().__init__("go2_policy_controller", parameter_overrides=params)
@@ -64,6 +67,7 @@ class Go2PolicyController(Node):
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
         self.run_policy = True # set to false to rely on joy buttons to lauch the policy
+        self.vel = [float(vel[0]), float(vel[1]), float(vel[2])]
 
         # Emergency mode
         self.emergency_mode = False
@@ -144,10 +148,10 @@ class Go2PolicyController(Node):
         self.latest_low_state = None
         self.controller_state = None
 
-        self.kp = 60.0  # Position gain
-        self.kd = 5.0  # Velocity gain
-        self.kp_p = 50.0  # Position gain
-        self.kd_p = 3.5  # Velocity gain
+        self.kp = 25.0  # Position gain
+        self.kd = 0.5  # Velocity gain
+        self.kp_p = 25.0  # Position gain
+        self.kd_p = 0.5  # Velocity gain
         self.action_scale = 0.25  # Scale policy output
 
         # Standing position (default joint positions but coud be different)
@@ -161,8 +165,10 @@ class Go2PolicyController(Node):
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
 
-
-        self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
+        if sum(self.vel) != 0.0:
+            self.controller_state = MockController(self.vel)
+        else:
+            self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
 
         # Get low lovel data from robot
         self.low_state_sub = self.create_subscription(
@@ -192,7 +198,7 @@ class Go2PolicyController(Node):
         """Log spacemouse state"""
         self.controller_state = msg
         
-    def lidar_callback(self, msg: SpaceMouseState):
+    def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
         self.lidar_state = msg
 
@@ -286,9 +292,9 @@ class Go2PolicyController(Node):
 
     def run(self):
         """Main control loop running at control_freq Hz."""
-
+        print(self.latest_low_state is None)
         try:
-            if self.latest_low_state is not None and self.controller_state is not None:
+            if self.latest_low_state is not None and self.controller_state is not None :
                 if self.tick_count == 0:
                     self.start_time = self.get_clock().now()
                 self.process_control_step()
@@ -342,7 +348,7 @@ class Go2PolicyController(Node):
 
     def policy_control(self):
 
-        obs = get_obs_low_state(
+        obs = get_obs_lidar(
             self.latest_low_state,
             self.controller_state,
             height=0.30,
@@ -371,6 +377,18 @@ def main():
     parser.add_argument(
         "--sim", type=bool, default=True, help="Wether to use simulation or real robot"
     )
+    
+    parser.add_argument(
+        "--vx", type=float, default=0.0, help="Velocity along x axis"
+    )
+    
+    parser.add_argument(
+        "--vy", type=float, default=0.0, help="Velocity along x axis"
+    )
+    
+    parser.add_argument(
+        "--wz", type=float, default=0.0, help="Velocity along x axis"
+    )
 
     # Parse only known args to allow ROS args to pass through
     args, unknown = parser.parse_known_args()
@@ -382,6 +400,7 @@ def main():
     node = Go2PolicyController(
         policy_name=args.policy,
         sim=args.sim,
+        vel=[args.vx, args.vy, args.wz]
     )
 
     try:
