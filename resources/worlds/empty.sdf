@@ -22,6 +22,7 @@
     <plugin
       filename="gz-sim-sensors-system"
       name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>   
     </plugin>
     <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
       <topic>/imu</topic>
@@ -45,11 +46,11 @@
       <link name="link">
         <collision name="collision">
           <geometry>
-            <plane>
-              <normal>0 0 1</normal>
-              <size>100 100</size>
-            </plane>
+            <box>
+              <size>100 100 0.1</size>
+            </box>
           </geometry>
+          <pose>0 0 -0.05 0 0 0</pose>  <!-- sink it so top face is at z=0 -->
         </collision>
         <visual name="visual">
           <geometry>
@@ -61,8 +62,19 @@
           <material>
             <ambient>0.8 0.8 0.8 1</ambient>
             <diffuse>0.8 0.8 0.8 1</diffuse>
-            <specular>0.2 0.2 0.2 1</specular>
           </material>
+        </visual>
+      </link>
+    </model>
+    <model name="test_box">
+      <static>true</static>
+      <pose>1 0 0.5 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><box><size>0.5 0.5 1.0</size></box></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><box><size>0.5 0.5 1.0</size></box></geometry>
         </visual>
       </link>
     </model>

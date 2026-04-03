@@ -102,6 +102,21 @@ def generate_launch_description():
         f"/world/{world_name}/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
         f"/world/default/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
         f"/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
+        "/livox/lidar@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        "/lidar@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        "/lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
+        f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
+        f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
     ]
 
     for jn in joint_order:
@@ -129,6 +144,56 @@ def generate_launch_description():
                 "/imu",
             ),
             (f"/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu", "/imu"),
+            ("/lidar", "/livox/scan"),
+            ("/lidar/points", "/livox/lidar"),
+            (
+                f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/points",
+                "/livox/lidar",
+            ),
+            (
+                f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
+            (
+                f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
+            (
+                f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
+            (
+                f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan",
+                "/livox/scan",
+            ),
             (f"/world/{world_name}/dynamic_pose/info", "/gz_pose_tf"),
         ],
         output="screen",
@@ -186,6 +251,16 @@ def generate_launch_description():
         output="screen",
     )
 
+    # Fallback TF for Gazebo lidar frame naming used by some bridges.
+    lidar_frame_fallback_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="lidar_frame_fallback_tf",
+        arguments=["0", "0", "0", "0", "0", "0", "base", "go2/base/go2_lidar"],
+        parameters=[{"use_sim_time": True}],
+        output="screen",
+    )
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -203,6 +278,7 @@ def generate_launch_description():
             gz_bridge,
             gz_base_tf_publisher,
             gz_go2_state_adapter,
+            lidar_frame_fallback_tf,
             rviz_node,
         ]
     )
