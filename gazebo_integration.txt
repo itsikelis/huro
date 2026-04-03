@@ -12,7 +12,7 @@ sudo apt-get update
 sudo apt-get install -y gz-harmonic
 
 To add in dockerfile:
-sudo apt-get update && sudo apt-get install ros-humble-rqt-graph
+sudo apt-get update && sudo apt-get install ros-${ROS_DISTRO}-rqt-graph
 sudo apt install ros-${ROS_DISTRO}-joint-state-publisher
 
 To add in launch file:

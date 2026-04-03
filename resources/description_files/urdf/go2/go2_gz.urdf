@@ -739,6 +739,25 @@
     <child link="imu" />
     <axis xyz="0 0 0" />
   </joint>
+  <gazebo reference="imu">
+    <sensor name="go2_imu_sensor" type="imu">
+      <always_on>true</always_on>
+      <update_rate>400</update_rate>
+      <topic>imu</topic>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>0.0005</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>0.0005</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>0.0005</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev></noise></x>
+          <y><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev></noise></y>
+          <z><noise type="gaussian"><mean>0.0</mean><stddev>0.01</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
+    </sensor>
+  </gazebo>
   <link name="utlidar_lidar">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
@@ -759,4 +778,126 @@
   </joint>
   <link name="front_camera">
   </link>
+
+  <!-- Position controllers for commanded joints in Gazebo simulation. -->
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FL_hip_joint</joint_name>
+      <topic>/model/go2/joint/FL_hip_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FL_thigh_joint</joint_name>
+      <topic>/model/go2/joint/FL_thigh_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FL_calf_joint</joint_name>
+      <topic>/model/go2/joint/FL_calf_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FR_hip_joint</joint_name>
+      <topic>/model/go2/joint/FR_hip_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FR_thigh_joint</joint_name>
+      <topic>/model/go2/joint/FR_thigh_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>FR_calf_joint</joint_name>
+      <topic>/model/go2/joint/FR_calf_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RL_hip_joint</joint_name>
+      <topic>/model/go2/joint/RL_hip_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RL_thigh_joint</joint_name>
+      <topic>/model/go2/joint/RL_thigh_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RL_calf_joint</joint_name>
+      <topic>/model/go2/joint/RL_calf_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RR_hip_joint</joint_name>
+      <topic>/model/go2/joint/RR_hip_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RR_thigh_joint</joint_name>
+      <topic>/model/go2/joint/RR_thigh_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+  <gazebo>
+    <plugin filename="gz-sim-joint-position-controller-system" name="gz::sim::systems::JointPositionController">
+      <joint_name>RR_calf_joint</joint_name>
+      <topic>/model/go2/joint/RR_calf_joint/cmd_pos</topic>
+      <p_gain>60</p_gain>
+      <i_gain>0</i_gain>
+      <d_gain>2</d_gain>
+    </plugin>
+  </gazebo>
+
+  <!-- Publish simulated joint states from Gazebo for ROS bridging. -->
+  <gazebo>
+    <plugin
+      filename="gz-sim-joint-state-publisher-system"
+      name="gz::sim::systems::JointStatePublisher" />
+  </gazebo>
+  <gazebo>
+    <plugin
+      filename="ignition-gazebo-joint-state-publisher-system"
+      name="ignition::gazebo::systems::JointStatePublisher" />
+  </gazebo>
 </robot>

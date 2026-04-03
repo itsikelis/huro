@@ -175,7 +175,7 @@ class Go2PolicyController(Node):
         self.low_state_sub = self.create_subscription(
             LowState, "/lowstate", self.low_state_callback, 10
         )
-        self.low_state_sub = self.create_subscription(
+        self.lidar_sub = self.create_subscription(
             PointCloud2, "/utlidat/cloud", self.lidar_callback, 10
         )
 
