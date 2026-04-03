@@ -757,6 +757,7 @@
         </linear_acceleration>
       </imu>
     </sensor>
+    
   </gazebo>
   <link name="utlidar_lidar">
     <inertial>

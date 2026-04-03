@@ -25,6 +25,9 @@ ros2 node list | grep -E "go2_gz_bridge|gz_go2_state_adapter|gz_base_tf_publishe
 # Confirm key topics exist
 ros2 topic list | grep -E "/joint_states_gz|/joint_states|/lowcmd|/lowstate|/imu|/gz_pose_tf"
 
+# Find all IMU-related topics (important when /imu is empty)
+ros2 topic list | grep -i imu
+
 # Message rates
 ros2 topic hz /joint_states_gz
 ros2 topic hz /joint_states
@@ -38,8 +41,23 @@ ros2 topic echo /joint_states --once
 ros2 topic echo /lowcmd --once
 ros2 topic echo /lowstate --once
 ros2 topic echo /imu --once
+ros2 topic echo /gz_pose_tf --once
+ros2 topic echo /tf --once
+
+# Optional: run launch in debug mode for startup/plugin issues
+ros2 launch huro go2_sim_gz.launch.py --debug
 
 # Adapter health lines (already printed every ~2s in launch terminal)
 # Look for lines containing:
 # health: state_src=... imu_src=... got_tf=... got_joint=... got_lowcmd=... got_imu=...
+
+
+# =========================
+# Quick expected good state
+# =========================
+# - health: state_src=joint_states_gz
+# - health: got_joint=True
+# - health: got_tf=True
+# - health: got_lowcmd=True (when policy is running)
+# - health: got_imu=True (if Gazebo IMU bridge is working)
 

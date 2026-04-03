@@ -171,8 +171,6 @@ def generate_launch_description():
             "-p",
             "imu_topic:=/imu",
             "-p",
-            "pose_tf_topic:=/gz_pose_tf",
-            "-p",
             "lowstate_topic:=/lowstate",
             "-p",
             "sportmode_topic:=/sportmodestate",
@@ -184,8 +182,6 @@ def generate_launch_description():
             f"model_name:={model_name}",
             "-p",
             "lowstate_quat_wxyz:=false",
-            "-p",
-            "estimate_gyro_from_pose_tf:=false",
         ],
         output="screen",
     )

@@ -2,8 +2,9 @@
 <sdf version="1.9">
   <world name="empty_world">
     <gravity>0 0 -9.8</gravity>
-    <physics name="1ms" type="ignored">
+    <physics name="1ms" type="ode">
       <max_step_size>0.001</max_step_size>
+      <real_time_update_rate>1000</real_time_update_rate>
       <real_time_factor>1.0</real_time_factor>
     </physics>
     <plugin
@@ -22,6 +23,11 @@
       filename="gz-sim-sensors-system"
       name="gz::sim::systems::Sensors">
     </plugin>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
+      <topic>/imu</topic>
+      <update_rate>400</update_rate>
+    </plugin>
+
     <light type="directional" name="sun">
       <cast_shadows>true</cast_shadows>
       <pose>0 0 10 0 0 0</pose>

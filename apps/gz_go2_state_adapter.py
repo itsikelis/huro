@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-import math
 import traceback
 from typing import Dict, List
 
@@ -70,9 +69,7 @@ class GzGo2StateAdapter(Node):
         self._declare_param_if_needed("base_frame", "base")
         self._declare_param_if_needed("model_name", "go2")
         self._declare_param_if_needed("imu_topic", "/imu")
-        self._declare_param_if_needed("pose_tf_topic", "/gz_pose_tf")
         self._declare_param_if_needed("lowstate_quat_wxyz", False)
-        self._declare_param_if_needed("estimate_gyro_from_pose_tf", False)
 
         self.joint_state_topic = self.get_parameter("joint_state_topic").value
         self.joint_state_out_topic = self.get_parameter("joint_state_out_topic").value
@@ -85,12 +82,8 @@ class GzGo2StateAdapter(Node):
         self.base_frame = self.get_parameter("base_frame").value
         self.model_name = self.get_parameter("model_name").value
         self.imu_topic = self.get_parameter("imu_topic").value
-        self.pose_tf_topic = self.get_parameter("pose_tf_topic").value
         self.lowstate_quat_wxyz = bool(
             self.get_parameter("lowstate_quat_wxyz").value
-        )
-        self.estimate_gyro_from_pose_tf = bool(
-            self.get_parameter("estimate_gyro_from_pose_tf").value
         )
 
         self._joint_pos: Dict[str, float] = {}
@@ -100,10 +93,8 @@ class GzGo2StateAdapter(Node):
         self._base_pos = [0.0, 0.0, 0.0]
         self._base_quat_xyzw = [0.0, 0.0, 0.0, 1.0]
         self._base_lin_vel = [0.0, 0.0, 0.0]
-        self._base_ang_vel = [0.0, 0.0, 0.0]
         self._last_base_pos = None
         self._last_base_t = None
-        self._last_base_quat = None
         self._got_imu = False
         self._imu_quat_xyzw = [0.0, 0.0, 0.0, 1.0]
         self._imu_gyro = [0.0, 0.0, 0.0]
@@ -134,7 +125,6 @@ class GzGo2StateAdapter(Node):
         self.create_subscription(LowCmd, self.lowcmd_topic, self._on_lowcmd, 50)
         self.create_subscription(TFMessage, self.tf_topic, self._on_tf, 50)
         self.create_subscription(Imu, self.imu_topic, self._on_imu, 50)
-        self.create_subscription(TFMessage, self.pose_tf_topic, self._on_pose_tf, 50)
 
         self.cmd_pos_pubs = {}
         for jn in self.JOINT_ORDER:
@@ -151,7 +141,7 @@ class GzGo2StateAdapter(Node):
 
     def _log_health(self) -> None:
         src = "joint_states_gz" if self._got_joint else ("lowcmd" if self._got_lowcmd else "default_q")
-        imu_src = "imu_topic" if self._got_imu else "pose_tf_fallback"
+        imu_src = "imu_topic" if self._got_imu else "default_zero"
         q0 = self._joint_pos.get(self.JOINT_ORDER[0], None)
         cmd0 = self._cmd_q[0]
         self.get_logger().info(
@@ -198,82 +188,6 @@ class GzGo2StateAdapter(Node):
             self._last_base_pos = pos
             self._last_base_t = now_sec
             self._got_base_tf = True
-
-    @staticmethod
-    def _quat_conj_xyzw(q):
-        return [-q[0], -q[1], -q[2], q[3]]
-
-    @staticmethod
-    def _quat_mul_xyzw(a, b):
-        ax, ay, az, aw = a
-        bx, by, bz, bw = b
-        return [
-            aw * bx + ax * bw + ay * bz - az * by,
-            aw * by - ax * bz + ay * bw + az * bx,
-            aw * bz + ax * by - ay * bx + az * bw,
-            aw * bw - ax * bx - ay * by - az * bz,
-        ]
-
-    def _update_base_pose(self, pos, quat_xyzw, now_sec):
-        if self._last_base_pos is not None and self._last_base_t is not None:
-            dt = max(now_sec - self._last_base_t, 1e-6)
-            self._base_lin_vel = [
-                (pos[0] - self._last_base_pos[0]) / dt,
-                (pos[1] - self._last_base_pos[1]) / dt,
-                (pos[2] - self._last_base_pos[2]) / dt,
-            ]
-
-            if self._last_base_quat is not None:
-                dq = self._quat_mul_xyzw(
-                    quat_xyzw, self._quat_conj_xyzw(self._last_base_quat)
-                )
-                vx, vy, vz, vw = dq
-                vnorm = math.sqrt(vx * vx + vy * vy + vz * vz)
-                if vnorm > 1e-9:
-                    angle = 2.0 * math.atan2(vnorm, max(-1.0, min(1.0, vw)))
-                    scale = angle / (dt * vnorm)
-                    if self.estimate_gyro_from_pose_tf:
-                        self._base_ang_vel = [vx * scale, vy * scale, vz * scale]
-                    else:
-                        self._base_ang_vel = [0.0, 0.0, 0.0]
-
-        self._base_pos = pos
-        self._base_quat_xyzw = quat_xyzw
-        self._last_base_pos = pos
-        self._last_base_quat = quat_xyzw
-        self._last_base_t = now_sec
-        self._got_base_tf = True
-
-    def _on_pose_tf(self, msg: TFMessage) -> None:
-        now_sec = self.get_clock().now().nanoseconds * 1e-9
-
-        # Prefer model root pose from Gazebo stream, fallback to base.
-        chosen = None
-        fallback = None
-        for tr in msg.transforms:
-            child = tr.child_frame_id
-            if child == self.model_name:
-                chosen = tr
-                break
-            if child == self.base_frame:
-                fallback = tr
-        if chosen is None:
-            chosen = fallback
-        if chosen is None:
-            return
-
-        pos = [
-            float(chosen.transform.translation.x),
-            float(chosen.transform.translation.y),
-            float(chosen.transform.translation.z),
-        ]
-        quat_xyzw = [
-            float(chosen.transform.rotation.x),
-            float(chosen.transform.rotation.y),
-            float(chosen.transform.rotation.z),
-            float(chosen.transform.rotation.w),
-        ]
-        self._update_base_pose(pos, quat_xyzw, now_sec)
 
     def _on_lowcmd(self, msg: LowCmd) -> None:
         for i in range(min(12, len(msg.motor_cmd))):
@@ -330,23 +244,15 @@ class GzGo2StateAdapter(Node):
         js.velocity = []
         js.effort = []
 
-        # Match existing MuJoCo lowstate convention in this repo:
-        # For policy observations we default to [w, x, y, z].
+        # Use IMU topic values only; no TF-derived IMU fallback.
         if self._got_imu:
             qx, qy, qz, qw = self._imu_quat_xyzw
             gx, gy, gz = self._imu_gyro
             ax, ay, az = self._imu_acc
         else:
-            qx, qy, qz, qw = self._base_quat_xyzw
-            gx, gy, gz = self._base_ang_vel
-            ax, ay, az = 0.0, 0.0, 0.0
-
-        # Keep quaternion normalized to avoid gravity projection drift in policy obs.
-        qn = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
-        if qn > 1e-9:
-            qx, qy, qz, qw = qx / qn, qy / qn, qz / qn, qw / qn
-        else:
             qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
+            gx, gy, gz = 0.0, 0.0, 0.0
+            ax, ay, az = 0.0, 0.0, 0.0
 
         if hasattr(low, "imu_state"):
             if self.lowstate_quat_wxyz:

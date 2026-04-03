@@ -227,5 +227,7 @@ def get_obs_lidar(
         float(lowstate_msg.foot_force[2]>10),
         float(lowstate_msg.foot_force[3]>10)
     ]
+    # CHANGE FOR DEBUG !! 
+    obs[46:50] = [0.0, 0.0, 0.0, 0.0]
 
     return obs
