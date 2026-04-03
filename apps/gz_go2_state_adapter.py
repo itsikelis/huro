@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 
+import os
 import traceback
 from typing import Dict, List
 
 import rclpy
+import math
 from rclpy.node import Node
 from rclpy.exceptions import ParameterAlreadyDeclaredException
+import yaml
+from ament_index_python.packages import get_package_share_directory
 from sensor_msgs.msg import Imu, JointState
 from std_msgs.msg import Float64
 from tf2_msgs.msg import TFMessage
@@ -53,6 +57,10 @@ class GzGo2StateAdapter(Node):
         -1.5,
     ]
 
+    DEFAULT_MAPPING_REL_PATH = os.path.join(
+        "resources", "mappings", "go2", "physx_to_mujoco_go2.yaml"
+    )
+
     def __init__(self) -> None:
         super().__init__("gz_go2_state_adapter")
 
@@ -69,7 +77,9 @@ class GzGo2StateAdapter(Node):
         self._declare_param_if_needed("base_frame", "base")
         self._declare_param_if_needed("model_name", "go2")
         self._declare_param_if_needed("imu_topic", "/imu")
-        self._declare_param_if_needed("lowstate_quat_wxyz", False)
+        # get_obs expects Unitree lowstate quaternion in wxyz order.
+        self._declare_param_if_needed("lowstate_quat_wxyz", True)
+        self._declare_param_if_needed("mapping_yaml_path", "")
 
         self.joint_state_topic = self.get_parameter("joint_state_topic").value
         self.joint_state_out_topic = self.get_parameter("joint_state_out_topic").value
@@ -85,6 +95,9 @@ class GzGo2StateAdapter(Node):
         self.lowstate_quat_wxyz = bool(
             self.get_parameter("lowstate_quat_wxyz").value
         )
+        self.mapping_yaml_path = str(self.get_parameter("mapping_yaml_path").value)
+
+        self.joint_order = self._resolve_expected_joint_order()
 
         self._joint_pos: Dict[str, float] = {}
         self._joint_vel: Dict[str, float] = {}
@@ -127,7 +140,7 @@ class GzGo2StateAdapter(Node):
         self.create_subscription(Imu, self.imu_topic, self._on_imu, 50)
 
         self.cmd_pos_pubs = {}
-        for jn in self.JOINT_ORDER:
+        for jn in self.joint_order:
             t1 = f"/model/{self.model_name}/joint/{jn}/cmd_pos"
             self.cmd_pos_pubs[jn] = self.create_publisher(Float64, t1, 10)
 
@@ -138,11 +151,50 @@ class GzGo2StateAdapter(Node):
         self.get_logger().info(
             f"Gazebo adapter active: {self.joint_state_topic} -> {self.joint_state_out_topic} (+fallback {self.lowcmd_topic}) + {self.tf_topic} -> {self.lowstate_topic}, {self.sportmode_topic}"
         )
+        self.get_logger().info(
+            f"Joint order for lowstate/joint_states: {self.joint_order}"
+        )
+
+    def _resolve_expected_joint_order(self) -> List[str]:
+        mapping_path = self.mapping_yaml_path
+        if not mapping_path:
+            try:
+                share = get_package_share_directory("huro")
+                mapping_path = os.path.join(share, self.DEFAULT_MAPPING_REL_PATH)
+            except Exception:
+                mapping_path = ""
+
+        if mapping_path:
+            try:
+                with open(mapping_path, "r", encoding="utf-8") as f:
+                    data = yaml.safe_load(f) or {}
+                target_names = data.get("target_joint_names", [])
+                if len(target_names) == 12 and all(isinstance(n, str) for n in target_names):
+                    return list(target_names)
+                self.get_logger().warning(
+                    f"Invalid target_joint_names in mapping file ({mapping_path}); using built-in order"
+                )
+            except Exception as e:
+                self.get_logger().warning(
+                    f"Could not load mapping file ({mapping_path}): {e}. Using built-in order"
+                )
+
+        return list(self.JOINT_ORDER)
+
+    @staticmethod
+    def _normalize_joint_name(name: str) -> str:
+        # Accept common Gazebo/bridge naming forms and extract the bare joint name.
+        n = (name or "").strip()
+        if "::" in n:
+            n = n.split("::")[-1]
+        if "/" in n:
+            n = n.split("/")[-1]
+        return n
 
     def _log_health(self) -> None:
         src = "joint_states_gz" if self._got_joint else ("lowcmd" if self._got_lowcmd else "default_q")
         imu_src = "imu_topic" if self._got_imu else "default_zero"
-        q0 = self._joint_pos.get(self.JOINT_ORDER[0], None)
+        q0 = self._joint_pos.get(self.joint_order[0], None)
         cmd0 = self._cmd_q[0]
         self.get_logger().info(
             f"health: state_src={src} imu_src={imu_src} got_tf={self._got_base_tf} got_joint={self._got_joint} got_lowcmd={self._got_lowcmd} got_imu={self._got_imu} q0_joint={q0} q0_cmd={cmd0:.3f}"
@@ -150,9 +202,12 @@ class GzGo2StateAdapter(Node):
 
     def _on_js(self, msg: JointState) -> None:
         for i, name in enumerate(msg.name):
-            self._joint_pos[name] = msg.position[i] if i < len(msg.position) else 0.0
-            self._joint_vel[name] = msg.velocity[i] if i < len(msg.velocity) else 0.0
-            self._joint_eff[name] = msg.effort[i] if i < len(msg.effort) else 0.0
+            canonical = self._normalize_joint_name(name)
+            if canonical not in self.joint_order:
+                continue
+            self._joint_pos[canonical] = msg.position[i] if i < len(msg.position) else 0.0
+            self._joint_vel[canonical] = msg.velocity[i] if i < len(msg.velocity) else 0.0
+            self._joint_eff[canonical] = msg.effort[i] if i < len(msg.effort) else 0.0
         self._got_joint = True
 
     def _on_tf(self, msg: TFMessage) -> None:
@@ -196,7 +251,7 @@ class GzGo2StateAdapter(Node):
             self._cmd_tau[i] = float(msg.motor_cmd[i].tau)
 
         # Mirror LowCmd into per-joint position command topics for Gazebo controllers.
-        for i, jn in enumerate(self.JOINT_ORDER):
+        for i, jn in enumerate(self.joint_order):
             cmd = Float64()
             cmd.data = self._cmd_q[i]
             self.cmd_pos_pubs[jn].publish(cmd)
@@ -204,12 +259,19 @@ class GzGo2StateAdapter(Node):
         self._got_lowcmd = True
 
     def _on_imu(self, msg: Imu) -> None:
-        self._imu_quat_xyzw = [
-            float(msg.orientation.x),
-            float(msg.orientation.y),
-            float(msg.orientation.z),
-            float(msg.orientation.w),
-        ]
+        qx = float(msg.orientation.x)
+        qy = float(msg.orientation.y)
+        qz = float(msg.orientation.z)
+        qw = float(msg.orientation.w)
+
+        # Reject invalid quaternions and normalize valid ones to avoid gravity bias.
+        valid_orientation = False
+        if all(math.isfinite(v) for v in (qx, qy, qz, qw)):
+            norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+            if norm > 1e-6:
+                inv = 1.0 / norm
+                self._imu_quat_xyzw = [qx * inv, qy * inv, qz * inv, qw * inv]
+                valid_orientation = True
         self._imu_gyro = [
             float(msg.angular_velocity.x),
             float(msg.angular_velocity.y),
@@ -220,7 +282,9 @@ class GzGo2StateAdapter(Node):
             float(msg.linear_acceleration.y),
             float(msg.linear_acceleration.z),
         ]
-        self._got_imu = True
+        # Keep gyro/acc updates even when orientation is temporarily invalid.
+        # Orientation validity is tracked via _got_imu and normalized quaternion above.
+        self._got_imu = valid_orientation
 
     @staticmethod
     def _safe_set(arr, idx: int, value: float) -> None:
@@ -239,7 +303,7 @@ class GzGo2StateAdapter(Node):
         low = LowState()
         js = JointState()
         js.header.stamp = self.get_clock().now().to_msg()
-        js.name = list(self.JOINT_ORDER)
+        js.name = list(self.joint_order)
         js.position = []
         js.velocity = []
         js.effort = []
@@ -273,7 +337,7 @@ class GzGo2StateAdapter(Node):
             self._safe_set(low.imu_state.accelerometer, 1, ay)
             self._safe_set(low.imu_state.accelerometer, 2, az)
 
-        for i, jn in enumerate(self.JOINT_ORDER):
+        for i, jn in enumerate(self.joint_order):
             if self._got_joint:
                 q = float(self._joint_pos.get(jn, 0.0))
                 dq = float(self._joint_vel.get(jn, 0.0))

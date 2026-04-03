@@ -181,7 +181,7 @@ def generate_launch_description():
             "-p",
             f"model_name:={model_name}",
             "-p",
-            "lowstate_quat_wxyz:=false",
+            "lowstate_quat_wxyz:=true",
         ],
         output="screen",
     )
