@@ -797,14 +797,15 @@
   <link name="utlidar_lidar">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.001" />
-      <inertia ixx="1e-06" ixy="0" ixz="0" iyy="1e-06" iyz="0" izz="1e-06" />
+      <mass value="0" />
+      <inertia ixx="0" ixy="0" ixz="0" iyy="0" iyz="0" izz="0" />
     </inertial>
   </link>
-  <joint name="radar_joint" type="fixed" dont_collapse="true">
-    <origin xyz="0.28945 0 0.1" rpy="0 0 0" />
-    <parent link="Head_lower" />
+  <joint name="radar_joint" type="fixed">
+    <origin xyz="0.28945 0 -0.046825" rpy="0 2.8782 0" />
+    <parent link="base" />
     <child link="utlidar_lidar" />
+    <axis xyz="0 0 0" />
   </joint>
   <joint name="front_camera_joint" type="fixed">
     <origin rpy="0 0 0" xyz="0.32715 -0.00003 0.04297" />
@@ -814,7 +815,7 @@
   <link name="front_camera">
   </link>
 
-  <gazebo reference="Head_lower">
+  <gazebo reference="utlidar_lidar">
     <sensor name="go2_lidar" type="gpu_lidar">
       <always_on>true</always_on>
       <update_rate>20</update_rate>

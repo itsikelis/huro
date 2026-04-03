@@ -1,0 +1,19 @@
+arguments:
+  - "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock"
+  - "/world/{world_name}/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V"
+  - "/world/{world_name}/model/{model_name}/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model"
+  - "/imu@sensor_msgs/msg/Imu[gz.msgs.IMU"
+  - "/lidar@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan"
+  - "/lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked"
+
+remappings:
+  - from: "/world/{world_name}/model/{model_name}/joint_state"
+    to: "/joint_states_gz"
+  - from: "/imu"
+    to: "/imu"
+  - from: "/lidar"
+    to: "/livox/scan"
+  - from: "/lidar/points"
+    to: "/livox/lidar"
+  - from: "/world/{world_name}/dynamic_pose/info"
+    to: "/gz_pose_tf"

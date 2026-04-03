@@ -1,4 +1,5 @@
 import os
+import yaml
 
 from launch import LaunchDescription
 from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
@@ -54,9 +55,20 @@ def generate_launch_description():
     )
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
     world_path = os.path.join(huro_share, "resources", "worlds", "empty.sdf")
+    bridge_cfg_path = os.path.join(
+        huro_share, "resources", "bridge", "go2_sim_gz_bridge.yaml"
+    )
     ros_gz_sim_launch = (
         get_package_share_directory("ros_gz_sim") + "/launch/gz_sim.launch.py"
     )
+
+    with open(bridge_cfg_path, "r", encoding="utf-8") as f:
+        bridge_cfg = yaml.safe_load(f) or {}
+
+    fmt_values = {"world_name": world_name, "model_name": model_name}
+
+    def _fmt(text: str) -> str:
+        return str(text).format(**fmt_values)
 
     robot_state_publisher = Node(
         package="robot_state_publisher",
@@ -91,111 +103,24 @@ def generate_launch_description():
         ],
     )
 
-    gz_bridge_args = [
-        "/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock",
-        f"/world/{world_name}/dynamic_pose/info@tf2_msgs/msg/TFMessage[gz.msgs.Pose_V",
-        f"/world/{world_name}/model/{model_name}/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model",
-        f"/world/default/model/{model_name}/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model",
-        f"/model/{model_name}/joint_state@sensor_msgs/msg/JointState[gz.msgs.Model",
-        "/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-        f"/model/{model_name}/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-        f"/world/{world_name}/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-        f"/world/default/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-        f"/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu@sensor_msgs/msg/Imu[gz.msgs.IMU",
-        "/livox/lidar@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        "/lidar@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        "/lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-        f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-        f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan@sensor_msgs/msg/LaserScan[gz.msgs.LaserScan",
-    ]
+    gz_bridge_args = [_fmt(arg) for arg in bridge_cfg.get("arguments", [])]
 
     for jn in joint_order:
         gz_bridge_args.append(
             f"/model/{model_name}/joint/{jn}/cmd_pos@std_msgs/msg/Float64]gz.msgs.Double"
         )
 
+    gz_bridge_remappings = [
+        (_fmt(item["from"]), _fmt(item["to"]))
+        for item in bridge_cfg.get("remappings", [])
+    ]
+
     gz_bridge = Node(
         package="ros_gz_bridge",
         executable="parameter_bridge",
         name="go2_gz_bridge",
         arguments=gz_bridge_args,
-        remappings=[
-            (f"/world/{world_name}/model/{model_name}/joint_state", "/joint_states_gz"),
-            (f"/world/default/model/{model_name}/joint_state", "/joint_states_gz"),
-            (f"/model/{model_name}/joint_state", "/joint_states_gz"),
-            ("/imu", "/imu"),
-            (f"/model/{model_name}/imu", "/imu"),
-            (
-                f"/world/{world_name}/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu",
-                "/imu",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu",
-                "/imu",
-            ),
-            (f"/model/{model_name}/link/imu/sensor/go2_imu_sensor/imu", "/imu"),
-            ("/lidar", "/livox/scan"),
-            ("/lidar/points", "/livox/lidar"),
-            (
-                f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/points",
-                "/livox/lidar",
-            ),
-            (
-                f"/world/{world_name}/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/utlidar_lidar/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (
-                f"/world/{world_name}/model/{model_name}/link/base/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/base/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (
-                f"/world/{world_name}/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (
-                f"/world/default/model/{model_name}/link/Head_lower/sensor/go2_lidar/scan",
-                "/livox/scan",
-            ),
-            (f"/world/{world_name}/dynamic_pose/info", "/gz_pose_tf"),
-        ],
+        remappings=gz_bridge_remappings,
         output="screen",
     )
 
@@ -225,28 +150,6 @@ def generate_launch_description():
             "--ros-args",
             "-p",
             "use_sim_time:=true",
-            "-p",
-            "joint_state_topic:=/joint_states_gz",
-            "-p",
-            "joint_state_out_topic:=/joint_states",
-            "-p",
-            "lowcmd_topic:=/lowcmd",
-            "-p",
-            "tf_topic:=/tf",
-            "-p",
-            "imu_topic:=/imu",
-            "-p",
-            "lowstate_topic:=/lowstate",
-            "-p",
-            "sportmode_topic:=/sportmodestate",
-            "-p",
-            "world_frame:=world",
-            "-p",
-            "base_frame:=base",
-            "-p",
-            f"model_name:={model_name}",
-            "-p",
-            "lowstate_quat_wxyz:=true",
         ],
         output="screen",
     )
