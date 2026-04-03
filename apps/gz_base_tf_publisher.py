@@ -13,13 +13,11 @@ class GzBaseTfPublisher(Node):
         self.declare_parameter("world_frame", "world")
         self.declare_parameter("base_frame", "base")
         self.declare_parameter("model_name", "go2")
-        self.declare_parameter("publish_all_links", True)
 
         self.input_topic = self.get_parameter("input_topic").value
         self.world_frame = self.get_parameter("world_frame").value
         self.base_frame = self.get_parameter("base_frame").value
         self.model_name = self.get_parameter("model_name").value
-        self.publish_all_links = self.get_parameter("publish_all_links").value
 
         self.tf_pub = self.create_publisher(TFMessage, "/tf", 50)
         self.tf_sub = self.create_subscription(
@@ -27,48 +25,38 @@ class GzBaseTfPublisher(Node):
         )
 
         self.get_logger().info(
-            f"Bridge TF fix active: {self.input_topic} -> /tf ({self.world_frame}, model={self.model_name}, all_links={self.publish_all_links})"
+            f"Bridge TF fix active: {self.input_topic} -> /tf ({self.world_frame}->{self.base_frame}, model={self.model_name})"
         )
 
     def pose_cb(self, msg: TFMessage) -> None:
-        # Keep only the latest transform per child frame.
-        by_child = {}
         now_msg = self.get_clock().now().to_msg()
+        chosen = None
+        fallback = None
 
         for transform in msg.transforms:
             child_name = transform.child_frame_id
             if not child_name:
                 continue
-
             child_leaf = child_name.split("::")[-1]
 
-            # Ignore model-root frame (e.g., "go2") to avoid mixing world pose
-            # with model-local link poses.
             if child_name == self.model_name or child_leaf == self.model_name:
-                continue
+                chosen = transform
+                break
+            if child_name == self.base_frame or child_leaf == self.base_frame:
+                fallback = transform
 
-            # Keep frame names usable by RViz and ignore world/root helper names.
-            if child_leaf in ("world", self.world_frame, "", "__default__"):
-                continue
+        if chosen is None:
+            chosen = fallback
+        if chosen is None:
+            return
 
-            if not self.publish_all_links and child_leaf != self.base_frame:
-                continue
+        chosen.header.frame_id = self.world_frame
+        chosen.header.stamp = now_msg
+        chosen.child_frame_id = self.base_frame
 
-            # Skip non-link helper frames that can pollute TF.
-            if child_leaf.startswith("__") or child_leaf == "":
-                continue
-
-            # Gazebo Pose_V->TFMessage conversion may leave frame_id empty.
-            # RViz discards such transforms, so enforce a valid world parent.
-            transform.header.frame_id = self.world_frame
-            transform.header.stamp = now_msg
-            transform.child_frame_id = child_leaf
-            by_child[child_leaf] = transform
-
-        if by_child:
-            tf_out = TFMessage()
-            tf_out.transforms = list(by_child.values())
-            self.tf_pub.publish(tf_out)
+        tf_out = TFMessage()
+        tf_out.transforms = [chosen]
+        self.tf_pub.publish(tf_out)
 
 
 def main() -> None:

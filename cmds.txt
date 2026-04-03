@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+# =========================
+# Gazebo + RViz bringup
+# =========================
+cd /mnt/D/dev/robotics/ros2/huro
+
+# Rebuild and source
+colcon build --packages-select huro
+source install/setup.bash
+
+# Launch simulation stack
+ros2 launch huro go2_sim_gz.launch.py
+
+
+# =========================
+# Diagnostics (run in a 2nd terminal, same workspace)
+# =========================
+cd /mnt/D/dev/robotics/ros2/huro
+source install/setup.bash
+
+# Confirm key nodes are up
+ros2 node list | grep -E "go2_gz_bridge|gz_go2_state_adapter|gz_base_tf_publisher"
+
+# Confirm key topics exist
+ros2 topic list | grep -E "/joint_states_gz|/joint_states|/lowcmd|/lowstate|/imu|/gz_pose_tf"
+
+# Message rates
+ros2 topic hz /joint_states_gz
+ros2 topic hz /joint_states
+ros2 topic hz /lowcmd
+ros2 topic hz /lowstate
+ros2 topic hz /imu
+
+# Single sample payloads
+ros2 topic echo /joint_states_gz --once
+ros2 topic echo /joint_states --once
+ros2 topic echo /lowcmd --once
+ros2 topic echo /lowstate --once
+ros2 topic echo /imu --once
+
+# Adapter health lines (already printed every ~2s in launch terminal)
+# Look for lines containing:
+# health: state_src=... imu_src=... got_tf=... got_joint=... got_lowcmd=... got_imu=...
+

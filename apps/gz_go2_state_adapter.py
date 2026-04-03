@@ -71,7 +71,8 @@ class GzGo2StateAdapter(Node):
         self._declare_param_if_needed("model_name", "go2")
         self._declare_param_if_needed("imu_topic", "/imu")
         self._declare_param_if_needed("pose_tf_topic", "/gz_pose_tf")
-        self._declare_param_if_needed("lowstate_quat_wxyz", True)
+        self._declare_param_if_needed("lowstate_quat_wxyz", False)
+        self._declare_param_if_needed("estimate_gyro_from_pose_tf", False)
 
         self.joint_state_topic = self.get_parameter("joint_state_topic").value
         self.joint_state_out_topic = self.get_parameter("joint_state_out_topic").value
@@ -87,6 +88,9 @@ class GzGo2StateAdapter(Node):
         self.pose_tf_topic = self.get_parameter("pose_tf_topic").value
         self.lowstate_quat_wxyz = bool(
             self.get_parameter("lowstate_quat_wxyz").value
+        )
+        self.estimate_gyro_from_pose_tf = bool(
+            self.get_parameter("estimate_gyro_from_pose_tf").value
         )
 
         self._joint_pos: Dict[str, float] = {}
@@ -139,9 +143,19 @@ class GzGo2StateAdapter(Node):
 
         period = 1.0 / max(self.publish_rate_hz, 1.0)
         self.timer = self.create_timer(period, self._publish)
+        self.diag_timer = self.create_timer(2.0, self._log_health)
 
         self.get_logger().info(
             f"Gazebo adapter active: {self.joint_state_topic} -> {self.joint_state_out_topic} (+fallback {self.lowcmd_topic}) + {self.tf_topic} -> {self.lowstate_topic}, {self.sportmode_topic}"
+        )
+
+    def _log_health(self) -> None:
+        src = "joint_states_gz" if self._got_joint else ("lowcmd" if self._got_lowcmd else "default_q")
+        imu_src = "imu_topic" if self._got_imu else "pose_tf_fallback"
+        q0 = self._joint_pos.get(self.JOINT_ORDER[0], None)
+        cmd0 = self._cmd_q[0]
+        self.get_logger().info(
+            f"health: state_src={src} imu_src={imu_src} got_tf={self._got_base_tf} got_joint={self._got_joint} got_lowcmd={self._got_lowcmd} got_imu={self._got_imu} q0_joint={q0} q0_cmd={cmd0:.3f}"
         )
 
     def _on_js(self, msg: JointState) -> None:
@@ -218,7 +232,10 @@ class GzGo2StateAdapter(Node):
                 if vnorm > 1e-9:
                     angle = 2.0 * math.atan2(vnorm, max(-1.0, min(1.0, vw)))
                     scale = angle / (dt * vnorm)
-                    self._base_ang_vel = [vx * scale, vy * scale, vz * scale]
+                    if self.estimate_gyro_from_pose_tf:
+                        self._base_ang_vel = [vx * scale, vy * scale, vz * scale]
+                    else:
+                        self._base_ang_vel = [0.0, 0.0, 0.0]
 
         self._base_pos = pos
         self._base_quat_xyzw = quat_xyzw
@@ -323,6 +340,13 @@ class GzGo2StateAdapter(Node):
             qx, qy, qz, qw = self._base_quat_xyzw
             gx, gy, gz = self._base_ang_vel
             ax, ay, az = 0.0, 0.0, 0.0
+
+        # Keep quaternion normalized to avoid gravity projection drift in policy obs.
+        qn = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+        if qn > 1e-9:
+            qx, qy, qz, qw = qx / qn, qy / qn, qz / qn, qw / qn
+        else:
+            qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
 
         if hasattr(low, "imu_state"):
             if self.lowstate_quat_wxyz:

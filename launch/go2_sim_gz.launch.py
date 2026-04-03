@@ -149,8 +149,6 @@ def generate_launch_description():
             "base_frame:=base",
             "-p",
             f"model_name:={model_name}",
-            "-p",
-            "publish_all_links:=true",
         ],
         output="screen",
     )
@@ -185,7 +183,9 @@ def generate_launch_description():
             "-p",
             f"model_name:={model_name}",
             "-p",
-            "lowstate_quat_wxyz:=true",
+            "lowstate_quat_wxyz:=false",
+            "-p",
+            "estimate_gyro_from_pose_tf:=false",
         ],
         output="screen",
     )
