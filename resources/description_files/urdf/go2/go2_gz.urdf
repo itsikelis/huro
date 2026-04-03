@@ -212,7 +212,7 @@
         <mesh filename="package://huro/resources/description_files/meshes/go2/foot.dae" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
-    <collision>
+    <collision name="FL_foot_collision">
       <origin rpy="0 0 0" xyz="-0.002 0 0" />
       <geometry>
         <sphere radius="0.022" />
@@ -379,7 +379,7 @@
         <mesh filename="package://huro/resources/description_files/meshes/go2/foot.dae" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
-    <collision>
+    <collision name="FR_foot_collision">
       <origin rpy="0 0 0" xyz="-0.002 0 0" />
       <geometry>
         <sphere radius="0.022" />
@@ -546,7 +546,7 @@
         <mesh filename="package://huro/resources/description_files/meshes/go2/foot.dae" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
-    <collision>
+    <collision name="RL_foot_collision">
       <origin rpy="0 0 0" xyz="-0.002 0 0" />
       <geometry>
         <sphere radius="0.022" />
@@ -713,7 +713,7 @@
         <mesh filename="package://huro/resources/description_files/meshes/go2/foot.dae" />
       </geometry>
       <material name="黑色足端_007-effect"><color rgba="0 0 0 1" /></material></visual>
-    <collision>
+    <collision name="RR_foot_collision">
       <origin rpy="0 0 0" xyz="-0.002 0 0" />
       <geometry>
         <sphere radius="0.022" />

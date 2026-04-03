@@ -6,8 +6,8 @@ from sensor_msgs.msg import PointCloud2
 
 
 import numpy as np
-import yaml
-import os
+import torch
+
 from huro_py.utils import Mapper, quat_rotate_inverse, process_height_map
 
 
@@ -171,7 +171,7 @@ def get_obs_lidar(
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    obs = np.zeros(50)
+    obs = np.zeros(195)
     
     # Base linear velocity (obs[0:3])
 
@@ -192,6 +192,7 @@ def get_obs_lidar(
             lowstate_msg.imu_state.quaternion[3],  # z
         ]
     )
+    
 
     gravity_world = np.array([0.0, 0.0, -1.0])
 
@@ -205,29 +206,37 @@ def get_obs_lidar(
             -controller_msg.twist.angular.x,  # lateral velocity (flip for correct direction)
             controller_msg.twist.angular.z,  # yaw rate
         ]
-        obs[9] = height
     else:
         obs[6:9] = [
             controller_msg.axes[1],  # forward velocity
             controller_msg.axes[0],  # lateral velocity (flip for correct direction)
             controller_msg.axes[2],  # yaw rate
         ]
-        obs[9] = 0.3 + controller_msg.axes[3] / 10
 
     # Fill joint positions (obs[13:25]) in policy order
-    obs[10:22] = current_joint_pos_policy - default_pos_policy
+    obs[9:21] = current_joint_pos_policy - default_pos_policy
     # Fill joint velocities (obs[25:37]) in policy order
-    obs[22:34] = current_joint_vel_policy
+    obs[21:33] = current_joint_vel_policy
+    # height_data
+    idx = 33+150
+    height_map_copy = torch.zeros((3, 15, 10), dtype = torch.float32)
+    height_map_copy = height_map_copy[0, :, :].clone().flatten()
+    obs[33:idx] = height_map_copy
+
+    obs[idx:idx + 12] = prev_actions
     # Previous actions (obs[37:49]) - default to zero
-    obs[34:46] = prev_actions
-    # see the best threshold for real robot
-    obs[46:50] = [
-        float(lowstate_msg.foot_force[0]>10),
-        float(lowstate_msg.foot_force[1]>10),
-        float(lowstate_msg.foot_force[2]>10),
-        float(lowstate_msg.foot_force[3]>10)
-    ]
+    
     # CHANGE FOR DEBUG !! 
-    obs[46:50] = [0.0, 0.0, 0.0, 0.0]
 
     return obs
+
+
+"""
+self._robot.data.root_ang_vel_b + (2.0 * torch.rand_like(self._robot.data.root_lin_vel_b) - 1.0) * float(0.1) * self.cfg.randomize,
+self._robot.data.projected_gravity_b + (2.0 * torch.rand_like(self._robot.data.projected_gravity_b) - 1.0) * float(0.05) * self.cfg.randomize,
+self._commands.get_command("base_velocity"),
+self._robot.data.joint_pos - self._robot.data.default_joint_pos + (2.0 * torch.rand_like(self._robot.data.default_joint_pos) - 1.0) * float(0.01) * self.cfg.randomize,
+self._robot.data.joint_vel + (2.0 * torch.rand_like(self._robot.data.joint_vel) - 1.0) * float(0.1) * self.cfg.randomize,
+height_data_actor,
+self._actions,
+"""

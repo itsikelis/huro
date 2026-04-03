@@ -40,7 +40,7 @@ class Go2PolicyController(Node):
 
     def __init__(
         self,
-        policy_name="policy.pt",
+        policy_name="policy_lidar_12.pt",
         sim=True,
         vel=[0.0, 0.0, 0.0]
     ):
@@ -78,7 +78,7 @@ class Go2PolicyController(Node):
         share = get_package_share_directory("huro")
 
         if policy_name is None:
-            policy_name = "policy_asymmetric9.pt"
+            policy_name = "policy_lidar_12.pt"
    
 
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
