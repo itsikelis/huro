@@ -11,7 +11,7 @@ TO RUN:
 ros2 launch huro go2_rviz.launch.py
 ros2 run huro spacemouse_publisher.py
 ros2 run huro sim_go2
-ros2 run huro go2_publisher.py --use_spacemouse True
+ros2 run huro go2_publisher.py 
 
 """
 import rclpy
@@ -28,9 +28,9 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_obs
-from huro_py.utils import Mapper
-from sensor_msgs.msg import Joy
+from huro_py.get_obs import get_obs_lidar
+from huro_py.utils import Mapper, MockController
+from sensor_msgs.msg import Joy, PointCloud2
 
 np.set_printoptions(precision=3)
 
@@ -40,10 +40,9 @@ class Go2PolicyController(Node):
 
     def __init__(
         self,
-        policy_name="policy.pt",
-        training_type="normal",
+        policy_name="policy_lidar_12.pt",
         sim=True,
-        use_spacemouse=False,
+        vel=[0.0, 0.0, 0.0]
     ):
         """
         Initialize the policy controller.
@@ -57,6 +56,8 @@ class Go2PolicyController(Node):
             action_scale: Scale factor for policy actions (default: 0.25)
         """
         params = []
+        
+        
         if sim:
             params.append(rclpy.parameter.Parameter("use_sim_time", value=True))
         super().__init__("go2_policy_controller", parameter_overrides=params)
@@ -66,7 +67,7 @@ class Go2PolicyController(Node):
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
         self.run_policy = True # set to false to rely on joy buttons to lauch the policy
-        self.use_spacemouse = use_spacemouse
+        self.vel = [float(vel[0]), float(vel[1]), float(vel[2])]
 
         # Emergency mode
         self.emergency_mode = False
@@ -77,12 +78,8 @@ class Go2PolicyController(Node):
         share = get_package_share_directory("huro")
 
         if policy_name is None:
-            if training_type == "asymmetric":
-                policy_name = "policy_asymmetric9.pt"
-            elif training_type == "student":
-                policy_name = "policy_student.pt"
-            else:
-                policy_name = "policy_low_state.pt"
+            policy_name = "policy_lidar_12.pt"
+   
 
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -150,31 +147,17 @@ class Go2PolicyController(Node):
         # Store latest messages
         self.latest_low_state = None
         self.controller_state = None
+        self.lidar_state = None
 
-        self.kp = 60.0  # Position gain
-        self.kd = 5.0  # Velocity gain
-        self.kp_p = 50.0  # Position gain
-        self.kd_p = 3.5  # Velocity gain
+        self.kp = 25.0  # Position gain
+        self.kd = 0.5  # Velocity gain
+        self.kp_p = 25.0  # Position gain
+        self.kd_p = 0.5  # Velocity gain
         self.action_scale = 0.25  # Scale policy output
 
         # Standing position (default joint positions but coud be different)
-        self.stand_pos = np.array(
-            [
-                0.0,
-                0.8,
-                -1.5,  # FL
-                0.0,
-                0.8,
-                -1.5,  # FR
-                0.0,
-                0.8,
-                -1.5,  # RL
-                0.0,
-                0.8,
-                -1.5,  # RR
-            ],
-            dtype=float,
-        )
+        self.stand_pos = self.default_pos_sdk
+        
         self.time_to_stand = 5.0  # Time to reach the standing position
 
         # Statistics - initialize BEFORE callbacks
@@ -183,16 +166,17 @@ class Go2PolicyController(Node):
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
 
-        if use_spacemouse:
-            self.spacemouse_sub = self.create_subscription(
-                SpaceMouseState, "/spacemouse_state", self.spacemouse_callback, 10
-            )
+        if sum(self.vel) != 0.0:
+            self.controller_state = MockController(self.vel)
         else:
             self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
 
         # Get low lovel data from robot
         self.low_state_sub = self.create_subscription(
             LowState, "/lowstate", self.low_state_callback, 10
+        )
+        self.lidar_sub = self.create_subscription(
+            PointCloud2, "/utlidat/cloud", self.lidar_callback, 10
         )
 
         self.motion_pub = self.create_publisher(
@@ -214,11 +198,12 @@ class Go2PolicyController(Node):
         """Log low state message."""
         self.latest_low_state = msg
 
-    def spacemouse_callback(self, msg: SpaceMouseState):
+        
+    def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
-        self.controller_state = msg
-
-    def joy_callback(self, msg: SpaceMouseState):
+        self.lidar_state = msg
+        
+    def joy_callback(self, msg: Joy):
         """Log spacemouse state"""
         self.controller_state = msg
 
@@ -288,7 +273,6 @@ class Go2PolicyController(Node):
         # Convert current action from policy order to SDK order
         actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
 
-        # Store last commanded positions for potential emergency mode
         self.last_commanded_positions = (
             self.mapper.default_pos_sdk
         ) + actions_sdk_order * self.action_scale
@@ -298,8 +282,7 @@ class Go2PolicyController(Node):
         cmd.head[1] = 0xEF
         cmd.level_flag = 0xFF
         cmd.gpio = 0
-        # target_positions = self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale
-        # Set motor commands
+
         for i in range(12):
             cmd.motor_cmd[i].mode = 0x01  # PMSM mode
             cmd.motor_cmd[i].q = self.last_commanded_positions[i]
@@ -314,9 +297,9 @@ class Go2PolicyController(Node):
 
     def run(self):
         """Main control loop running at control_freq Hz."""
-
+        print(self.latest_low_state is None)
         try:
-            if self.latest_low_state is not None and self.controller_state is not None:
+            if self.latest_low_state is not None and self.controller_state is not None :
                 if self.tick_count == 0:
                     self.start_time = self.get_clock().now()
                 self.process_control_step()
@@ -341,27 +324,15 @@ class Go2PolicyController(Node):
         self.tick_count += 1
         self.curr_time = self.get_clock().now()
 
-        if self.use_spacemouse:
-            emergency_cond = (
-                self.controller_state.button_1_pressed
-                and self.controller_state.button_2_pressed
-                and self.run_policy
-                or self.emergency_mode
-            )
-            policy_run_cond = (
-                self.controller_state.button_1_pressed
-                or self.controller_state.button_2_pressed
-            )
-        else:
-            emergency_cond = (
-                self.controller_state.buttons[8]
-                and self.controller_state.buttons[9]
-                and self.run_policy
-                or self.emergency_mode
-            )
-            policy_run_cond = (
-                self.controller_state.buttons[8] or self.controller_state.buttons[9]
-            )
+        emergency_cond = (
+            self.controller_state.buttons[8]
+            and self.controller_state.buttons[9]
+            and self.run_policy
+            or self.emergency_mode
+        )
+        policy_run_cond = (
+            self.controller_state.buttons[8] or self.controller_state.buttons[9]
+        )
 
         if emergency_cond or self.emergency_mode:
             if not self.emergency_mode:
@@ -382,8 +353,9 @@ class Go2PolicyController(Node):
 
     def policy_control(self):
 
-        obs = get_obs(
+        obs = get_obs_lidar(
             self.latest_low_state,
+            self.lidar_state,
             self.controller_state,
             height=0.30,
             prev_actions=self.current_action,
@@ -407,22 +379,21 @@ def main():
         "--policy", type=str, default=None, help="Path to policy.pt file"
     )
 
-    parser.add_argument(
-        "--training_type",
-        type=str,
-        default="asymmetric",
-        help="The type of training use (normal, asymmetric or student)",
-    )
 
     parser.add_argument(
         "--sim", type=bool, default=True, help="Wether to use simulation or real robot"
     )
-
+    
     parser.add_argument(
-        "--use_spacemouse",
-        type=bool,
-        default=False,
-        help="Wether to use spacemouse (default: use joy)",
+        "--vx", type=float, default=0.0, help="Velocity along x axis"
+    )
+    
+    parser.add_argument(
+        "--vy", type=float, default=0.0, help="Velocity along x axis"
+    )
+    
+    parser.add_argument(
+        "--wz", type=float, default=0.0, help="Velocity along x axis"
     )
 
     # Parse only known args to allow ROS args to pass through
@@ -434,9 +405,8 @@ def main():
     # Create controller
     node = Go2PolicyController(
         policy_name=args.policy,
-        training_type=args.training_type,
         sim=args.sim,
-        use_spacemouse=args.use_spacemouse,
+        vel=[args.vx, args.vy, args.wz]
     )
 
     try:

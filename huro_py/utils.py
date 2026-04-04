@@ -1,4 +1,11 @@
 import numpy as np
+import sys
+import torch
+import yaml
+from sensor_msgs.msg import PointCloud2
+from unitree_go.msg import LowState
+
+import os
 # from unitree_go.msg import PointCloud2
 
 def quat_rotate_inverse(q, v):
@@ -9,9 +16,7 @@ def quat_rotate_inverse(q, v):
 
 
 
-import numpy as np
-import yaml
-import os
+
 
 
 class MockController:
@@ -29,6 +34,8 @@ class MockController:
 
         # Keep emergency buttons always released.
         self.buttons = [0] * 10
+        self.buttons[0] = 1
+        self.buttons[1] = 1
 
 
 
@@ -141,11 +148,8 @@ class Mapper:
 Utility functions for processing LiDAR data and creating height maps.
 """
 
-import numpy as np
-import struct
-import sys
-from sensor_msgs.msg import PointCloud2
-np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
+
+# np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
 
 
 LIDAR_PITCH_DEG = 15.0
@@ -153,53 +157,94 @@ LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH = np.cos(LIDAR_PITCH_RAD)
 SIN_PITCH = np.sin(LIDAR_PITCH_RAD)
 # replace with https://github.com/anybotics/grid_map
-def process_height_map(height_map: np.array, lidar_msg: PointCloud2, max_dist: float, delete_count: int = 100):
-    grid_size = height_map.shape[0]
-    map_range = 2.0 * max_dist
-    cell_size = map_range / grid_size  # meters per cell
-    
-    # Parse pointcloud
-    num_points = lidar_msg.width * lidar_msg.height
-    point_step = lidar_msg.point_step
-    data_bytes = bytes(lidar_msg.data)
+LIDAR_PITCH_DEG = torch.tensor(-15.09)
+LIDAR_PITCH_RAD = torch.deg2rad(LIDAR_PITCH_DEG)
+COS_PITCH_LIDAR = torch.cos(LIDAR_PITCH_RAD).item()
+SIN_PITCH_LIDAR = torch.sin(LIDAR_PITCH_RAD).item()
 
-    # Clear old data (cells not updated in delete_count frames)
-    old_cells = height_map[:, :, 1] > delete_count
-    height_map[old_cells, 0] = 1.0 # Reset height
-    height_map[old_cells, 1] = 0    # Reset age
+
+def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstate_msg: LowState, x_range: list, y_range: list, res, delete_count: int = 100, min_x = 0, max_x = 0, min_z = 0, max_z = 0):
+    if lidar_msg is None or lowstate_msg is None:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    qw = float(lowstate_msg.imu_state.quaternion[0])
+    qx = float(lowstate_msg.imu_state.quaternion[1])
+    qy = float(lowstate_msg.imu_state.quaternion[2])
+    qz = float(lowstate_msg.imu_state.quaternion[3])
+
+    grid_size_x = int(height_map.shape[1])
+    grid_size_y = int(height_map.shape[2])
+
+    hm_height = height_map[0].numpy()
+    hm_age = height_map[1].numpy()
+
+    old_cells = hm_age > delete_count
+    hm_height[old_cells] = 0.0
+    hm_age[old_cells] = 0.0
+    hm_age += 1.0
+
+    num_points = int(lidar_msg.width) * int(lidar_msg.height)
+    point_step = int(lidar_msg.point_step)
+    if num_points == 0 or point_step < 12:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    raw = np.frombuffer(lidar_msg.data, dtype=np.uint8)
+    needed = num_points * point_step
+    if raw.size < needed:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    xyz = np.ndarray(
+        shape=(num_points, 3),
+        dtype=np.float32,
+        buffer=raw,
+        offset=0,
+        strides=(point_step, 4),
+    )
+
+    x = -xyz[:, 0]
+    y = -xyz[:, 1]
+    z = xyz[:, 2]
     
-    # Increment age for all cells (vectorized)
-    height_map[:, :, 1] += 1
-    
-    # Project points onto grid
-    for i in range(num_points):
-        offset = i * point_step
-        x = struct.unpack_from('f', data_bytes, offset)[0]
-        y = struct.unpack_from('f', data_bytes, offset + 4)[0]
-        z = struct.unpack_from('f', data_bytes, offset + 8)[0]
-        
-        # Filter invalid points
-        if not (np.isfinite(x) and np.isfinite(y) and np.isfinite(z)):
-            continue
-        
-        # Correct for lidar pitch (rotation around Y-axis)
-        x_corrected = x * COS_PITCH - z * SIN_PITCH
-        z_corrected = x * SIN_PITCH + z * COS_PITCH
-        x, z = x_corrected, z_corrected
-        x = -x
-        
-        # Convert to grid coordinates (robot at center)
-        # Flip x-axis: high x → row 0 (top), low x → row grid_size-1 (bottom)
-        grid_x = grid_size - 1 - int((x + max_dist) / cell_size)
-        # grid_x = int((x + max_dist) / cell_size)
-        grid_y = int((y + max_dist) / cell_size)
-        if 0 <= grid_x < grid_size and 0 <= grid_y < grid_size and z > 0.0:
-            if height_map[grid_x, grid_y, 0] != 1.0:
-                height_map[grid_x, grid_y, 0] = max(height_map[grid_x, grid_y, 0], z)
-            else:
-                height_map[grid_x, grid_y, 0] = z
-            height_map[grid_x, grid_y, 1] = 0
-        # height_map[height_map[:,:,0]<0.25] = None
-    
-    
+    x_lidar = x * COS_PITCH_LIDAR - z * SIN_PITCH_LIDAR
+    z_lidar = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
+
+    sin_roll = 2.0 * (qw * qx + qy * qz)
+    cos_roll = 1.0 - 2.0 * (qx * qx + qy * qy)
+    sin_pitch = 2.0 * (qw * qy - qz * qx)
+    cos_pitch = np.sqrt(max(1.0 - sin_pitch * sin_pitch, 0.0))
+
+    x_body = cos_pitch * x_lidar + sin_roll * sin_pitch * y - sin_pitch * cos_roll * z_lidar
+    y_body = cos_pitch * cos_roll * y + cos_pitch * sin_roll * z_lidar
+    z_body = sin_pitch * x_lidar - sin_roll * cos_pitch * y + cos_pitch * cos_roll * z_lidar
+
+    finite_mask = np.isfinite(x_body) & np.isfinite(y_body) & np.isfinite(z_body)
+    if not np.any(finite_mask):
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    x_valid = x_body[finite_mask]
+    y_valid = y_body[finite_mask]
+    z_valid = z_body[finite_mask]
+
+    grid_x = ((x_valid - x_range[1]) / res).astype(np.int32)
+    grid_y = ((y_valid - y_range[0]) / res).astype(np.int32)
+
+    in_grid = (
+        (grid_x >= 0)
+        & (grid_x < grid_size_x)
+        & (grid_y >= 0)
+        & (grid_y < grid_size_y)
+    )
+
+    if np.any(in_grid):
+        flat_idx = grid_x[in_grid] * grid_size_y + grid_y[in_grid]
+        z_grid = z_valid[in_grid]
+        max_heightmap = np.full(grid_size_x * grid_size_y, -np.inf, dtype=np.float32)
+        np.maximum.at(max_heightmap, flat_idx, z_grid)
+
+        max_heightmap = max_heightmap.reshape(grid_size_x, grid_size_y)
+        valid_cells = np.isfinite(max_heightmap)
+        hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28
+        hm_age[valid_cells] = 0.0
+
+
     

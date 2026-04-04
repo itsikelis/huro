@@ -74,7 +74,7 @@ ros2 run huro sim_ROBOT
 
 replacing robot with either "g1" or "go2".
 
-### Example to run a policy for go2 in simulation:
+### Example to run a policy for go2 in Mujoco simulation:
 
 ```bash
 colcon build
@@ -83,28 +83,39 @@ ros2 launch huro go2_rviz.launch.py
 ros2 run huro sim_go2
 ```
 
+### Example to run a policy for go2 in Gazebo simulation:
+
+```bash
+colcon build
+source setup_uri.sh lo
+ros2 launch huro go2_sim_gz.launch.py step_height:=0.1
+```
+
 
 To run the policy with a joystick controller (xbox type):
 ```bash
 apt update
 apt-get install ros-humble-teleop-twist-joy 
 ros2 launch teleop_twist_joy teleop-launch.py joy_config:='xbox'
-ros2 run huro go2_publisher.py 
+ros2 run huro go2_publisher.py --sim True
 ```
 The robot will enter a stand up phase.
 Once this is done, press one of the back button to launch the policy.
 To stop it (emergency mode), you can press the two back buttons simultaneously.
 
 
-
-To run the policy with a space mouse:
+Run the policy with the lidar for rough terrains:
+- In simulation (Works only with Gazebo)
 ```bash
-ros2 run huro spacemouse_publisher.py
-ros2 run huro go2_publisher.py ros2 run huro go2_publisher.py --use_spacemouse True
+# First terminal
+colcon build
+source setup_uri.sh lo
+ros2 launch huro go2_sim_gz.launch.py step_height:=0.1
+# Second terminal
+colcon build
+source setup_uri.sh lo
+ros2 run huro go2_publisher.py --lidar True --sim True
 ```
-The robot will enter a stand up phase.
-Once this is done, press one of the side buttons to launch the policy.
-To stop it (emergency mode), you can press the two side buttons simultaneously.
 
 
 ### With the real robot:

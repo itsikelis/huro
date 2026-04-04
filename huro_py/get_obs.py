@@ -11,7 +11,7 @@ import torch
 from huro_py.utils import Mapper, quat_rotate_inverse, process_height_map
 
 
-def get_obs_low_state(
+def get_obs(
     lowstate_msg: LowState,
     controller_msg,
     height: float,
@@ -120,12 +120,13 @@ def get_obs_low_state(
 
     return obs
 
+
 def get_obs_lidar(
     lowstate_msg: LowState,
-    lidar_msg: PointCloud2,
+    height_map: torch.tensor,
     controller_msg,
     height: float,
-    prev_actions: np.array,
+    prev_actions: torch.tensor,
     mapper: Mapper,
 ):
     """
@@ -153,8 +154,8 @@ def get_obs_lidar(
 
     motor_states = lowstate_msg.motor_state[:12]
 
-    current_joint_pos_sdk = np.array([motor_states[i].q for i in range(12)])
-    current_joint_vel_sdk = np.array([motor_states[i].dq for i in range(12)])
+    current_joint_pos_sdk = torch.tensor([motor_states[i].q for i in range(12)])
+    current_joint_vel_sdk = torch.tensor([motor_states[i].dq for i in range(12)])
 
     current_joint_pos_policy = mapper.remap_joints_by_name(
         current_joint_pos_sdk,
@@ -171,12 +172,12 @@ def get_obs_lidar(
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    obs = np.zeros(195)
+    obs = torch.zeros(195)
     
     # Base linear velocity (obs[0:3])
 
     # Base angular velocity (gyroscope) (obs[0:3])
-    obs[0:3] = np.array(
+    obs[0:3] = torch.tensor(
         [
             lowstate_msg.imu_state.gyroscope[0],
             lowstate_msg.imu_state.gyroscope[1],
@@ -184,7 +185,7 @@ def get_obs_lidar(
         ]
     )
     # Computing projected gravity from IMU sensor
-    quat = np.array(
+    quat = torch.tensor(
         [
             lowstate_msg.imu_state.quaternion[0],  # w
             lowstate_msg.imu_state.quaternion[1],  # x
@@ -194,33 +195,32 @@ def get_obs_lidar(
     )
     
 
-    gravity_world = np.array([0.0, 0.0, -1.0])
+    gravity_world = torch.tensor([0.0, 0.0, -1.0])
 
-    gravity_b = quat_rotate_inverse(quat, gravity_world)
+    gravity_b = torch.tensor(quat_rotate_inverse(quat, gravity_world))
 
     obs[3:6] = gravity_b
 
     if isinstance(controller_msg, SpaceMouseState):
-        obs[6:9] = [
+        obs[6:9] = torch.tensor([
             controller_msg.twist.angular.y,  # forward velocity
             -controller_msg.twist.angular.x,  # lateral velocity (flip for correct direction)
             controller_msg.twist.angular.z,  # yaw rate
-        ]
+        ])
     else:
-        obs[6:9] = [
+        obs[6:9] = torch.tensor([
             controller_msg.axes[1],  # forward velocity
             controller_msg.axes[0],  # lateral velocity (flip for correct direction)
             controller_msg.axes[2],  # yaw rate
-        ]
+        ])
 
     # Fill joint positions (obs[13:25]) in policy order
-    obs[9:21] = current_joint_pos_policy - default_pos_policy
+    obs[9:21] = torch.tensor(current_joint_pos_policy - default_pos_policy)
     # Fill joint velocities (obs[25:37]) in policy order
-    obs[21:33] = current_joint_vel_policy
+    obs[21:33] = torch.tensor(current_joint_vel_policy)
     # height_data
     idx = 33+150
-    height_map_copy = torch.zeros((3, 15, 10), dtype = torch.float32)
-    height_map_copy = height_map_copy[0, :, :].clone().flatten()
+    height_map_copy = height_map[0, :, :].clone().flatten()
     obs[33:idx] = height_map_copy
 
     obs[idx:idx + 12] = prev_actions
@@ -229,14 +229,3 @@ def get_obs_lidar(
     # CHANGE FOR DEBUG !! 
 
     return obs
-
-
-"""
-self._robot.data.root_ang_vel_b + (2.0 * torch.rand_like(self._robot.data.root_lin_vel_b) - 1.0) * float(0.1) * self.cfg.randomize,
-self._robot.data.projected_gravity_b + (2.0 * torch.rand_like(self._robot.data.projected_gravity_b) - 1.0) * float(0.05) * self.cfg.randomize,
-self._commands.get_command("base_velocity"),
-self._robot.data.joint_pos - self._robot.data.default_joint_pos + (2.0 * torch.rand_like(self._robot.data.default_joint_pos) - 1.0) * float(0.01) * self.cfg.randomize,
-self._robot.data.joint_vel + (2.0 * torch.rand_like(self._robot.data.joint_vel) - 1.0) * float(0.1) * self.cfg.randomize,
-height_data_actor,
-self._actions,
-"""

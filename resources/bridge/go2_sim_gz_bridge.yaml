@@ -14,6 +14,6 @@ remappings:
   - from: "/lidar"
     to: "/livox/scan"
   - from: "/lidar/points"
-    to: "/livox/lidar"
+    to: "/utlidar/cloud"
   - from: "/world/{world_name}/dynamic_pose/info"
     to: "/gz_pose_tf"

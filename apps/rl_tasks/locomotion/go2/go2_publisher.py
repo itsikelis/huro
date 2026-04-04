@@ -28,7 +28,7 @@ from huro.msg import SpaceMouseState
 
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_obs_low_state
+from huro_py.get_obs import get_obs
 from huro_py.utils import Mapper, MockController
 from sensor_msgs.msg import Joy
 
@@ -345,7 +345,7 @@ class Go2PolicyController(Node):
 
     def policy_control(self):
 
-        obs = get_obs_low_state(
+        obs = get_obs(
             self.latest_low_state,
             self.controller_state,
             height=0.30,

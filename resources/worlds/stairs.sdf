@@ -1,0 +1,194 @@
+<?xml version="1.0" ?>
+<sdf version="1.9">
+  <world name="empty_world">
+    <gravity>0 0 -9.8</gravity>
+    <physics name="1ms" type="ode">
+      <max_step_size>0.001</max_step_size>
+      <real_time_update_rate>1000</real_time_update_rate>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+    <plugin
+      filename="gz-sim-physics-system"
+      name="gz::sim::systems::Physics">
+    </plugin>
+    <plugin
+      filename="gz-sim-scene-broadcaster-system"
+      name="gz::sim::systems::SceneBroadcaster">
+    </plugin>
+    <plugin
+      filename="gz-sim-user-commands-system"
+      name="gz::sim::systems::UserCommands">
+    </plugin>
+    <plugin
+      filename="gz-sim-sensors-system"
+      name="gz::sim::systems::Sensors">
+      <render_engine>ogre2</render_engine>   
+    </plugin>
+    <plugin filename="gz-sim-imu-system" name="gz::sim::systems::Imu">
+      <topic>/imu</topic>
+      <update_rate>400</update_rate>
+    </plugin>
+    <light type="directional" name="sun">
+      <cast_shadows>true</cast_shadows>
+      <pose>0 0 10 0 0 0</pose>
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+      <attenuation>
+        <range>1000</range>
+        <constant>0.9</constant>
+        <linear>0.01</linear>
+        <quadratic>0.001</quadratic>
+      </attenuation>
+      <direction>-0.5 0.1 -0.9</direction>
+    </light>
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box>
+              <size>100 100 0.1</size>
+            </box>
+          </geometry>
+          <pose>0 0 -0.05 0 0 0</pose>  <!-- sink it so top face is at z=0 -->
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>100 100</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="stairs_up_down">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="stairs_link">
+        <collision name="step_01_col">
+          <pose>0.84 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_02_col">
+          <pose>1.12 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_03_col">
+          <pose>1.40 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_04_col">
+          <pose>1.68 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_05_col">
+          <pose>1.96 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_06_col">
+          <pose>2.24 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_07_col">
+          <pose>2.52 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_08_col">
+          <pose>2.80 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_09_col">
+          <pose>3.08 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_10_col">
+          <pose>3.36 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_11_col">
+          <pose>3.64 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_12_col">
+          <pose>3.92 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_13_col">
+          <pose>4.20 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+
+        <visual name="step_01_vis">
+          <pose>0.84 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_02_vis">
+          <pose>1.12 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_03_vis">
+          <pose>1.40 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_04_vis">
+          <pose>1.68 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_05_vis">
+          <pose>1.96 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_06_vis">
+          <pose>2.24 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_07_vis">
+          <pose>2.52 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_08_vis">
+          <pose>2.80 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_09_vis">
+          <pose>3.08 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_10_vis">
+          <pose>3.36 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_11_vis">
+          <pose>3.64 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_12_vis">
+          <pose>3.92 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_13_vis">
+          <pose>4.20 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+  </world>
+</sdf>

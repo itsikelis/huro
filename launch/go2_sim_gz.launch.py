@@ -1,14 +1,58 @@
 import os
+import tempfile
 import yaml
+import xml.etree.ElementTree as ET
 
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 
-def generate_launch_description():
+DEFAULT_STEP_HEIGHT = 0.06
+
+
+def _scale_stairs_world(world_template_path: str, step_height: float) -> str:
+    """Create a temporary world file with staircase Z dimensions scaled from step height."""
+    tree = ET.parse(world_template_path)
+    root = tree.getroot()
+    stairs_model = root.find(".//model[@name='stairs_up_down']")
+    if stairs_model is None:
+        return world_template_path
+
+    scale = step_height / DEFAULT_STEP_HEIGHT
+
+    for elem in list(stairs_model.findall(".//collision")) + list(stairs_model.findall(".//visual")):
+        name = elem.get("name", "")
+        if not name.startswith("step_"):
+            continue
+
+        pose_elem = elem.find("pose")
+        if pose_elem is not None and pose_elem.text:
+            pose_vals = pose_elem.text.split()
+            if len(pose_vals) >= 3:
+                pose_vals[2] = f"{float(pose_vals[2]) * scale:.6f}".rstrip("0").rstrip(".")
+                pose_elem.text = " ".join(pose_vals)
+
+        size_elem = elem.find("./geometry/box/size")
+        if size_elem is not None and size_elem.text:
+            size_vals = size_elem.text.split()
+            if len(size_vals) == 3:
+                size_vals[2] = f"{float(size_vals[2]) * scale:.6f}".rstrip("0").rstrip(".")
+                size_elem.text = " ".join(size_vals)
+
+    tmp = tempfile.NamedTemporaryFile(prefix="huro_stairs_", suffix=".sdf", delete=False)
+    tmp_path = tmp.name
+    tmp.close()
+    tree.write(tmp_path, encoding="utf-8", xml_declaration=True)
+    return tmp_path
+
+
+def _launch_setup(context, *args, **kwargs):
+    step_height = float(LaunchConfiguration("step_height").perform(context))
+
     world_name = "empty_world"
     model_name = "go2"
     joint_order = [
@@ -54,7 +98,8 @@ def generate_launch_description():
         "go2_gz.urdf",
     )
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
-    world_path = os.path.join(huro_share, "resources", "worlds", "empty.sdf")
+    world_template_path = os.path.join(huro_share, "resources", "worlds", "stairs.sdf")
+    world_path = _scale_stairs_world(world_template_path, step_height)
     bridge_cfg_path = os.path.join(
         huro_share, "resources", "bridge", "go2_sim_gz_bridge.yaml"
     )
@@ -159,7 +204,16 @@ def generate_launch_description():
         package="tf2_ros",
         executable="static_transform_publisher",
         name="lidar_frame_fallback_tf",
-        arguments=["0", "0", "0", "0", "0", "0", "base", "go2/base/go2_lidar"],
+        arguments=[
+            "0.28945",
+            "0",
+            "-0.046825",
+            "0",
+            "2.8782",
+            "0",
+            "base",
+            "go2/base/go2_lidar",
+        ],
         parameters=[{"use_sim_time": True}],
         output="screen",
     )
@@ -173,16 +227,27 @@ def generate_launch_description():
         output="screen",
     )
 
+    return [
+        robot_state_publisher,
+        gz_sim,
+        create_from_robot_description,
+        gz_bridge,
+        gz_base_tf_publisher,
+        gz_go2_state_adapter,
+        lidar_frame_fallback_tf,
+        rviz_node,
+    ]
+
+
+def generate_launch_description():
     return LaunchDescription(
         [
-            robot_state_publisher,
-            gz_sim,
-            create_from_robot_description,
-            gz_bridge,
-            gz_base_tf_publisher,
-            gz_go2_state_adapter,
-            lidar_frame_fallback_tf,
-            rviz_node,
+            DeclareLaunchArgument(
+                "step_height",
+                default_value=str(DEFAULT_STEP_HEIGHT),
+                description="Single step height in meters (original world uses 0.06).",
+            ),
+            OpaqueFunction(function=_launch_setup),
         ]
     )
 
