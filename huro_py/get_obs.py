@@ -5,7 +5,6 @@ from huro.msg import SpaceMouseState
 from sensor_msgs.msg import PointCloud2
 
 
-import numpy as np
 import torch
 
 from huro_py.utils import Mapper, quat_rotate_inverse, process_height_map
@@ -15,7 +14,7 @@ def get_obs(
     lowstate_msg: LowState,
     controller_msg,
     height: float,
-    prev_actions: np.array,
+    prev_actions: torch.tensor,
     mapper: Mapper,
 ):
     """
@@ -43,8 +42,8 @@ def get_obs(
 
     motor_states = lowstate_msg.motor_state[:12]
 
-    current_joint_pos_sdk = np.array([motor_states[i].q for i in range(12)])
-    current_joint_vel_sdk = np.array([motor_states[i].dq for i in range(12)])
+    current_joint_pos_sdk = torch.tensor([motor_states[i].q for i in range(12)])
+    current_joint_vel_sdk = torch.tensor([motor_states[i].dq for i in range(12)])
 
     current_joint_pos_policy = mapper.remap_joints_by_name(
         current_joint_pos_sdk,
@@ -61,12 +60,12 @@ def get_obs(
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    obs = np.zeros(50)
+    obs = torch.zeros(50)
     
     # Base linear velocity (obs[0:3])
 
     # Base angular velocity (gyroscope) (obs[0:3])
-    obs[0:3] = np.array(
+    obs[0:3] = torch.tensor(
         [
             lowstate_msg.imu_state.gyroscope[0],
             lowstate_msg.imu_state.gyroscope[1],
@@ -74,7 +73,7 @@ def get_obs(
         ]
     )
     # Computing projected gravity from IMU sensor
-    quat = np.array(
+    quat = torch.tensor(
         [
             lowstate_msg.imu_state.quaternion[0],  # w
             lowstate_msg.imu_state.quaternion[1],  # x
@@ -83,40 +82,39 @@ def get_obs(
         ]
     )
 
-    gravity_world = np.array([0.0, 0.0, -1.0])
+    gravity_world = torch.tensor([0.0, 0.0, -1.0])
 
     gravity_b = quat_rotate_inverse(quat, gravity_world)
 
     obs[3:6] = gravity_b
 
     if isinstance(controller_msg, SpaceMouseState):
-        obs[6:9] = [
+        obs[6:9] = torch.tensor([
             controller_msg.twist.angular.y,  # forward velocity
             -controller_msg.twist.angular.x,  # lateral velocity (flip for correct direction)
             controller_msg.twist.angular.z,  # yaw rate
-        ]
-        obs[9] = height
+        ])
     else:
-        obs[6:9] = [
+        obs[6:9] = torch.tensor([
             controller_msg.axes[1],  # forward velocity
             controller_msg.axes[0],  # lateral velocity (flip for correct direction)
             controller_msg.axes[2],  # yaw rate
-        ]
+        ])
         obs[9] = 0.3 + controller_msg.axes[3] / 10
 
     # Fill joint positions (obs[13:25]) in policy order
-    obs[10:22] = current_joint_pos_policy - default_pos_policy
+    obs[10:22] = torch.tensor(current_joint_pos_policy - default_pos_policy)
     # Fill joint velocities (obs[25:37]) in policy order
-    obs[22:34] = current_joint_vel_policy
+    obs[22:34] = torch.tensor(current_joint_vel_policy)
     # Previous actions (obs[37:49]) - default to zero
     obs[34:46] = prev_actions
     # see the best threshold for real robot
-    obs[46:50] = [
+    obs[46:50] = torch.tensor([
         float(lowstate_msg.foot_force[0]>10),
         float(lowstate_msg.foot_force[1]>10),
         float(lowstate_msg.foot_force[2]>10),
         float(lowstate_msg.foot_force[3]>10)
-    ]
+    ])
 
     return obs
 
@@ -197,7 +195,7 @@ def get_obs_lidar(
 
     gravity_world = torch.tensor([0.0, 0.0, -1.0])
 
-    gravity_b = torch.tensor(quat_rotate_inverse(quat, gravity_world))
+    gravity_b = quat_rotate_inverse(quat, gravity_world)
 
     obs[3:6] = gravity_b
 

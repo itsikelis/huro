@@ -9,10 +9,11 @@ import os
 # from unitree_go.msg import PointCloud2
 
 def quat_rotate_inverse(q, v):
-    q_w, q_x, q_y, q_z = q[0], q[1], q[2], q[3]
-    q_conj = np.array([q_w, -q_x, -q_y, -q_z])
-    t = 2.0 * np.cross(q_conj[1:], v)  # ✅ Correct: q_conj[1:] = [x, y, z]
-    return v + q_conj[0] * t + np.cross(q_conj[1:], t)  # ✅ Complete formula
+    q_conj_xyz = -q[1:4]
+    q_conj_w = q[0]
+    t = 2.0 * torch.cross(q_conj_xyz, v, dim=0)
+    rotated = v + q_conj_w * t + torch.cross(q_conj_xyz, t, dim=0)
+    return rotated
 
 
 
