@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -yy \
     ros-${ROS_DISTRO}-pcl-conversions \
     ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
     ros-${ROS_DISTRO}-rosidl-generator-dds-idl \
+    ros-${ROS_DISTRO}-rqt-graph\
     libpcl-dev \
     terminator \
     nano \
