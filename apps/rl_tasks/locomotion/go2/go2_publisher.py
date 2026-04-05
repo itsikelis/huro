@@ -23,12 +23,11 @@ import time
 
 from unitree_api.msg import Request
 from unitree_go.msg import LowCmd, LowState
-from huro.msg import SpaceMouseState
-
+from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
 from huro_py.get_obs import get_obs_lidar, get_obs
-from huro_py.utils import Mapper, MockController, process_height_map
+from huro_py.utils import Mapper, MockController, MockCmdVel,process_height_map
 from sensor_msgs.msg import Joy, PointCloud2
 
 
@@ -64,9 +63,9 @@ class Go2PolicyController(Node):
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
         self.run_policy = False # set to false to rely on joy buttons to lauch the policy
-        self.vel = []
-        if vx is not None or vy is not None or wz is not None: 
-            self.vel = [vx if vx is not None else 0.0, vy if vy is not None else 0.0, wz if wz is not None else 0.0]
+        if vx is not None or vy is not None or wz is not None:
+            self.run_policy = True
+        vel = []
 
         share = get_package_share_directory("huro")
 
@@ -78,9 +77,8 @@ class Go2PolicyController(Node):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[INFO] Using device: {self.device}")
         
-        # Load policy model
-        
-        policy_lidar_name = "policy_lidar_13.pt"
+        # Load policy model        
+        policy_lidar_name = "policy_lidar_12.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
@@ -151,6 +149,7 @@ class Go2PolicyController(Node):
         self.low_state = None
         self.controller_state = None
         self.lidar_state = None
+        self.cmd_vel_state = None
 
         self.kp = 65.0  # Position gain
         self.kd = 5.0  # Velocity gain
@@ -166,10 +165,8 @@ class Go2PolicyController(Node):
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
 
-        if len(self.vel) != 0:
-            self.controller_state = MockController(self.vel)
-        else:
-            self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
+        
+        self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
 
         # Get low lovel data from robot
         self.low_state_sub = self.create_subscription(
@@ -183,6 +180,11 @@ class Go2PolicyController(Node):
         
         self.lidar_sub = self.create_subscription(
             PointCloud2, "/utlidar/cloud", self.lidar_callback, 10
+        )
+        
+        self.cmd_vel_state = MockCmdVel(vx, vy, wz)
+        self.cmd_vel_sub = self.create_subscription(
+            Twist, "/cmd_vel", self.cmd_vel_callback, 10
         )
         
         self.x_range = [1.0, -0.5] # height_map x range
@@ -216,6 +218,10 @@ class Go2PolicyController(Node):
     def joy_callback(self, msg: Joy):
         """Log spacemouse state"""
         self.controller_state = msg
+        
+    def cmd_vel_callback(self, msg: Twist):
+        """Log spacemouse state"""
+        self.cmd_vel_state = msg
 
     def emergency_mode_control(self):
         """Smoothly reduce gains and torque to zero over release_duration."""
@@ -307,7 +313,7 @@ class Go2PolicyController(Node):
     def run(self):
         """Main control loop running at control_freq Hz."""
         try:
-            if self.low_state is not None and self.lidar_state is not None:
+            if self.low_state is not None and self.lidar_state is not None and self.cmd_vel_state is not None:
                 if self.tick_count == 0:
                     self.start_time = self.get_clock().now()
                 # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
@@ -365,12 +371,11 @@ class Go2PolicyController(Node):
             self.policy_control()
 
     def policy_control(self):
-            
-        if self.controller_state.axes[1]>=0: # uses the lidar policy for positive velocities
+        if self.cmd_vel_state.linear.x>=0.0: # uses the lidar policy for positive velocities
             obs = get_obs_lidar(
                 self.low_state,
                 self.height_map,
-                self.controller_state,
+                self.cmd_vel_state,
                 height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
@@ -383,7 +388,7 @@ class Go2PolicyController(Node):
         else:
             obs = get_obs(
                 self.low_state,
-                self.controller_state,
+                self.cmd_vel_state,
                 height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,

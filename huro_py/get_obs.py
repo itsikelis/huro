@@ -12,7 +12,7 @@ from huro_py.utils import Mapper, quat_rotate_inverse, process_height_map
 
 def get_obs(
     lowstate_msg: LowState,
-    controller_msg,
+    cmd_vel_msg,
     height: float,
     prev_actions: torch.tensor,
     mapper: Mapper,
@@ -88,20 +88,14 @@ def get_obs(
 
     obs[3:6] = gravity_b
 
-    if isinstance(controller_msg, SpaceMouseState):
-        obs[6:9] = torch.tensor([
-            controller_msg.twist.angular.y,  # forward velocity
-            -controller_msg.twist.angular.x,  # lateral velocity (flip for correct direction)
-            controller_msg.twist.angular.z,  # yaw rate
-        ])
-    else:
-        obs[6:9] = torch.tensor([
-            controller_msg.axes[1],  # forward velocity
-            controller_msg.axes[0],  # lateral velocity (flip for correct direction)
-            controller_msg.axes[2],  # yaw rate
-        ])
-        obs[9] = 0.3 + controller_msg.axes[3] / 10
-
+    obs[6:9] = torch.tensor([
+        cmd_vel_msg.linear.x,  # forward velocity
+        cmd_vel_msg.linear.y,  # lateral velocity (flip for correct direction)
+        cmd_vel_msg.angular.z,  # yaw rate
+    ])
+    
+    obs[9] = 0.3 # height
+    
     # Fill joint positions (obs[13:25]) in policy order
     obs[10:22] = torch.tensor(current_joint_pos_policy - default_pos_policy)
     # Fill joint velocities (obs[25:37]) in policy order
@@ -122,7 +116,7 @@ def get_obs(
 def get_obs_lidar(
     lowstate_msg: LowState,
     height_map: torch.tensor,
-    controller_msg,
+    cmd_vel_msg,
     height: float,
     prev_actions: torch.tensor,
     mapper: Mapper,
@@ -199,18 +193,12 @@ def get_obs_lidar(
 
     obs[3:6] = gravity_b
 
-    if isinstance(controller_msg, SpaceMouseState):
-        obs[6:9] = torch.tensor([
-            controller_msg.twist.angular.y,  # forward velocity
-            -controller_msg.twist.angular.x,  # lateral velocity (flip for correct direction)
-            controller_msg.twist.angular.z,  # yaw rate
-        ])
-    else:
-        obs[6:9] = torch.tensor([
-            controller_msg.axes[1],  # forward velocity
-            controller_msg.axes[0],  # lateral velocity (flip for correct direction)
-            controller_msg.axes[2],  # yaw rate
-        ])
+    # print(cmd_vel_msg)
+    obs[6:9] = torch.tensor([
+        cmd_vel_msg.linear.x,  # forward velocity
+        cmd_vel_msg.linear.y,  # lateral velocity (flip for correct direction)
+        cmd_vel_msg.angular.z,  # yaw rate
+    ])
 
     # Fill joint positions (obs[13:25]) in policy order
     obs[9:21] = torch.tensor(current_joint_pos_policy - default_pos_policy)

@@ -2,6 +2,7 @@ import numpy as np
 import sys
 import torch
 import yaml
+from types import SimpleNamespace
 from sensor_msgs.msg import PointCloud2
 from unitree_go.msg import LowState
 
@@ -38,6 +39,24 @@ class MockController:
         self.buttons[0] = 1
         self.buttons[1] = 1
 
+
+class MockCmdVel:
+    """Minimal cmd_vel-like object with vx, vy, wz at initialization."""
+
+    def __init__(self, vx=0.0, vy=0.0, wz=0.0):
+        vx = 0.0 if vx is None else vx
+        vy = 0.0 if vy is None else vy
+        wz = 0.0 if wz is None else wz
+        self.vx = float(vx)
+        self.vy = float(vy)
+        self.wz = float(wz)
+
+        # cmd_vel style fields
+        self.linear = SimpleNamespace(x=self.vx, y=self.vy, z=0.0)
+        self.angular = SimpleNamespace(x=0.0, y=0.0, z=self.wz)
+
+        # Optional twist wrapper for APIs that expect msg.twist.linear / msg.twist.angular
+        self.twist = SimpleNamespace(linear=self.linear, angular=self.angular)
 
 
 class Mapper:
