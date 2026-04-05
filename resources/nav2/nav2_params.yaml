@@ -1,0 +1,84 @@
+bt_navigator:
+  ros__parameters:
+    use_sim_time: True
+    global_frame: map
+    robot_base_frame: base
+    odom_topic: /odom
+
+controller_server:
+  ros__parameters:
+    use_sim_time: True
+    controller_frequency: 10.0
+    FollowPath:
+      plugin: "nav2_mppi_controller::MPPIController"
+      time_steps: 56
+      model_dt: 0.1
+      batch_size: 2000
+      vx_max: 0.5
+      vx_min: -0.1
+      vy_max: 0.0
+      wz_max: 1.0
+
+planner_server:
+  ros__parameters:
+    use_sim_time: True
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_smac_planner::SmacPlannerHybrid"
+
+local_costmap:
+  local_costmap:
+    ros__parameters:
+      use_sim_time: True
+      global_frame: odom
+      robot_base_frame: base
+      rolling_window: True
+      width: 4
+      height: 4
+      resolution: 0.05
+      # Ignore terrain bas (escaliers, sol accidenté)
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        observation_sources: scan
+        scan:
+          topic: /utlidar/cloud
+          data_type: PointCloud2
+          min_obstacle_height: 0.3   # ignore ce qui est sous 30cm
+          max_obstacle_height: 2.0
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      use_sim_time: True
+      global_frame: map
+      robot_base_frame: base
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        map_subscribe_transient_local: True
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        observation_sources: scan
+        scan:
+          topic: /utlidar/cloud
+          data_type: PointCloud2
+          min_obstacle_height: 0.3
+          max_obstacle_height: 2.0
+
+map_server:
+  ros__parameters:
+    use_sim_time: True
+    yaml_filename: ""   # on utilise la map de RTAB-Map, pas un fichier
+
+amcl:
+  ros__parameters:
+    use_sim_time: True
+
+lifecycle_manager:
+  ros__parameters:
+    use_sim_time: True
+    autostart: True
+    node_names:
+      - map_server
+      - controller_server
+      - planner_server
+      - bt_navigator

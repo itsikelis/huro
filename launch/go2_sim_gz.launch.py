@@ -157,6 +157,25 @@ def _launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
+    # Fallback TF for Gazebo IMU frame naming used by some bridges/plugins.
+    imu_frame_fallback_tf = Node(
+        package="tf2_ros",
+        executable="static_transform_publisher",
+        name="imu_frame_fallback_tf",
+        arguments=[
+            "-0.02557",
+            "0",
+            "0.04232",
+            "0",
+            "0",
+            "0",
+            "base",
+            "go2/base/go2_imu_sensor",
+        ],
+        parameters=[{"use_sim_time": True}],
+        output="screen",
+    )
+
 
     rviz_node = Node(
         package="rviz2",
@@ -177,10 +196,12 @@ def _launch_setup(context, *args, **kwargs):
             'odom_frame_id': 'odom',
             # Use odom as the single TF source for odom->base.
             'publish_tf': True,
-            # Don't block odom output on TF waits.
-            'wait_for_transform': 0.0,
+            # Allow a small TF wait to absorb sim timestamp jitter.
+            'wait_for_transform': 0.2,
             # Avoid invalid (non-normalized) null quaternions on tracking loss.
             'publish_null_when_lost': False,
+            # Keep lidar odometry independent from IMU frame naming issues.
+            'subscribe_imu': True,
             'use_sim_time': True,
             'Icp/PointToPlane': 'true',
             'Icp/Iterations': '30',
@@ -208,9 +229,17 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{
             'frame_id': 'base',
             'odom_frame_id': 'odom',
+            'subscribe_rgb': False,
             'subscribe_depth': False,
+            'subscribe_scan': False,
+            'subscribe_scan_cloud': True,
             'subscribe_lidar': True,
+            'subscribe_imu': True,
             'use_sim_time': True,
+            # Avoid odom->base future extrapolation on slight TF latency.
+            'wait_for_transform': 0.2,
+            'topic_queue_size': 50,
+            'sync_queue_size': 50,
             'Grid/RayTracing': 'true',
             'Grid/3D': 'false',
             # Ne pas marquer escaliers / terrain comme obstacles
@@ -221,10 +250,11 @@ def _launch_setup(context, *args, **kwargs):
         remappings=[
             ('scan_cloud', '/utlidar/cloud'),
             ('odom', '/odom'),
+            # ('grid_prob_map', '/map'),
+            # ('/grid_prob_map', '/map'),
         ]
     )
-
-
+    
     return [
         robot_state_publisher,
         gz_sim,
@@ -232,9 +262,10 @@ def _launch_setup(context, *args, **kwargs):
         gz_bridge,
         gz_go2_state_adapter,
         lidar_frame_fallback_tf,
+        imu_frame_fallback_tf,
         rviz_node,
         TimerAction(period=2.0, actions=[odom_node]),
-        TimerAction(period=3.0, actions=[slam_node]),
+        TimerAction(period=4.0, actions=[slam_node]),
     ]
 
 
