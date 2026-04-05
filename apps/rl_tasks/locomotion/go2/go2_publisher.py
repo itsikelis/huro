@@ -62,7 +62,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] use_sim_time: {use_sim_time}")
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
-        self.run_policy = False # set to false to rely on joy buttons to lauch the policy
+        self.run_policy = True # set to false to rely on joy buttons to lauch the policy
         if vx is not None or vy is not None or wz is not None:
             self.run_policy = True
 

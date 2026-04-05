@@ -50,8 +50,10 @@ def _launch_setup(context, *args, **kwargs):
     huro_lib = os.path.join(huro_prefix, "lib", "huro")
 
     gz_state_adapter_script = os.path.join(huro_lib, "gz_go2_state_adapter.py")
+    goal_pose_relay_script = os.path.join(huro_lib, "goal_pose_to_nav2.py")
     urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
+    nav2_config = os.path.join(huro_share, 'resources', 'nav2', 'nav2_params.yaml')
     world_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
     world_name = _get_world_name(world_path)
     bridge_cfg_path = os.path.join(
@@ -250,11 +252,36 @@ def _launch_setup(context, *args, **kwargs):
         remappings=[
             ('scan_cloud', '/utlidar/cloud'),
             ('odom', '/odom'),
-            # ('grid_prob_map', '/map'),
-            # ('/grid_prob_map', '/map'),
         ]
     )
-    
+    nav2_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            get_package_share_directory('nav2_bringup') + '/launch/navigation_launch.py'
+        ),
+        launch_arguments={
+            'use_sim_time': 'True',
+            'params_file': nav2_config,
+            'map_subscribe_transient_local': 'True',
+            'autostart': 'True',
+        }.items(),
+        
+    )
+
+    goal_pose_relay = ExecuteProcess(
+        cmd=[
+            "python3",
+            goal_pose_relay_script,
+            "--ros-args",
+            "-p",
+            "use_sim_time:=true",
+            "-p",
+            "goal_pose_topic:=/goal_pose",
+            "-p",
+            "nav2_action_name:=/navigate_to_pose",
+        ],
+        output="screen",
+    )
+
     return [
         robot_state_publisher,
         gz_sim,
@@ -266,6 +293,8 @@ def _launch_setup(context, *args, **kwargs):
         rviz_node,
         TimerAction(period=2.0, actions=[odom_node]),
         TimerAction(period=4.0, actions=[slam_node]),
+        TimerAction(period=6.0, actions=[nav2_launch]),
+        TimerAction(period=7.0, actions=[goal_pose_relay]),
     ]
 
 

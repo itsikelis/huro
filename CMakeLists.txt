@@ -148,6 +148,10 @@ install(
   PROGRAMS apps/gz_go2_state_adapter.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(
+  PROGRAMS apps/goal_pose_to_nav2.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ## Generate Custom Message Types ##
 rosidl_generate_interfaces(${PROJECT_NAME}

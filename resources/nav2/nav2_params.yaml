@@ -9,6 +9,20 @@ controller_server:
   ros__parameters:
     use_sim_time: True
     controller_frequency: 10.0
+    odom_topic: /odom
+    cmd_vel_topic: /cmd_vel
+    progress_checker_plugin: "progress_checker"
+    goal_checker_plugins: ["general_goal_checker"]
+    controller_plugins: ["FollowPath"]
+    progress_checker:
+      plugin: "nav2_controller::SimpleProgressChecker"
+      required_movement_radius: 0.005
+      movement_time_allowance: 120.0
+    general_goal_checker:
+      plugin: "nav2_controller::SimpleGoalChecker"
+      stateful: False
+      xy_goal_tolerance: 1.50
+      yaw_goal_tolerance: 3.14
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
@@ -22,9 +36,49 @@ controller_server:
 planner_server:
   ros__parameters:
     use_sim_time: True
+    expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
     GridBased:
-      plugin: "nav2_smac_planner::SmacPlannerHybrid"
+      plugin: "nav2_smac_planner/SmacPlannerHybrid"
+      tolerance: 2.0
+      allow_unknown: true
+
+behavior_server:
+  ros__parameters:
+    use_sim_time: True
+    global_frame: map
+    robot_base_frame: base
+    local_frame: odom
+    costmap_topic: local_costmap/costmap_raw
+    footprint_topic: local_costmap/published_footprint
+    cycle_frequency: 10.0
+    behavior_plugins: ["spin", "backup", "drive_on_heading", "wait"]
+    spin:
+      plugin: "nav2_behaviors/Spin"
+    backup:
+      plugin: "nav2_behaviors/BackUp"
+    drive_on_heading:
+      plugin: "nav2_behaviors/DriveOnHeading"
+    wait:
+      plugin: "nav2_behaviors/Wait"
+
+velocity_smoother:
+  ros__parameters:
+    use_sim_time: True
+    smoothing_frequency: 20.0
+    scale_velocities: False
+    feedback: "OPEN_LOOP"
+    max_velocity: [0.5, 0.0, 1.0]
+    min_velocity: [-0.1, 0.0, -1.0]
+    max_accel: [1.5, 0.0, 2.0]
+    max_decel: [-1.5, 0.0, -2.0]
+    odom_topic: /odom
+    odom_duration: 0.1
+    deadband_velocity: [0.0, 0.0, 0.0]
+    velocity_timeout: 1.0
+    enable_stamped_cmd_vel: False
+    cmd_vel_in_topic: /cmd_vel
+    cmd_vel_out_topic: /cmd_vel_nav
 
 local_costmap:
   local_costmap:
@@ -39,6 +93,7 @@ local_costmap:
       # Ignore terrain bas (escaliers, sol accidenté)
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: False
         observation_sources: scan
         scan:
           topic: /utlidar/cloud
@@ -54,9 +109,11 @@ global_costmap:
       robot_base_frame: base
       static_layer:
         plugin: "nav2_costmap_2d::StaticLayer"
+        map_topic: /grid_prob_map 
         map_subscribe_transient_local: True
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
+        enabled: False
         observation_sources: scan
         scan:
           topic: /utlidar/cloud
@@ -67,6 +124,7 @@ global_costmap:
 map_server:
   ros__parameters:
     use_sim_time: True
+    topic_name: /grid_prob_map 
     yaml_filename: ""   # on utilise la map de RTAB-Map, pas un fichier
 
 amcl:
@@ -78,7 +136,8 @@ lifecycle_manager:
     use_sim_time: True
     autostart: True
     node_names:
-      - map_server
       - controller_server
       - planner_server
+      - behavior_server
       - bt_navigator
+      - velocity_smoother
