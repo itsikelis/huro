@@ -38,10 +38,10 @@ class Go2PolicyController(Node):
 
     def __init__(
         self,
-        policy_name="policy_lidar_12.pt",
         sim=True,
-        lidar=True,
-        vel=[0.0, 0.0, 0.0]
+        vx=None,
+        vy=None,
+        wz=None,
     ):
         """
         Initialize the policy controller.
@@ -54,9 +54,7 @@ class Go2PolicyController(Node):
             kd: Velocity gain/damping (default: 0.5)
             action_scale: Scale factor for policy actions (default: 0.25)
         """
-        params = []
-        
-        
+        params = []        
         if sim:
             params.append(rclpy.parameter.Parameter("use_sim_time", value=True))
         super().__init__("go2_policy_controller", parameter_overrides=params)
@@ -66,32 +64,33 @@ class Go2PolicyController(Node):
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
         self.run_policy = False # set to false to rely on joy buttons to lauch the policy
-        self.vel = [float(vel[0]), float(vel[1]), float(vel[2])]
+        self.vel = []
+        if vx is not None or vy is not None or wz is not None: 
+            self.vel = [vx if vx is not None else 0.0, vy if vy is not None else 0.0, wz if wz is not None else 0.0]
+
+        share = get_package_share_directory("huro")
 
         # Emergency mode
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
 
-        # Load policy model
-        share = get_package_share_directory("huro")
-        self.use_lidar = lidar
-        if policy_name is None:
-            if self.use_lidar:
-                policy_name = "policy_lidar_12.pt"
-            else:
-                policy_name = "policy_asymmetric9.pt"
-   
-
-        policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-        print(f"[INFO] Loading policy from: {policy_name}")
         print(f"[INFO] Using device: {self.device}")
-
+        
+        # Load policy model
+        
+        policy_lidar_name = "policy_lidar_13.pt"
+        policy_name = "policy_asymmetric_best.pt"
+        policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
+        policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         if not os.path.exists(policy_path):
             raise FileNotFoundError(f"Policy file not found: {policy_path}")
+        if not os.path.exists(policy_lidar_path):
+            raise FileNotFoundError(f"Policy file not found: {policy_lidar_path}")
+        self.policy_lidar = torch.jit.load(policy_lidar_path, map_location=self.device)
         self.policy = torch.jit.load(policy_path, map_location=self.device)
+        self.policy_lidar.eval()
         self.policy.eval()
         print("[INFO] Policy loaded successfully")
 
@@ -138,29 +137,27 @@ class Go2PolicyController(Node):
                     -1.5,  # RR: hip, thigh, calf (actuators 9-11)
                 ], dtype=torch.float32
             )
+        # Standing position (default joint positions but coud be different)
+        self.stand_pos = self.default_pos_sdk
             
         self.mapper = Mapper(
             mapping_yaml_path=mapping_path, default_pos_sdk=self.default_pos_sdk
         )
 
         # Store latest action (for use between policy updates)
-        self.current_action = torch.zeros(12)
-        
-        
+        self.current_action = torch.zeros(12)     
 
         # Store latest messages
-        self.latest_low_state = None
+        self.low_state = None
         self.controller_state = None
+        self.lidar_state = None
 
-        self.kp = 25.0  # Position gain
-        self.kd = 0.5  # Velocity gain
+        self.kp = 65.0  # Position gain
+        self.kd = 5.0  # Velocity gain
         self.kp_p = 25.0  # Position gain
         self.kd_p = 0.5  # Velocity gain
         self.action_scale = 0.25  # Scale policy output
 
-        # Standing position (default joint positions but coud be different)
-        self.stand_pos = self.default_pos_sdk
-        
         self.time_to_stand = 5.0  # Time to reach the standing position
 
         # Statistics - initialize BEFORE callbacks
@@ -169,7 +166,7 @@ class Go2PolicyController(Node):
         # Initialize communication
         self.low_cmd_pub = self.create_publisher(LowCmd, "/lowcmd", 10)
 
-        if sum(self.vel) != 0.0:
+        if len(self.vel) != 0:
             self.controller_state = MockController(self.vel)
         else:
             self.joy_sub = self.create_subscription(Joy, "/joy", self.joy_callback, 10)
@@ -183,6 +180,16 @@ class Go2PolicyController(Node):
         self.motion_pub = self.create_publisher(
             Request, "/api/motion_switcher/request", 10
         )
+        
+        self.lidar_sub = self.create_subscription(
+            PointCloud2, "/utlidar/cloud", self.lidar_callback, 10
+        )
+        
+        self.x_range = [1.0, -0.5] # height_map x range
+        self.y_range = [-0.5, 0.5] # height_map y range
+        self.res = 0.1 # height map resolution
+        self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32) # height_map init
+            
         ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
         req = Request()
         req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
@@ -191,31 +198,19 @@ class Go2PolicyController(Node):
         time.sleep(1)
 
         self.timer = self.create_timer(self.step_dt, self.run)
-        
-        
-        self.lidar_state = None
-        if self.use_lidar: 
-            self.lidar_sub = self.create_subscription(
-                PointCloud2, "/utlidar/cloud", self.lidar_callback, 10
-            )
-            
-            self.x_range = [1.0, -0.5]
-            self.y_range = [-0.5, 0.5]
-            self.res = 0.1
-            self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32)
 
         print(f"  Policy controller initialized")
         print(f"  Policy runs at: {1 / self.step_dt}Hz")
 
     def low_state_callback(self, msg: LowState):
         """Log low state message."""
-        self.latest_low_state = msg
+        self.low_state = msg
 
         
     def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
         self.lidar_state = msg
-        process_height_map(self.height_map, self.lidar_state, self.latest_low_state, self.x_range, self.y_range, self.res, delete_count=5)
+        process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
         
         
     def joy_callback(self, msg: Joy):
@@ -224,7 +219,7 @@ class Go2PolicyController(Node):
 
     def emergency_mode_control(self):
         """Smoothly reduce gains and torque to zero over release_duration."""
-        if self.latest_low_state is None:
+        if self.low_state is None:
             return
 
         # Calculate progress (0 to 1)
@@ -243,8 +238,8 @@ class Go2PolicyController(Node):
         cmd = LowCmd()
 
         for i in range(12):
-            q = self.latest_low_state.motor_state[i].q
-            dq = self.latest_low_state.motor_state[i].dq
+            q = self.low_state.motor_state[i].q
+            dq = self.low_state.motor_state[i].dq
 
             # Compute diminishing torque
             tau = current_kp * (self.last_commanded_positions[i] - q) - current_kd * dq
@@ -261,14 +256,14 @@ class Go2PolicyController(Node):
 
     def stand_control(self):
         """PD control to standing position."""
-        if self.latest_low_state is None:
+        if self.low_state is None:
             return
         cmd = LowCmd()
         cmd.head[0] = 0xFE
         cmd.head[1] = 0xEF
         cmd.gpio = 0
         ratio = min((self.curr_time - self.start_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
-        self.last_commanded_positions = [(1.0 - ratio) * self.latest_low_state.motor_state[i].q + ratio * self.stand_pos[i].item() for i in range(12)]
+        self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_pos[i].item() for i in range(12)]
         for i in range(12):
             motorcmd = cmd.motor_cmd[i]
             motorcmd.mode = 1
@@ -312,9 +307,11 @@ class Go2PolicyController(Node):
     def run(self):
         """Main control loop running at control_freq Hz."""
         try:
-            if self.latest_low_state is not None and self.controller_state is not None and ((self.lidar_state is not None and self.use_lidar) or not self.use_lidar):
+            if self.low_state is not None and self.lidar_state is not None:
                 if self.tick_count == 0:
                     self.start_time = self.get_clock().now()
+                # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+                # print(self.height_map[0])
                 self.process_control_step()
             else:
                 print("Waiting for robot state...")
@@ -334,17 +331,21 @@ class Go2PolicyController(Node):
 
     def process_control_step(self):
         """Process one control step (called at control_freq Hz)."""
+        emergency_cond = False
+        policy_run_cond = False
+        if self.controller_state is not None:
+            emergency_cond = (
+                self.controller_state.buttons[8]
+                and self.run_policy
+                or self.emergency_mode
+            )
+            policy_run_cond = (
+                self.controller_state.buttons[0] or self.controller_state.buttons[1]
+            )
         self.tick_count += 1
         self.curr_time = self.get_clock().now()
-
-        emergency_cond = (
-            self.controller_state.buttons[8]
-            and self.run_policy
-            or self.emergency_mode
-        )
-        policy_run_cond = (
-            self.controller_state.buttons[0] or self.controller_state.buttons[1]
-        )
+        
+        
 
         if emergency_cond or self.emergency_mode:
             if not self.emergency_mode:
@@ -364,31 +365,34 @@ class Go2PolicyController(Node):
             self.policy_control()
 
     def policy_control(self):
-        if self.use_lidar:
-            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            print(self.height_map[0])
             
+        if self.controller_state.axes[1]>=0: # uses the lidar policy for positive velocities
             obs = get_obs_lidar(
-                self.latest_low_state,
+                self.low_state,
                 self.height_map,
                 self.controller_state,
                 height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
             )
-        else: 
+            with torch.no_grad():
+                obs_tensor = torch.tensor(
+                    obs, dtype=torch.float32, device=self.device
+                ).unsqueeze(0)
+                actions_tensor = self.policy_lidar(obs_tensor)
+        else:
             obs = get_obs(
-            self.latest_low_state,
-            self.controller_state,
-            height=0.30,
-            prev_actions=self.current_action,
-            mapper=self.mapper,
-        )
-        with torch.no_grad():
-            obs_tensor = torch.tensor(
-                obs, dtype=torch.float32, device=self.device
-            ).unsqueeze(0)
-            actions_tensor = self.policy(obs_tensor)
+                self.low_state,
+                self.controller_state,
+                height=0.30,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+            )
+            with torch.no_grad():
+                obs_tensor = torch.tensor(
+                    obs, dtype=torch.float32, device=self.device
+                ).unsqueeze(0)
+                actions_tensor = self.policy(obs_tensor)
         actions_policy_order = actions_tensor.squeeze(0).cpu()
         self.current_action = actions_policy_order.clone()
         self.send_motor_commands()
@@ -408,9 +412,6 @@ def main():
         raise argparse.ArgumentTypeError(f"Invalid boolean value: {v}")
 
     parser = argparse.ArgumentParser(description="Go2 RL Policy Controller")
-    parser.add_argument(
-        "--policy", type=str, default=None, help="Path to policy.pt file"
-    )
 
 
     parser.add_argument(
@@ -418,19 +419,15 @@ def main():
     )
     
     parser.add_argument(
-        "--lidar", type=str2bool, default=True, help="Whether to use a policy trained with a lidar"
+        "--vx", type=float, default=None, help="Velocity along x axis"
     )
     
     parser.add_argument(
-        "--vx", type=float, default=0.0, help="Velocity along x axis"
+        "--vy", type=float, default=None, help="Velocity along x axis"
     )
     
     parser.add_argument(
-        "--vy", type=float, default=0.0, help="Velocity along x axis"
-    )
-    
-    parser.add_argument(
-        "--wz", type=float, default=0.0, help="Velocity along x axis"
+        "--wz", type=float, default=None, help="Velocity along x axis"
     )
 
     # Parse only known args to allow ROS args to pass through
@@ -441,10 +438,10 @@ def main():
 
     # Create controller
     node = Go2PolicyController(
-        policy_name=args.policy,
         sim=args.sim,
-        lidar=args.lidar,
-        vel=[args.vx, args.vy, args.wz]
+        vx=args.vx,
+        vy=args.vy,
+        wz=args.wz,
     )
 
     try:

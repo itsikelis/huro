@@ -12,6 +12,9 @@ from ament_index_python.packages import get_package_prefix, get_package_share_di
 
 
 DEFAULT_STEP_HEIGHT = 0.06
+DEFAULT_SPAWN_X = 0.0
+DEFAULT_SPAWN_Y = 0.0
+DEFAULT_SPAWN_Z = 0.40
 
 
 def _scale_stairs_world(world_template_path: str, step_height: float) -> str:
@@ -52,6 +55,9 @@ def _scale_stairs_world(world_template_path: str, step_height: float) -> str:
 
 def _launch_setup(context, *args, **kwargs):
     step_height = float(LaunchConfiguration("step_height").perform(context))
+    spawn_x = DEFAULT_SPAWN_X
+    spawn_y = DEFAULT_SPAWN_Y
+    spawn_z = DEFAULT_SPAWN_Z
 
     world_name = "empty_world"
     model_name = "go2"
@@ -73,30 +79,10 @@ def _launch_setup(context, *args, **kwargs):
     huro_share = get_package_share_directory("huro")
     huro_prefix = get_package_prefix("huro")
     huro_lib = os.path.join(huro_prefix, "lib", "huro")
-    ws_root = os.path.dirname(os.path.dirname(huro_prefix))
 
-    def _resolve_script(script_name: str) -> str:
-        candidates = [
-            os.path.join(huro_lib, script_name),
-            os.path.join(ws_root, "src", "huro", "apps", script_name),
-        ]
-        for path in candidates:
-            if os.path.exists(path):
-                return path
-        raise FileNotFoundError(
-            f"Could not locate {script_name}. Tried: {candidates}"
-        )
-
-    gz_base_tf_script = _resolve_script("gz_base_tf_publisher.py")
-    gz_state_adapter_script = _resolve_script("gz_go2_state_adapter.py")
-    urdf_path = os.path.join(
-        huro_share,
-        "resources",
-        "description_files",
-        "urdf",
-        "go2",
-        "go2_gz.urdf",
-    )
+    gz_base_tf_script = os.path.join(huro_lib, "gz_base_tf_publisher.py")
+    gz_state_adapter_script = os.path.join(huro_lib, "gz_go2_state_adapter.py")
+    urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
     world_template_path = os.path.join(huro_share, "resources", "worlds", "stairs.sdf")
     world_path = _scale_stairs_world(world_template_path, step_height)
@@ -140,8 +126,12 @@ def _launch_setup(context, *args, **kwargs):
                     "robot_description",
                     "-name",
                     model_name,
+                    "-x",
+                    str(spawn_x),
+                    "-y",
+                    str(spawn_y),
                     "-z",
-                    "0.40",
+                    str(spawn_z),
                 ],
                 output="screen",
             )

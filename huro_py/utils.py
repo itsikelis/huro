@@ -202,6 +202,12 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
         strides=(point_step, 4),
     )
 
+    finite_xyz = np.isfinite(xyz).all(axis=1)
+    if not np.any(finite_xyz):
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    xyz = xyz[finite_xyz]
+
     x = -xyz[:, 0]
     y = -xyz[:, 1]
     z = xyz[:, 2]
@@ -226,7 +232,8 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     y_valid = y_body[finite_mask]
     z_valid = z_body[finite_mask]
 
-    grid_x = ((x_valid - x_range[1]) / res).astype(np.int32)
+    grid_x_base = ((x_valid - x_range[1]) / res).astype(np.int32)
+    grid_x = (grid_size_x - 1) - grid_x_base
     grid_y = ((y_valid - y_range[0]) / res).astype(np.int32)
 
     in_grid = (
@@ -244,7 +251,9 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
 
         max_heightmap = max_heightmap.reshape(grid_size_x, grid_size_y)
         valid_cells = np.isfinite(max_heightmap)
-        hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28
+        lidar_offset = -0.046825
+        # lidar_offset = -0.0
+        hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28 + lidar_offset
         hm_age[valid_cells] = 0.0
 
 

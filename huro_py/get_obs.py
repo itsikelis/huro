@@ -218,7 +218,7 @@ def get_obs_lidar(
     obs[21:33] = torch.tensor(current_joint_vel_policy)
     # height_data
     idx = 33+150
-    height_map_copy = height_map[0, :, :].clone().flatten()
+    height_map_copy = height_map[0, :, :].clone().flip(0, 1).reshape(150)
     obs[33:idx] = height_map_copy
 
     obs[idx:idx + 12] = prev_actions

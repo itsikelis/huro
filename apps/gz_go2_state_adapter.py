@@ -141,14 +141,7 @@ class GzGo2StateAdapter(Node):
         qz = float(msg.orientation.z)
         qw = float(msg.orientation.w)
 
-        # Reject invalid quaternions and normalize valid ones to avoid gravity bias.
-        valid_orientation = False
-        if all(math.isfinite(v) for v in (qx, qy, qz, qw)):
-            norm = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
-            if norm > 1e-6:
-                inv = 1.0 / norm
-                self._imu_quat_xyzw = [qx * inv, qy * inv, qz * inv, qw * inv]
-                valid_orientation = True
+        self._imu_quat_xyzw = [qx, qy, qz, qw]        
         self._imu_gyro = [
             float(msg.angular_velocity.x),
             float(msg.angular_velocity.y),
@@ -159,7 +152,7 @@ class GzGo2StateAdapter(Node):
             float(msg.linear_acceleration.y),
             float(msg.linear_acceleration.z),
         ]
-        self._got_imu = valid_orientation
+        self._got_imu = True
 
     @staticmethod
     def _safe_set(arr, idx: int, value: float) -> None:
@@ -183,14 +176,10 @@ class GzGo2StateAdapter(Node):
         js.velocity = []
         js.effort = []
 
-        if self._got_imu:
-            qx, qy, qz, qw = self._imu_quat_xyzw
-            gx, gy, gz = self._imu_gyro
-            ax, ay, az = self._imu_acc
-        else:
-            qx, qy, qz, qw = 0.0, 0.0, 0.0, 1.0
-            gx, gy, gz = 0.0, 0.0, 0.0
-            ax, ay, az = 0.0, 0.0, 0.0
+        qx, qy, qz, qw = self._imu_quat_xyzw
+        gx, gy, gz = self._imu_gyro
+        ax, ay, az = self._imu_acc
+
 
         if hasattr(low, "imu_state"):
             self._safe_set(low.imu_state.quaternion, 0, qw)
@@ -201,6 +190,7 @@ class GzGo2StateAdapter(Node):
             self._safe_set(low.imu_state.gyroscope, 0, gx)
             self._safe_set(low.imu_state.gyroscope, 1, gy)
             self._safe_set(low.imu_state.gyroscope, 2, gz)
+            
             self._safe_set(low.imu_state.accelerometer, 0, ax)
             self._safe_set(low.imu_state.accelerometer, 1, ay)
             self._safe_set(low.imu_state.accelerometer, 2, az)
