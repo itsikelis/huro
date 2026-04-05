@@ -53,7 +53,7 @@ class Go2PolicyController(Node):
             kd: Velocity gain/damping (default: 0.5)
             action_scale: Scale factor for policy actions (default: 0.25)
         """
-        params = []        
+        params = []
         if sim:
             params.append(rclpy.parameter.Parameter("use_sim_time", value=True))
         super().__init__("go2_policy_controller", parameter_overrides=params)
@@ -65,7 +65,6 @@ class Go2PolicyController(Node):
         self.run_policy = False # set to false to rely on joy buttons to lauch the policy
         if vx is not None or vy is not None or wz is not None:
             self.run_policy = True
-        vel = []
 
         share = get_package_share_directory("huro")
 
@@ -73,6 +72,7 @@ class Go2PolicyController(Node):
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
+        self.stand_start_pos = None
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[INFO] Using device: {self.device}")
@@ -192,12 +192,12 @@ class Go2PolicyController(Node):
         self.res = 0.1 # height map resolution
         self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32) # height_map init
             
-        ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
-        req = Request()
-        req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
-        self.motion_pub.publish(req)
+        # ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
+        # req = Request()
+        # req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
+        # self.motion_pub.publish(req)
 
-        time.sleep(1)
+        # time.sleep(1)
 
         self.timer = self.create_timer(self.step_dt, self.run)
 
@@ -264,12 +264,19 @@ class Go2PolicyController(Node):
         """PD control to standing position."""
         if self.low_state is None:
             return
+        if self.stand_start_pos is None:
+            # Latch posture once; avoid recomputing from live state while robot is falling.
+            self.stand_start_pos = [self.low_state.motor_state[i].q for i in range(12)]
+
         cmd = LowCmd()
         cmd.head[0] = 0xFE
         cmd.head[1] = 0xEF
         cmd.gpio = 0
         ratio = min((self.curr_time - self.start_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
-        self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_pos[i].item() for i in range(12)]
+        self.last_commanded_positions = [
+            (1.0 - ratio) * self.stand_start_pos[i] + ratio * self.stand_pos[i].item()
+            for i in range(12)
+        ]
         for i in range(12):
             motorcmd = cmd.motor_cmd[i]
             motorcmd.mode = 1
@@ -313,15 +320,21 @@ class Go2PolicyController(Node):
     def run(self):
         """Main control loop running at control_freq Hz."""
         try:
-            if self.low_state is not None and self.lidar_state is not None and self.cmd_vel_state is not None:
-                if self.tick_count == 0:
-                    self.start_time = self.get_clock().now()
-                # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-                # print(self.height_map[0])
-                self.process_control_step()
-            else:
-                print("Waiting for robot state...")
+            if self.low_state is None:
+                print("Waiting for /lowstate...")
+                return
+            if self.lidar_state is None:
+                print("Waiting for /utlidar/cloud...")
+                return
+
+            # Start stand control immediately once joint state is available.
+            if self.tick_count == 0:
                 self.start_time = self.get_clock().now()
+                self.stand_start_pos = None
+
+            self.process_control_step()
+            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+            print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)
@@ -350,8 +363,6 @@ class Go2PolicyController(Node):
             )
         self.tick_count += 1
         self.curr_time = self.get_clock().now()
-        
-        
 
         if emergency_cond or self.emergency_mode:
             if not self.emergency_mode:

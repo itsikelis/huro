@@ -1,0 +1,447 @@
+<sdf version='1.10'>
+  <world name='world_demo'>
+    <gravity>0 0 -9.8000000000000007</gravity>
+    <physics name='1ms' type='ode'>
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <max_contacts>50</max_contacts>
+      <real_time_update_rate>1000</real_time_update_rate>
+    </physics>
+    <plugin name='ignition::gazebo::systems::Physics' filename='libignition-gazebo-physics-system.so'/>
+    <plugin name='ignition::gazebo::systems::UserCommands' filename='libignition-gazebo-user-commands-system.so'/>
+    <plugin name='ignition::gazebo::systems::SceneBroadcaster' filename='libignition-gazebo-scene-broadcaster-system.so'/>
+    <plugin name='ignition::gazebo::systems::Imu' filename='ignition-gazebo-imu-system'/>
+    <plugin name='ignition::gazebo::systems::Sensors' filename='ignition-gazebo-sensors-system'>
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <gui fullscreen='false'>
+      <plugin name='3D View' filename='GzScene3D'>
+        <ignition-gui>
+          <title>3D View</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='string' key='state'>docked</property>
+        </ignition-gui>
+        <engine>ogre2</engine>
+        <scene>scene</scene>
+        <ambient_light>0.4 0.4 0.4</ambient_light>
+        <background_color>0.8 0.8 0.8</background_color>
+        <camera_pose>-2.8 -2.8 2.1 0 0.30 0.72</camera_pose>
+      </plugin>
+      <plugin name='World control' filename='WorldControl'>
+        <ignition-gui>
+          <title>World control</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='bool' key='resizable'>false</property>
+          <property type='double' key='height'>72</property>
+          <property type='double' key='width'>121</property>
+          <property type='double' key='z'>1</property>
+          <property type='string' key='state'>floating</property>
+          <anchors target='3D View'>
+            <line own='left' target='left'/>
+            <line own='bottom' target='bottom'/>
+          </anchors>
+        </ignition-gui>
+        <play_pause>true</play_pause>
+        <step>true</step>
+        <start_paused>true</start_paused>
+      </plugin>
+      <plugin name='World stats' filename='WorldStats'>
+        <ignition-gui>
+          <title>World stats</title>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property type='bool' key='resizable'>false</property>
+          <property type='double' key='height'>110</property>
+          <property type='double' key='width'>290</property>
+          <property type='double' key='z'>1</property>
+          <property type='string' key='state'>floating</property>
+          <anchors target='3D View'>
+            <line own='right' target='right'/>
+            <line own='bottom' target='bottom'/>
+          </anchors>
+        </ignition-gui>
+        <sim_time>true</sim_time>
+        <real_time>true</real_time>
+        <real_time_factor>true</real_time_factor>
+        <iterations>true</iterations>
+      </plugin>
+      <plugin name='Transform control' filename='TransformControl'>
+        <ignition-gui>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property key='x' type='double'>0</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>250</property>
+          <property key='height' type='double'>50</property>
+          <property key='state' type='string'>floating</property>
+          <property key='cardBackground' type='string'>#666666</property>
+        </ignition-gui>
+      </plugin>
+      <plugin name='Shapes' filename='Shapes'>
+        <ignition-gui>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property key='x' type='double'>250</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>150</property>
+          <property key='height' type='double'>50</property>
+          <property key='state' type='string'>floating</property>
+          <property key='cardBackground' type='string'>#666666</property>
+        </ignition-gui>
+      </plugin>
+      <plugin name='Screenshot' filename='Screenshot'>
+        <ignition-gui>
+          <property type='bool' key='showTitleBar'>false</property>
+          <property key='x' type='double'>400</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>50</property>
+          <property key='height' type='double'>50</property>
+          <property key='state' type='string'>floating</property>
+          <property key='cardBackground' type='string'>#666666</property>
+        </ignition-gui>
+      </plugin>
+      <plugin name='Component inspector' filename='ComponentInspector'>
+        <ignition-gui>
+          <property key='x' type='double'>0</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>400</property>
+          <property key='height' type='double'>375</property>
+          <property key='state' type='string'>docked_collapsed</property>
+        </ignition-gui>
+      </plugin>
+      <plugin name='Entity tree' filename='EntityTree'>
+        <ignition-gui>
+          <property key='x' type='double'>0</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>400</property>
+          <property key='height' type='double'>375</property>
+          <property key='state' type='string'>docked_collapsed</property>
+        </ignition-gui>
+      </plugin>
+      <plugin name='Teleop' filename='Teleop'>
+        <ignition-gui>
+          <property key='x' type='double'>0</property>
+          <property key='y' type='double'>0</property>
+          <property key='width' type='double'>400</property>
+          <property key='height' type='double'>900</property>
+          <property key='state' type='string'>docked</property>
+        </ignition-gui>
+        <topic>/model/tugbot/cmd_vel</topic>
+      </plugin>
+    </gui>
+    <scene>
+      <ambient>1 1 1 1</ambient>
+      <background>0.300000012 0.699999988 0.899999976 1</background>
+      <shadows>false</shadows>
+      <grid>false</grid>
+    </scene>
+    <magnetic_field>5.5644999999999998e-06 2.2875799999999999e-05 -4.2388400000000002e-05</magnetic_field>
+    <atmosphere type='adiabatic'/>
+    <model name='ground_plane'>
+      <static>true</static>
+      <link name='link'>
+        <collision name='collision'>
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>1 1</size>
+            </plane>
+          </geometry>
+          <surface>
+            <friction>
+              <ode/>
+            </friction>
+            <bounce/>
+            <contact/>
+          </surface>
+        </collision>
+        <pose>0 0 0 0 0 0</pose>
+        <inertial>
+          <pose>0 0 0 0 0 0</pose>
+          <mass>1</mass>
+          <inertia>
+            <ixx>1</ixx>
+            <ixy>0</ixy>
+            <ixz>0</ixz>
+            <iyy>1</iyy>
+            <iyz>0</iyz>
+            <izz>1</izz>
+          </inertia>
+        </inertial>
+        <enable_wind>false</enable_wind>
+      </link>
+      <pose>0 0 0 0 0 0</pose>
+      <self_collide>false</self_collide>
+    </model>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/OpenRobotics/models/Warehouse</uri>
+      <name>warehouse</name>
+      <pose>0 0 -0.089999999999999997 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/Tugbot-charging-station</uri>
+      <name>charging_station</name>
+      <pose>14.699999999999999 -10.6 -0.040000000000000001 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/Tugbot</uri>
+      <name>tugbot</name>
+      <pose>13.9 -10.6 0.10000000000000001 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/cart_model_2</uri>
+      <name>cart1</name>
+      <pose>-5.7300000000000004 15 0.25 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf_big</uri>
+      <name>shelf_big_0</name>
+      <pose>-9.3417700000000004 -13.559799999999999 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf</name>
+      <pose>-4.4152800000000001 -0.69098700000000002 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_0</name>
+      <pose>-4.4152800000000001 2.3069700000000002 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_1</name>
+      <pose>-4.4152800000000001 5.30708 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_2</name>
+      <pose>-4.4152800000000001 8.3435199999999998 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_3</name>
+      <pose>5.6014400000000002 8.3435199999999998 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_4</name>
+      <pose>5.6014400000000002 5.30708 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_5</name>
+      <pose>5.6014400000000002 -0.69098700000000002 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_6</name>
+      <pose>5.6014400000000002 2.3069700000000002 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/pallet_box_mobile</uri>
+      <name>pallet_box_mobile</name>
+      <pose>4.4161000000000001 14.6952 0.01 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/pallet_box_mobile</uri>
+      <name>pallet_box_mobile_0</name>
+      <pose>4.4541500000000003 13.6212 0.01 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/pallet_box_mobile</uri>
+      <name>pallet_box_mobile_1</name>
+      <pose>4.4467999999999996 12.228999999999999 0.01 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/pallet_box_mobile</uri>
+      <name>pallet_box</name>
+      <pose>-6.1191300000000002 13.7079 0.01 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf_big</uri>
+      <name>shelf_big_1</name>
+      <pose>13.982100000000001 15.319000000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf_big</uri>
+      <name>shelf_big_2</name>
+      <pose>6.1977700000000002 -12.964700000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf_big</uri>
+      <name>shelf_big_3</name>
+      <pose>0.59437600000000002 -12.964700000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf_big</uri>
+      <name>shelf_big_4</name>
+      <pose>-5.3628400000000003 -12.964700000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_7</name>
+      <pose>13.3818 -21.241599999999998 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_8</name>
+      <pose>13.3818 -19.002800000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_9</name>
+      <pose>13.3818 -16.447800000000001 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/shelf</uri>
+      <name>shelf_10</name>
+      <pose>13.3818 -14.1028 0 0 0 0</pose>
+    </include>
+    <include>
+      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/pallet_box_mobile</uri>
+      <name>pallet_box_0</name>
+      <pose>14.0222 -24.335000000000001 0.01 0 0 0</pose>
+    </include>
+    <model name="stairs_up_down">
+      <static>true</static>
+      <pose>0 0 0 0 0 0</pose>
+      <link name="stairs_link">
+        <collision name="step_01_col">
+          <pose>0.84 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_02_col">
+          <pose>1.12 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_03_col">
+          <pose>1.40 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_04_col">
+          <pose>1.68 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_05_col">
+          <pose>1.96 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_06_col">
+          <pose>2.24 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_07_col">
+          <pose>2.52 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_08_col">
+          <pose>2.80 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_09_col">
+          <pose>3.08 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_10_col">
+          <pose>3.36 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_11_col">
+          <pose>3.64 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_12_col">
+          <pose>3.92 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+        <collision name="step_13_col">
+          <pose>4.20 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+        </collision>
+
+        <visual name="step_01_vis">
+          <pose>0.84 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_02_vis">
+          <pose>1.12 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_03_vis">
+          <pose>1.40 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_04_vis">
+          <pose>1.68 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_05_vis">
+          <pose>1.96 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_06_vis">
+          <pose>2.24 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_07_vis">
+          <pose>2.52 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_08_vis">
+          <pose>2.80 0 0.33 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_09_vis">
+          <pose>3.08 0 0.27 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_10_vis">
+          <pose>3.36 0 0.21 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_11_vis">
+          <pose>3.64 0 0.15 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+        <visual name="step_12_vis">
+          <pose>3.92 0 0.09 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.38 0.38 0.42 1</ambient><diffuse>0.38 0.38 0.42 1</diffuse></material>
+        </visual>
+        <visual name="step_13_vis">
+          <pose>4.20 0 0.03 0 0 0</pose>
+          <geometry><box><size>0.30 4.80 0.06</size></box></geometry>
+          <material><ambient>0.35 0.35 0.38 1</ambient><diffuse>0.35 0.35 0.38 1</diffuse></material>
+        </visual>
+      </link>
+    </model>
+    <light name='sun' type='directional'>
+      <pose>-5 -3 10 0 0 0</pose>
+      <cast_shadows>false</cast_shadows>
+      <intensity>1</intensity>
+      <direction>0 0 -1</direction>
+      <diffuse>1 1 1 1</diffuse>
+      <specular>1 1 1 1</specular>
+      <attenuation>
+        <range>10</range>
+        <linear>1</linear>
+        <constant>1</constant>
+        <quadratic>0</quadratic>
+      </attenuation>
+      <spot>
+        <inner_angle>0</inner_angle>
+        <outer_angle>0</outer_angle>
+        <falloff>0</falloff>
+      </spot>
+    </light>
+  </world>
+</sdf>

@@ -1,65 +1,34 @@
 import os
-import tempfile
 import yaml
-import xml.etree.ElementTree as ET
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
+from launch.actions import ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 
-DEFAULT_STEP_HEIGHT = 0.06
+import xml.etree.ElementTree as ET
 DEFAULT_SPAWN_X = 0.0
 DEFAULT_SPAWN_Y = 0.0
 DEFAULT_SPAWN_Z = 0.40
 
 
-def _scale_stairs_world(world_template_path: str, step_height: float) -> str:
-    """Create a temporary world file with staircase Z dimensions scaled from step height."""
-    tree = ET.parse(world_template_path)
-    root = tree.getroot()
-    stairs_model = root.find(".//model[@name='stairs_up_down']")
-    if stairs_model is None:
-        return world_template_path
-
-    scale = step_height / DEFAULT_STEP_HEIGHT
-
-    for elem in list(stairs_model.findall(".//collision")) + list(stairs_model.findall(".//visual")):
-        name = elem.get("name", "")
-        if not name.startswith("step_"):
-            continue
-
-        pose_elem = elem.find("pose")
-        if pose_elem is not None and pose_elem.text:
-            pose_vals = pose_elem.text.split()
-            if len(pose_vals) >= 3:
-                pose_vals[2] = f"{float(pose_vals[2]) * scale:.6f}".rstrip("0").rstrip(".")
-                pose_elem.text = " ".join(pose_vals)
-
-        size_elem = elem.find("./geometry/box/size")
-        if size_elem is not None and size_elem.text:
-            size_vals = size_elem.text.split()
-            if len(size_vals) == 3:
-                size_vals[2] = f"{float(size_vals[2]) * scale:.6f}".rstrip("0").rstrip(".")
-                size_elem.text = " ".join(size_vals)
-
-    tmp = tempfile.NamedTemporaryFile(prefix="huro_stairs_", suffix=".sdf", delete=False)
-    tmp_path = tmp.name
-    tmp.close()
-    tree.write(tmp_path, encoding="utf-8", xml_declaration=True)
-    return tmp_path
-
+def _get_world_name(world_path: str) -> str:
+    try:
+        root = ET.parse(world_path).getroot()
+        world_elem = root.find("world")
+        if world_elem is not None and world_elem.get("name"):
+            return world_elem.get("name")
+    except Exception:
+        pass
+    return "world"
 
 def _launch_setup(context, *args, **kwargs):
-    step_height = float(LaunchConfiguration("step_height").perform(context))
     spawn_x = DEFAULT_SPAWN_X
     spawn_y = DEFAULT_SPAWN_Y
     spawn_z = DEFAULT_SPAWN_Z
 
-    world_name = "empty_world"
     model_name = "go2"
     joint_order = [
         "FL_hip_joint",
@@ -80,12 +49,11 @@ def _launch_setup(context, *args, **kwargs):
     huro_prefix = get_package_prefix("huro")
     huro_lib = os.path.join(huro_prefix, "lib", "huro")
 
-    gz_base_tf_script = os.path.join(huro_lib, "gz_base_tf_publisher.py")
     gz_state_adapter_script = os.path.join(huro_lib, "gz_go2_state_adapter.py")
     urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
-    world_template_path = os.path.join(huro_share, "resources", "worlds", "stairs.sdf")
-    world_path = _scale_stairs_world(world_template_path, step_height)
+    world_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
+    world_name = _get_world_name(world_path)
     bridge_cfg_path = os.path.join(
         huro_share, "resources", "bridge", "go2_sim_gz_bridge.yaml"
     )
@@ -116,7 +84,7 @@ def _launch_setup(context, *args, **kwargs):
     )
 
     create_from_robot_description = TimerAction(
-        period=2.0,
+        period=1.0,
         actions=[
             Node(
                 package="ros_gz_sim",
@@ -159,25 +127,6 @@ def _launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
-    gz_base_tf_publisher = ExecuteProcess(
-        cmd=[
-            "python3",
-            gz_base_tf_script,
-            "--ros-args",
-            "-p",
-            "use_sim_time:=true",
-            "-p",
-            "input_topic:=/gz_pose_tf",
-            "-p",
-            "world_frame:=world",
-            "-p",
-            "base_frame:=base",
-            "-p",
-            f"model_name:={model_name}",
-        ],
-        output="screen",
-    )
-
     gz_go2_state_adapter = ExecuteProcess(
         cmd=[
             "python3",
@@ -208,6 +157,7 @@ def _launch_setup(context, *args, **kwargs):
         output="screen",
     )
 
+
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -216,28 +166,78 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{"use_sim_time": True}],
         output="screen",
     )
+    
+    odom_node = Node(
+        package='rtabmap_odom',
+        executable='icp_odometry',
+        name='icp_odometry',
+        output='screen',
+        parameters=[{
+            'frame_id': 'base',
+            'odom_frame_id': 'odom',
+            # Use odom as the single TF source for odom->base.
+            'publish_tf': True,
+            # Don't block odom output on TF waits.
+            'wait_for_transform': 0.0,
+            # Avoid invalid (non-normalized) null quaternions on tracking loss.
+            'publish_null_when_lost': False,
+            'use_sim_time': True,
+            'Icp/PointToPlane': 'true',
+            'Icp/Iterations': '30',
+            'Icp/VoxelSize': '0.15',
+            'Icp/CorrespondenceRatio': '0.15',
+            'Icp/MaxTranslation': '1.5',
+            'Icp/MaxRotation': '1.57',
+            'Reg/Force3DoF': 'true',
+            'Odom/ResetCountdown': '1',
+        }],
+        remappings=[
+            ('/scan_cloud', '/utlidar/cloud'),
+            ('scan_cloud', '/utlidar/cloud'),
+            ('/odom', '/odom'),
+            ('odom', '/odom'),
+            ('/odom_info', '/odom_info'),
+            ('odom_info', '/odom_info'),
+        ]
+    )
+    slam_node = Node(
+        package='rtabmap_slam',
+        executable='rtabmap',
+        name='rtabmap',
+        output='screen',
+        parameters=[{
+            'frame_id': 'base',
+            'odom_frame_id': 'odom',
+            'subscribe_depth': False,
+            'subscribe_lidar': True,
+            'use_sim_time': True,
+            'Grid/RayTracing': 'true',
+            'Grid/3D': 'false',
+            # Ne pas marquer escaliers / terrain comme obstacles
+            'Grid/MaxObstacleHeight': '0.5',
+            'Grid/NormalsSegmentation': 'false',
+            'Grid/MaxGroundAngle': '45',       # tolère les pentes
+        }],
+        remappings=[
+            ('scan_cloud', '/utlidar/cloud'),
+            ('odom', '/odom'),
+        ]
+    )
+
 
     return [
         robot_state_publisher,
         gz_sim,
         create_from_robot_description,
         gz_bridge,
-        gz_base_tf_publisher,
         gz_go2_state_adapter,
         lidar_frame_fallback_tf,
         rviz_node,
+        TimerAction(period=2.0, actions=[odom_node]),
+        TimerAction(period=3.0, actions=[slam_node]),
     ]
 
 
 def generate_launch_description():
-    return LaunchDescription(
-        [
-            DeclareLaunchArgument(
-                "step_height",
-                default_value=str(DEFAULT_STEP_HEIGHT),
-                description="Single step height in meters (original world uses 0.06).",
-            ),
-            OpaqueFunction(function=_launch_setup),
-        ]
-    )
+    return LaunchDescription([OpaqueFunction(function=_launch_setup)])
 
