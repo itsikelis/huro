@@ -49,7 +49,7 @@ RUN curl -fsSL https://packages.osrfoundation.org/gazebo.gpg \
     apt-get install -yy gz-harmonic ros-${ROS_DISTRO}-ros-gz && \
     rm -rf /var/lib/apt/lists/*
 
-RUN pip install pyspacemouse torch pyyaml
+RUN pip install numpy==1.24.2 pyspacemouse torch pyyaml simple-parsing ruamel.yaml shapely ros2-numpy transforms3d cupy-cuda12x
 
 # MuJoCo
 RUN git clone https://github.com/deepmind/mujoco.git && \
