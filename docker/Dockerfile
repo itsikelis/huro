@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -yy \
     ros-${ROS_DISTRO}-rmw-cyclonedds-cpp \
     ros-${ROS_DISTRO}-rosidl-generator-dds-idl \
     ros-${ROS_DISTRO}-rqt-graph\
+    ros-${ROS_DISTRO}-rtabmap-ros\
+    ros-${ROS_DISTRO}-grid-map\
+    ros-${ROS_DISTRO}-grid-map-msgs\
     libpcl-dev \
     terminator \
     nano \
