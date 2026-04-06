@@ -89,8 +89,7 @@ RUN git clone https://github.com/leggedrobotics/elevation_mapping_cupy.git /huro
     cd /huro_ws/src/elevation_mapping_cupy && \
     git checkout ros2 && \
     git submodule update --init --recursive && \
-    cd ../..
-
+    cd ../.. 
 
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && echo "source /huro_ws/install/setup.bash" >> /root/.bashrc
 
