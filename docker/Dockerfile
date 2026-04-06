@@ -85,6 +85,13 @@ RUN git clone https://github.com/unitreerobotics/unitree_ros2 && \
 #     cp package_ROS2.xml package.xml && \
 #     cp -rf launch_ROS2 launch
 
+RUN git clone https://github.com/leggedrobotics/elevation_mapping_cupy.git /huro_ws/src/elevation_mapping_cupy && \
+    cd /huro_ws/src/elevation_mapping_cupy && \
+    git checkout ros2 && \
+    git submodule update --init --recursive && \
+    /bin/bash -lc "source /opt/ros/${ROS_DISTRO}/setup.bash && cd /huro_ws && colcon build --packages-up-to elevation_mapping_cupy"
+
+
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc && echo "source /huro_ws/install/setup.bash" >> /root/.bashrc
 
 RUN echo "export LD_LIBRARY_PATH=/usr/local/lib:\$LD_LIBRARY_PATH" >> /root/.bashrc
