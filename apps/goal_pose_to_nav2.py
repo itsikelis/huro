@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 import rclpy
-from rclpy.node import Node
 from rclpy.action import ActionClient
+from rclpy.node import Node
 
 from geometry_msgs.msg import PoseStamped
 from nav2_msgs.action import NavigateToPose
@@ -18,7 +18,9 @@ class GoalPoseToNav2Relay(Node):
         nav2_action_name = str(self.get_parameter("nav2_action_name").value)
 
         self._client = ActionClient(self, NavigateToPose, nav2_action_name)
-        self._sub = self.create_subscription(PoseStamped, goal_pose_topic, self._on_goal_pose, 10)
+        self._sub = self.create_subscription(
+            PoseStamped, goal_pose_topic, self._on_goal_pose, 10
+        )
 
         self.get_logger().info(
             f"Goal relay ready: {goal_pose_topic} -> {nav2_action_name}"

@@ -115,16 +115,7 @@
           <property key='state' type='string'>docked_collapsed</property>
         </ignition-gui>
       </plugin>
-      <plugin name='Teleop' filename='Teleop'>
-        <ignition-gui>
-          <property key='x' type='double'>0</property>
-          <property key='y' type='double'>0</property>
-          <property key='width' type='double'>400</property>
-          <property key='height' type='double'>900</property>
-          <property key='state' type='string'>docked</property>
-        </ignition-gui>
-        <topic>/model/tugbot/cmd_vel</topic>
-      </plugin>
+     
     </gui>
     <scene>
       <ambient>1 1 1 1</ambient>
@@ -175,16 +166,7 @@
       <name>warehouse</name>
       <pose>0 0 -0.089999999999999997 0 0 0</pose>
     </include>
-    <include>
-      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/Tugbot-charging-station</uri>
-      <name>charging_station</name>
-      <pose>14.699999999999999 -10.6 -0.040000000000000001 0 0 0</pose>
-    </include>
-    <include>
-      <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/Tugbot</uri>
-      <name>tugbot</name>
-      <pose>13.9 -10.6 0.10000000000000001 0 0 0</pose>
-    </include>
+    
     <include>
       <uri>https://fuel.ignitionrobotics.org/1.0/MovAi/models/cart_model_2</uri>
       <name>cart1</name>

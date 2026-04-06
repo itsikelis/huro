@@ -78,7 +78,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_lidar_12.pt"
+        policy_lidar_name = "policy_lidar_13.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)

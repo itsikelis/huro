@@ -9,6 +9,9 @@ controller_server:
   ros__parameters:
     use_sim_time: True
     controller_frequency: 10.0
+    min_x_velocity_threshold: 0.0
+    min_y_velocity_threshold: 0.0
+    min_theta_velocity_threshold: 0.0
     odom_topic: /odom
     cmd_vel_topic: /cmd_vel
     progress_checker_plugin: "progress_checker"
@@ -20,18 +23,33 @@ controller_server:
       movement_time_allowance: 120.0
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      stateful: False
-      xy_goal_tolerance: 1.50
-      yaw_goal_tolerance: 3.14
+      stateful: True
+      xy_goal_tolerance: 0.20
+      yaw_goal_tolerance: 0.25
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
       model_dt: 0.1
       batch_size: 2000
+      iteration_count: 2
+      transform_tolerance: 0.2
+      motion_model: "DiffDrive"
       vx_max: 0.5
-      vx_min: -0.1
+      vx_min: 0.0
       vy_max: 0.0
       wz_max: 1.0
+      vx_std: 0.3
+      wz_std: 0.25
+      critics: [
+        "ConstraintCritic",
+        "CostCritic",
+        "PathAlignCritic",
+        "PathFollowCritic",
+        "PathAngleCritic",
+        "GoalCritic",
+        "GoalAngleCritic",
+        "PreferForwardCritic"
+      ]
 
 planner_server:
   ros__parameters:

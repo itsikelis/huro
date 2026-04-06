@@ -270,7 +270,7 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
 
         max_heightmap = max_heightmap.reshape(grid_size_x, grid_size_y)
         valid_cells = np.isfinite(max_heightmap)
-        lidar_offset = -0.046825
+        lidar_offset = 0.046825
         # lidar_offset = -0.0
         hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28 + lidar_offset
         hm_age[valid_cells] = 0.0

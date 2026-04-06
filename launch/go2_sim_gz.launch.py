@@ -1,17 +1,88 @@
 import os
+import tempfile
 import yaml
 
 from launch import LaunchDescription
-from launch.actions import ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription, OpaqueFunction, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_prefix, get_package_share_directory
 
 
 import xml.etree.ElementTree as ET
-DEFAULT_SPAWN_X = 0.0
+DEFAULT_SPAWN_X = -1.5
 DEFAULT_SPAWN_Y = 0.0
 DEFAULT_SPAWN_Z = 0.40
+DEFAULT_SPAWN_YAW = 0.0
+DEFAULT_STAIRS_STEP_HEIGHT = 0.06
+
+_STAIRS_HEIGHT_MULTIPLIERS = [
+    0.5,
+    1.5,
+    2.5,
+    3.5,
+    4.5,
+    5.5,
+    5.5,
+    5.5,
+    4.5,
+    3.5,
+    2.5,
+    1.5,
+    0.5,
+]
+
+
+def _resolve_stairs_step_height(context) -> float:
+    raw_value = LaunchConfiguration("stairs_step_height").perform(context)
+    try:
+        value = float(raw_value)
+        if value <= 0.0:
+            raise ValueError
+        return value
+    except Exception:
+        print(
+            f"[huro] Invalid stairs_step_height='{raw_value}'. "
+            f"Falling back to {DEFAULT_STAIRS_STEP_HEIGHT}."
+        )
+        return DEFAULT_STAIRS_STEP_HEIGHT
+
+
+def _generate_world_with_custom_stairs_height(template_world_path: str, step_height: float) -> str:
+    tree = ET.parse(template_world_path)
+    root = tree.getroot()
+
+    stairs_link = root.find(".//model[@name='stairs_up_down']/link[@name='stairs_link']")
+    if stairs_link is None:
+        return template_world_path
+
+    for step_idx, z_mult in enumerate(_STAIRS_HEIGHT_MULTIPLIERS, start=1):
+        x_pos = 0.84 + (step_idx - 1) * 0.28
+        z_pos = z_mult * step_height
+        pose_text = f"{x_pos:.2f} 0 {z_pos:.6f} 0 0 0"
+        size_text = f"0.30 4.80 {step_height:.6f}"
+
+        for tag_name, suffix in (("collision", "col"), ("visual", "vis")):
+            step_elem = stairs_link.find(
+                f"{tag_name}[@name='step_{step_idx:02d}_{suffix}']"
+            )
+            if step_elem is None:
+                continue
+
+            pose_elem = step_elem.find("pose")
+            if pose_elem is not None:
+                pose_elem.text = pose_text
+
+            size_elem = step_elem.find("geometry/box/size")
+            if size_elem is not None:
+                size_elem.text = size_text
+
+    temp_world_path = os.path.join(
+        tempfile.gettempdir(), f"huro_factory_step_{step_height:.4f}.sdf"
+    )
+    tree.write(temp_world_path, encoding="utf-8", xml_declaration=True)
+    return temp_world_path
 
 
 def _get_world_name(world_path: str) -> str:
@@ -28,6 +99,8 @@ def _launch_setup(context, *args, **kwargs):
     spawn_x = DEFAULT_SPAWN_X
     spawn_y = DEFAULT_SPAWN_Y
     spawn_z = DEFAULT_SPAWN_Z
+    spawn_yaw = DEFAULT_SPAWN_YAW
+    stairs_step_height = _resolve_stairs_step_height(context)
 
     model_name = "go2"
     joint_order = [
@@ -50,11 +123,13 @@ def _launch_setup(context, *args, **kwargs):
     huro_lib = os.path.join(huro_prefix, "lib", "huro")
 
     gz_state_adapter_script = os.path.join(huro_lib, "gz_go2_state_adapter.py")
-    goal_pose_relay_script = os.path.join(huro_lib, "goal_pose_to_nav2.py")
     urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
     nav2_config = os.path.join(huro_share, 'resources', 'nav2', 'nav2_params.yaml')
-    world_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
+    world_template_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
+    world_path = _generate_world_with_custom_stairs_height(
+        world_template_path, stairs_step_height
+    )
     world_name = _get_world_name(world_path)
     bridge_cfg_path = os.path.join(
         huro_share, "resources", "bridge", "go2_sim_gz_bridge.yaml"
@@ -102,6 +177,8 @@ def _launch_setup(context, *args, **kwargs):
                     str(spawn_y),
                     "-z",
                     str(spawn_z),
+                    "-Y",
+                    str(spawn_yaw),
                 ],
                 output="screen",
             )
@@ -242,10 +319,13 @@ def _launch_setup(context, *args, **kwargs):
             'wait_for_transform': 0.2,
             'topic_queue_size': 50,
             'sync_queue_size': 50,
+            # Keep SLAM map strictly planar (no roll/pitch/z drift in map frame).
+            'Reg/Force3DoF': 'true',
+            'Optimizer/Slam2D': 'true',
             'Grid/RayTracing': 'true',
             'Grid/3D': 'false',
             # Ne pas marquer escaliers / terrain comme obstacles
-            'Grid/MaxObstacleHeight': '0.5',
+            'Grid/MaxObstacleHeight': '0.0',
             'Grid/NormalsSegmentation': 'false',
             'Grid/MaxGroundAngle': '45',       # tolère les pentes
         }],
@@ -267,21 +347,6 @@ def _launch_setup(context, *args, **kwargs):
         
     )
 
-    goal_pose_relay = ExecuteProcess(
-        cmd=[
-            "python3",
-            goal_pose_relay_script,
-            "--ros-args",
-            "-p",
-            "use_sim_time:=true",
-            "-p",
-            "goal_pose_topic:=/goal_pose",
-            "-p",
-            "nav2_action_name:=/navigate_to_pose",
-        ],
-        output="screen",
-    )
-
     return [
         robot_state_publisher,
         gz_sim,
@@ -294,10 +359,21 @@ def _launch_setup(context, *args, **kwargs):
         TimerAction(period=2.0, actions=[odom_node]),
         TimerAction(period=4.0, actions=[slam_node]),
         TimerAction(period=6.0, actions=[nav2_launch]),
-        TimerAction(period=7.0, actions=[goal_pose_relay]),
     ]
 
 
 def generate_launch_description():
-    return LaunchDescription([OpaqueFunction(function=_launch_setup)])
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "stairs_step_height",
+                default_value=str(DEFAULT_STAIRS_STEP_HEIGHT),
+                description=(
+                    "Height of each step in meters for the stairs_up_down model "
+                    "in factory.sdf."
+                ),
+            ),
+            OpaqueFunction(function=_launch_setup),
+        ]
+    )
 

@@ -13,3 +13,14 @@ sudo apt-get install -y gz-harmonic
 
 
 sudo apt install ros-humble-rtabmap-ros
+
+# HEIGHTMAP:
+sudo apt install ros-humble-grid-map ros-humble-grid-map-msgs
+pip3 install cupy-cuda11x  
+pip3 install chainer
+cd /src
+git clone https://github.com/leggedrobotics/elevation_mapping_cupy.git
+git checkout ros2
+git submodule update --init --recursive
+cd ..
+colcon build
