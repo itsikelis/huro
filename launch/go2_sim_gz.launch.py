@@ -126,6 +126,13 @@ def _launch_setup(context, *args, **kwargs):
     urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
     nav2_config = os.path.join(huro_share, 'resources', 'nav2', 'nav2_params.yaml')
+    # elevation_share = get_package_share_directory('elevation_mapping_cupy')
+    # elevation_core_config = os.path.join(
+    #     elevation_share, 'config', 'core', 'core_param.yaml'
+    # )
+    # elevation_robot_config = os.path.join(
+    #     elevation_share, 'config', 'setups', 'menzi', 'base.yaml'
+    # )
     world_template_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
     world_path = _generate_world_with_custom_stairs_height(
         world_template_path, stairs_step_height
@@ -346,6 +353,24 @@ def _launch_setup(context, *args, **kwargs):
         }.items(),
         
     )
+    # elevation_map = Node(
+    #     package='elevation_mapping_cupy',
+    #     executable='elevation_mapping_node.py',
+    #     name='elevation_mapping_node',
+    #     output='screen',
+    #     parameters=[
+    #         elevation_core_config,
+    #         elevation_robot_config,
+    #         {
+    #             'use_sim_time': True,
+    #             'map_frame': 'odom',
+    #             'corrected_map_frame': 'odom',
+    #             'base_frame': 'base',
+    #             'initialize_frame_id': ['base'],
+    #             'subscribers.front_cam.topic_name': '/utlidar/cloud',
+    #         },
+    #     ]
+    # )
 
     return [
         robot_state_publisher,
@@ -355,10 +380,12 @@ def _launch_setup(context, *args, **kwargs):
         gz_go2_state_adapter,
         lidar_frame_fallback_tf,
         imu_frame_fallback_tf,
-        rviz_node,
         TimerAction(period=2.0, actions=[odom_node]),
         TimerAction(period=4.0, actions=[slam_node]),
         TimerAction(period=6.0, actions=[nav2_launch]),
+        TimerAction(period=8.0, actions=[rviz_node]),
+        # TimerAction(period=8.0, actions=[elevation_map]),
+
     ]
 
 
