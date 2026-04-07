@@ -11,7 +11,7 @@ from ament_index_python.packages import get_package_prefix, get_package_share_di
 
 
 import xml.etree.ElementTree as ET
-DEFAULT_SPAWN_X = -1.5
+DEFAULT_SPAWN_X = -2.0
 DEFAULT_SPAWN_Y = 0.0
 DEFAULT_SPAWN_Z = 0.40
 DEFAULT_SPAWN_YAW = 0.0
@@ -332,7 +332,7 @@ def _launch_setup(context, *args, **kwargs):
             'Grid/RayTracing': 'true',
             'Grid/3D': 'false',
             # Ne pas marquer escaliers / terrain comme obstacles
-            'Grid/MaxObstacleHeight': '0.0',
+            'Grid/MaxObstacleHeight': '0.5',
             'Grid/NormalsSegmentation': 'false',
             'Grid/MaxGroundAngle': '45',       # tolère les pentes
         }],

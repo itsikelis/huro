@@ -148,6 +148,14 @@ install(
   PROGRAMS apps/gz_go2_state_adapter.py
   DESTINATION lib/${PROJECT_NAME}
 )
+install(
+  PROGRAMS apps/print_local_costmap_torch.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
+  PROGRAMS apps/go2_controller_test.py
+  DESTINATION lib/${PROJECT_NAME}
+)
 
 ## Generate Custom Message Types ##
 rosidl_generate_interfaces(${PROJECT_NAME}

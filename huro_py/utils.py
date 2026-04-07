@@ -172,7 +172,7 @@ Utility functions for processing LiDAR data and creating height maps.
 # np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
 
 
-LIDAR_PITCH_DEG = 15.0
+LIDAR_PITCH_DEG = -15.1
 LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH = np.cos(LIDAR_PITCH_RAD)
 SIN_PITCH = np.sin(LIDAR_PITCH_RAD)
@@ -231,17 +231,35 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     y = -xyz[:, 1]
     z = xyz[:, 2]
     
-    x_lidar = x * COS_PITCH_LIDAR - z * SIN_PITCH_LIDAR
-    z_lidar = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
-
+    # --- Extract roll and pitch from quaternion ---
+    # Roll (rotation around X)
     sin_roll = 2.0 * (qw * qx + qy * qz)
     cos_roll = 1.0 - 2.0 * (qx * qx + qy * qy)
+
+    # Pitch (rotation around Y)  
     sin_pitch = 2.0 * (qw * qy - qz * qx)
     cos_pitch = np.sqrt(max(1.0 - sin_pitch * sin_pitch, 0.0))
+    pitch_deg = np.degrees(np.arcsin(np.clip(sin_pitch, -1, 1)))
+    roll_deg  = np.degrees(np.arctan2(sin_roll, cos_roll))
+    print(f"roll={roll_deg:.2f}°  pitch={pitch_deg:.2f}°")
 
-    x_body = cos_pitch * x_lidar + sin_roll * sin_pitch * y - sin_pitch * cos_roll * z_lidar
-    y_body = cos_pitch * cos_roll * y + cos_pitch * sin_roll * z_lidar
-    z_body = sin_pitch * x_lidar - sin_roll * cos_pitch * y + cos_pitch * cos_roll * z_lidar
+    # Yaw intentionally ignored — we only want gravity alignment
+
+   # Lidar mount pitch offset
+    x1 = x * COS_PITCH_LIDAR - z * SIN_PITCH_LIDAR
+    y1 = y
+    z1 = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
+
+    # Compensate robot pitch (sign flipped)
+    x2 =  cos_pitch * x1 - sin_pitch * z1
+    y2 =  y1
+    z2 =  sin_pitch * x1 + cos_pitch * z1
+
+    # Compensate robot roll
+    x_body = x2
+    y_body =  cos_roll * y2 - sin_roll * z2
+    z_body =  sin_roll * y2 + cos_roll * z2
+
 
     finite_mask = np.isfinite(x_body) & np.isfinite(y_body) & np.isfinite(z_body)
     if not np.any(finite_mask):
@@ -276,4 +294,5 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
         hm_age[valid_cells] = 0.0
 
 
-    
+
+# z_world = sin_roll * y_pitch + cos_roll * z_pitch
