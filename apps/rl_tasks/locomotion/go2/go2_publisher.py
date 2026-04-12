@@ -27,7 +27,7 @@ from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
 from huro_py.get_obs import get_obs_lidar, get_obs
-from huro_py.utils import Mapper, MockController, MockCmdVel,process_height_map
+from huro_py.utils import Mapper, MockController, MockCmdVel,process_height_map, process_height_map2
 from sensor_msgs.msg import Joy, PointCloud2
 
 

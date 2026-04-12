@@ -61,3 +61,35 @@ ros2 launch huro go2_sim_gz.launch.py --debug
 # - health: got_lowcmd=True (when policy is running)
 # - health: got_imu=True (if Gazebo IMU bridge is working)
 
+
+# =========================
+# Hard refresh rebuild (when changes seem ignored)
+# =========================
+cd /mnt/D/dev/robotics/ros2/huro
+
+# Stop running ROS processes (safe if none running)
+pkill -f ros2 || true
+
+# Remove only huro build/install artifacts
+rm -rf build/huro install/huro log/latest* log/build_* || true
+
+# Rebuild with symlink-install and clean CMake cache
+colcon build --packages-select huro --symlink-install --cmake-clean-cache --event-handlers console_direct+
+
+# Source fresh overlay in this shell
+source /opt/ros/humble/setup.bash
+source install/setup.bash
+
+# Verify active package prefix
+ros2 pkg prefix huro
+
+# Verify source vs installed nav2 params are in sync
+diff -u resources/nav2/nav2_params.yaml install/huro/share/huro/resources/nav2/nav2_params.yaml
+
+
+# =========================
+# Docker image rebuild (if Dockerfile changed)
+# =========================
+cd /mnt/D/dev/robotics/ros2/huro/docker
+./build.sh
+

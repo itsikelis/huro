@@ -8,7 +8,7 @@ bt_navigator:
 controller_server:
   ros__parameters:
     use_sim_time: True
-    controller_frequency: 10.0
+    controller_frequency: 20.0
     min_x_velocity_threshold: 0.0
     min_y_velocity_threshold: 0.0
     min_theta_velocity_threshold: 0.0
@@ -32,14 +32,20 @@ controller_server:
       model_dt: 0.1
       batch_size: 2000
       iteration_count: 2
+      temperature: 0.1
       transform_tolerance: 0.2
-      motion_model: "DiffDrive"
-      vx_max: 0.5
+      # Use holonomic model so lateral velocity (vy) can be non-zero.
+      motion_model: "Omni"
+      # Keep symmetric limits so controller can command around +/-1.0 when safe.
+      vx_max: 1.0
       vx_min: 0.0
-      vy_max: 0.0
-      wz_max: 1.0
-      vx_std: 0.3
-      wz_std: 0.25
+      vy_max: 0.5
+      vy_min: -0.5
+      wz_max: 0.5
+      wz_min: -0.5
+      vx_std: 0.4
+      vy_std: 0.4
+      wz_std: 0.4
       critics: [
         "ConstraintCritic",
         "CostCritic",
@@ -47,12 +53,22 @@ controller_server:
         "PathFollowCritic",
         "PathAngleCritic",
         "GoalCritic",
-        "GoalAngleCritic",
-        "PreferForwardCritic"
+        "GoalAngleCritic"
       ]
+      ConstraintCritic:
+        enabled: true
+        cost_weight: 4.0
+      CostCritic:
+        enabled: true
+        cost_weight: 12.0
+        critical_cost: 300.0
+        collision_cost: 1000000.0
+        consider_footprint: true
+        near_goal_distance: 1.0
 
 planner_server:
   ros__parameters:
+    allow_partial_planning: true
     use_sim_time: True
     expected_planner_frequency: 5.0
     planner_plugins: ["GridBased"]
@@ -86,8 +102,8 @@ velocity_smoother:
     smoothing_frequency: 20.0
     scale_velocities: False
     feedback: "OPEN_LOOP"
-    max_velocity: [0.5, 0.0, 1.0]
-    min_velocity: [-0.1, 0.0, -1.0]
+    max_velocity: [1.0, 0.5, 0.5]
+    min_velocity: [-0.5, -0.5, -0.5]
     max_accel: [1.5, 0.0, 2.0]
     max_decel: [-1.5, 0.0, -2.0]
     odom_topic: /odom
@@ -101,14 +117,84 @@ velocity_smoother:
 local_costmap:
   local_costmap:
     ros__parameters:
+      # Costmap uses Gazebo/ROS simulation clock.
       use_sim_time: True
+      # Local costmap frame follows robot odometry (short-horizon obstacle avoidance).
       global_frame: odom
+      # Robot body frame used for footprint and obstacle clearing around robot.
       robot_base_frame: base
+      # Explicit rectangular footprint (x forward, y left) so width/length are used in planning.
+      footprint: "[[0.36, 0.20], [0.36, -0.20], [-0.36, -0.20], [-0.36, 0.20]]"
+      # Sliding window centered on robot (not a fixed global map).
       rolling_window: True
-      width: 2
-      height: 1
+      # Additional safety margin around robot footprint.
+      footprint_padding: 0.08
+      # Window size in meters around the robot.
+      width: 4
+      height: 4
+      # Cell size (m/cell): smaller = finer obstacles, higher CPU.
       resolution: 0.1
-      # Ignore terrain bas (escaliers, sol accidenté)
+      # Layer order: obstacles are marked first, then inflated for safety buffer.
+      plugins: ["obstacle_layer", "inflation_layer"]
+
+      # ObstacleLayer: converts sensor observations into occupied cells.
+      obstacle_layer:
+        plugin: "nav2_costmap_2d::ObstacleLayer"
+        # Master enable for this layer.
+        enabled: True
+        # Named observation source list (must match keys below).
+        observation_sources: scan
+        scan:
+          # Input sensor topic (PointCloud2 from lidar bridge).
+          topic: /utlidar/cloud
+          # Sensor message type for this source.
+          data_type: PointCloud2
+          # Add obstacle hits to costmap.
+          marking: True
+          # Clear free space along rays (prevents stale obstacles).
+          clearing: True
+          # Marking distance limit from sensor origin (m).
+          obstacle_max_range: 2.0
+          # Clearing ray distance limit (m); usually >= obstacle_max_range.
+          raytrace_max_range: 10.0
+          # Ignore very near returns for marking (m).
+          obstacle_min_range: 0.0
+          # Ignore very near rays for clearing (m).
+          raytrace_min_range: 0.0
+          # Vertical filter (m in costmap frame): keep low curbs and near-floor points.
+          min_obstacle_height: 0.0
+          max_obstacle_height: 8.0
+
+      # InflationLayer: expands obstacle costs around occupied cells.
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        # Lower decay + larger radius => keep farther from walls.
+        cost_scaling_factor: 1.5
+        inflation_radius: 0.70
+
+global_costmap:
+  global_costmap:
+    ros__parameters:
+      # Global planner costmap anchored to map frame.
+      use_sim_time: True
+      global_frame: map
+      robot_base_frame: base
+      # Same footprint as local costmap for consistent collision checks.
+      footprint: "[[0.36, 0.20], [0.36, -0.20], [-0.36, -0.20], [-0.36, 0.20]]"
+      footprint_padding: 0.10
+      map_vis_z: -0.5
+      # Layer order for global planning map.
+      plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
+
+      # StaticLayer: persistent occupancy map from SLAM/map server.
+      static_layer:
+        plugin: "nav2_costmap_2d::StaticLayer"
+        # 2D occupancy topic used as global base map.
+        map_topic: /grid_prob_map 
+        # Latch/transient semantics for static map delivery.
+        map_subscribe_transient_local: True
+
+      # Dynamic obstacles fused from live lidar cloud.
       obstacle_layer:
         plugin: "nav2_costmap_2d::ObstacleLayer"
         enabled: True
@@ -116,28 +202,21 @@ local_costmap:
         scan:
           topic: /utlidar/cloud
           data_type: PointCloud2
-          min_obstacle_height: 0.0   # ignore ce qui est sous 30cm
-          max_obstacle_height: 2.0
+          marking: True
+          clearing: True
+          # 0.1m made obstacle marking nearly disabled; restore useful range.
+          obstacle_max_range: 0.5
+          raytrace_max_range: 10.0
+          obstacle_min_range: 0.0
+          raytrace_min_range: 0.0
+          min_obstacle_height: 0.1
+          max_obstacle_height: 8.0
 
-global_costmap:
-  global_costmap:
-    ros__parameters:
-      use_sim_time: True
-      global_frame: map
-      robot_base_frame: base
-      static_layer:
-        plugin: "nav2_costmap_2d::StaticLayer"
-        map_topic: /grid_prob_map 
-        map_subscribe_transient_local: True
-      obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
-        enabled: False
-        observation_sources: scan
-        scan:
-          topic: /utlidar/cloud
-          data_type: PointCloud2
-          min_obstacle_height: 0.3
-          max_obstacle_height: 2.0
+      # Keep global plans away from walls by adding a wider buffer than local map.
+      inflation_layer:
+        plugin: "nav2_costmap_2d::InflationLayer"
+        cost_scaling_factor: 2.0
+        inflation_radius: 0.70
 
 map_server:
   ros__parameters:

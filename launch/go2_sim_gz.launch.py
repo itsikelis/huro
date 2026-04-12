@@ -11,7 +11,7 @@ from ament_index_python.packages import get_package_prefix, get_package_share_di
 
 
 import xml.etree.ElementTree as ET
-DEFAULT_SPAWN_X = -2.0
+DEFAULT_SPAWN_X = -0.0
 DEFAULT_SPAWN_Y = 0.0
 DEFAULT_SPAWN_Z = 0.40
 DEFAULT_SPAWN_YAW = 0.0
@@ -282,6 +282,7 @@ def _launch_setup(context, *args, **kwargs):
             'odom_frame_id': 'odom',
             # Use odom as the single TF source for odom->base.
             'publish_tf': True,
+            'wait_imu_to_init': True,
             # Allow a small TF wait to absorb sim timestamp jitter.
             'wait_for_transform': 0.2,
             # Avoid invalid (non-normalized) null quaternions on tracking loss.
@@ -315,6 +316,7 @@ def _launch_setup(context, *args, **kwargs):
         parameters=[{
             'frame_id': 'base',
             'odom_frame_id': 'odom',
+            'map_frame_id': 'map',
             'subscribe_rgb': False,
             'subscribe_depth': False,
             'subscribe_scan': False,
@@ -327,14 +329,14 @@ def _launch_setup(context, *args, **kwargs):
             'topic_queue_size': 50,
             'sync_queue_size': 50,
             # Keep SLAM map strictly planar (no roll/pitch/z drift in map frame).
-            'Reg/Force3DoF': 'true',
-            'Optimizer/Slam2D': 'true',
-            'Grid/RayTracing': 'true',
-            'Grid/3D': 'false',
+            # 'Reg/Force3DoF': 'true',
+            # 'Optimizer/Slam2D': 'true',
+            # 'Grid/RayTracing': 'true',
+            # 'Grid/3D': 'true',
             # Ne pas marquer escaliers / terrain comme obstacles
-            'Grid/MaxObstacleHeight': '0.5',
-            'Grid/NormalsSegmentation': 'false',
-            'Grid/MaxGroundAngle': '45',       # tolère les pentes
+            # 'Grid/MaxObstacleHeight': '1.0',
+            # 'Grid/NormalsSegmentation': 'false',
+            # 'Grid/MaxGroundAngle': '45',       # tolère les pentes
         }],
         remappings=[
             ('scan_cloud', '/utlidar/cloud'),

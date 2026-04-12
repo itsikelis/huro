@@ -1,5 +1,10 @@
 # HURo: HuCeBot Unitree Robot Interface
 
+RL policy trained with lidar observations deployed with NAV2 stack.
+
+<img src="/docs/gazebo_lidar_rl_compressed.gif" alt="Gazebo lidar RL demo" width="800" />
+
+
 ## Installation
 
 ### Docker
@@ -13,10 +18,6 @@ To launch the docker container (first or recurring instances) execute
 ```bash
 cd docker && ./run.sh
 ```
-
-## Usage
-
-At the moment, HURo has been tested on the Unitree G1 humanoid and Unitree Go2 quadruped robots. It supports deployment both on hardware and on a MuJoCo simulation.
 
 ### Workspace preparation
 
@@ -48,75 +49,40 @@ Netmask: 24
 Gateway: 192.168.123.1
 ```
 
-### Run the root node
+### This branch focuses on the go2 integration with a lidar
 
-The root node acts as an intermediary between the custom Unitree message types and the standard ROS2 messages used by RViz.
-
-In the future, the Root node will also act as a safety layer to monitor joint or effort limit violation and motor temperatures.
-
-To run the Root node, spawn a container interactive session and run:
+### Example to start the go2 policy in Mujoco simulation:
 
 ```bash
-ros2 launch huro ROBOT_rviz.launch.py
-```
-
-replacing robot with either "g1" or "go2".
-
-If you are connected to a robot, this will open up an RViz window that updates joint and floating base position as these move.
-
-### Run the simulation node
-
-If you wish to see a simulated robot, open a different container interactive session and run:
-
-```bash
-ros2 run huro sim_ROBOT
-```
-
-replacing robot with either "g1" or "go2".
-
-### Example to run a policy for go2 in Mujoco simulation:
-
-```bash
+# first terminal
 colcon build
 source setup_uri.sh lo
 ros2 launch huro go2_rviz.launch.py
 ros2 run huro sim_go2
+# second terminal
+colcon build
+source setup_uri.sh lo
+ros2 run huro go2_publisher.py --sim True --vx 0.75 --vy 0.0 --wz 0.3
 ```
 
-### Example to run a policy for go2 in Gazebo simulation:
+You can plug in a controller to control the robot.
+
+### Example to start the go2 policy in Gazebo simulation:
 
 ```bash
+# first terminal
 colcon build
 source setup_uri.sh lo
 ros2 launch huro go2_sim_gz.launch.py step_height:=0.1
-```
-
-
-To run the policy with a joystick controller (xbox type):
-```bash
-apt update
-apt-get install ros-humble-teleop-twist-joy 
-ros2 launch teleop_twist_joy teleop-launch.py joy_config:='xbox'
+# second terminal
+colcon build
+source setup_uri.sh lo
 ros2 run huro go2_publisher.py --sim True
 ```
-The robot will enter a stand up phase.
-Once this is done, press one of the back button to launch the policy.
-To stop it (emergency mode), you can press the two back buttons simultaneously.
 
-
-Run the policy with the lidar for rough terrains:
-- In simulation (Works only with Gazebo)
-```bash
-# First terminal
-colcon build
-source setup_uri.sh lo
-ros2 launch huro go2_sim_gz.launch.py step_height:=0.1
-# Second terminal
-colcon build
-source setup_uri.sh lo
-ros2 run huro go2_publisher.py --lidar True --sim True
-```
+Finally, you can send a goal in rviz with the **Nav2 goal** tool.
 
 
 ### With the real robot:
-add --sim False when runing go2_publisher.py
+
+Comming Soon...

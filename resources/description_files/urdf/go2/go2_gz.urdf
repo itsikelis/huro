@@ -739,7 +739,7 @@
     <child link="imu" />
     <axis xyz="0 0 0" />
   </joint>
-
+<!-- 
   <gazebo reference="FL_foot">
     <mu1>0.4</mu1>
     <mu2>0.4</mu2>
@@ -772,7 +772,7 @@
     <maxVel>0.1</maxVel>
     <minDepth>0.001</minDepth>
   </gazebo>
-
+ -->
 
   <gazebo reference="imu">
     <sensor name="go2_imu_sensor" type="imu">
@@ -831,13 +831,13 @@
       <lidar>
         <scan>
           <horizontal>
-            <samples>1024</samples>
+            <samples>512</samples>
             <resolution>1</resolution>
             <min_angle>-3.141592653589793</min_angle>
             <max_angle>3.141592653589793</max_angle>
           </horizontal>
           <vertical>
-            <samples>64</samples>
+            <samples>32</samples>
             <resolution>1</resolution>
             <min_angle>0.0</min_angle>
             <max_angle>1.5707963267948966</max_angle>

@@ -7,7 +7,7 @@ from sensor_msgs.msg import PointCloud2
 
 import torch
 
-from huro_py.utils import Mapper, quat_rotate_inverse, process_height_map
+from huro_py.utils import Mapper, quat_rotate_inverse
 
 
 def get_obs(
