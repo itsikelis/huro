@@ -126,13 +126,7 @@ def _launch_setup(context, *args, **kwargs):
     urdf_path = os.path.join(huro_share,"resources","description_files","urdf","go2","go2_gz.urdf",)
     rviz_config = os.path.join(huro_share, "resources", "rviz", "go2.rviz")
     nav2_config = os.path.join(huro_share, 'resources', 'nav2', 'nav2_params.yaml')
-    # elevation_share = get_package_share_directory('elevation_mapping_cupy')
-    # elevation_core_config = os.path.join(
-    #     elevation_share, 'config', 'core', 'core_param.yaml'
-    # )
-    # elevation_robot_config = os.path.join(
-    #     elevation_share, 'config', 'setups', 'menzi', 'base.yaml'
-    # )
+
     world_template_path = os.path.join(huro_share, "resources", "worlds", "factory.sdf")
     world_path = _generate_world_with_custom_stairs_height(
         world_template_path, stairs_step_height
@@ -167,29 +161,24 @@ def _launch_setup(context, *args, **kwargs):
         launch_arguments={"gz_args": f"{world_path} -r"}.items(),
     )
 
-    create_from_robot_description = TimerAction(
-        period=1.0,
-        actions=[
-            Node(
-                package="ros_gz_sim",
-                executable="create",
-                arguments=[
-                    "-topic",
-                    "robot_description",
-                    "-name",
-                    model_name,
-                    "-x",
-                    str(spawn_x),
-                    "-y",
-                    str(spawn_y),
-                    "-z",
-                    str(spawn_z),
-                    "-Y",
-                    str(spawn_yaw),
-                ],
-                output="screen",
-            )
+    create_from_robot_description = Node(
+        package="ros_gz_sim",
+        executable="create",
+        arguments=[
+            "-topic",
+            "robot_description",
+            "-name",
+            model_name,
+            "-x",
+            str(spawn_x),
+            "-y",
+            str(spawn_y),
+            "-z",
+            str(spawn_z),
+            "-Y",
+            str(spawn_yaw),
         ],
+        output="screen",
     )
 
     gz_bridge_args = [_fmt(arg) for arg in bridge_cfg.get("arguments", [])]
@@ -355,25 +344,7 @@ def _launch_setup(context, *args, **kwargs):
         }.items(),
         
     )
-    # elevation_map = Node(
-    #     package='elevation_mapping_cupy',
-    #     executable='elevation_mapping_node.py',
-    #     name='elevation_mapping_node',
-    #     output='screen',
-    #     parameters=[
-    #         elevation_core_config,
-    #         elevation_robot_config,
-    #         {
-    #             'use_sim_time': True,
-    #             'map_frame': 'odom',
-    #             'corrected_map_frame': 'odom',
-    #             'base_frame': 'base',
-    #             'initialize_frame_id': ['base'],
-    #             'subscribers.front_cam.topic_name': '/utlidar/cloud',
-    #         },
-    #     ]
-    # )
-
+   
     return [
         robot_state_publisher,
         gz_sim,
@@ -386,7 +357,6 @@ def _launch_setup(context, *args, **kwargs):
         TimerAction(period=4.0, actions=[slam_node]),
         TimerAction(period=6.0, actions=[nav2_launch]),
         TimerAction(period=8.0, actions=[rviz_node]),
-        # TimerAction(period=8.0, actions=[elevation_map]),
     ]
 
 
