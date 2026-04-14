@@ -9,6 +9,8 @@ from unitree_go.msg import LowState
 import os
 # from unitree_go.msg import PointCloud2
 
+
+
 def quat_rotate_inverse(q, v):
     q_conj_xyz = -q[1:4]
     q_conj_w = q[0]
@@ -17,7 +19,30 @@ def quat_rotate_inverse(q, v):
     return rotated
 
 
-
+def select_vel(controller_state, cmd_vel_state):
+        vel = [controller_state.axes[1], controller_state.axes[0], controller_state.axes[2]]
+        if sum(vel) == 0.0:
+            vx, vy, wz = cmd_vel_state.linear.x, cmd_vel_state.linear.y, cmd_vel_state.angular.z
+            if vx >= 0.0:
+                if vx >= 0.2:
+                    if vx <= 0.5:
+                        vx = 0.8
+            else:
+                if vx <= -0.2:
+                    if vx >= -0.5:
+                        vx = -0.8
+            if wz >= 0.0:
+                if wz >= 0.2:
+                    if wz <= 0.5:
+                        wz = 0.8
+            else:
+                if wz <= -0.2:
+                    if wz >= -0.5:
+                        wz = -0.8 
+                    
+            vel = [vx, vy, wz]
+        return vel
+            
 
 
 
@@ -239,9 +264,8 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     # Pitch (rotation around Y)  
     sin_pitch = 2.0 * (qw * qy - qz * qx)
     cos_pitch = np.sqrt(max(1.0 - sin_pitch * sin_pitch, 0.0))
-    pitch_deg = np.degrees(np.arcsin(np.clip(sin_pitch, -1, 1)))
-    roll_deg  = np.degrees(np.arctan2(sin_roll, cos_roll))
-    print(f"roll={roll_deg:.2f}°  pitch={pitch_deg:.2f}°")
+    # pitch_deg = np.degrees(np.arcsin(np.clip(sin_pitch, -1, 1)))
+    # roll_deg  = np.degrees(np.arctan2(sin_roll, cos_roll))
 
     # Yaw intentionally ignored — we only want gravity alignment
 

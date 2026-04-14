@@ -190,7 +190,6 @@ def get_obs_lidar(
     gravity_world = torch.tensor([0.0, 0.0, -1.0])
 
     gravity_b = quat_rotate_inverse(quat, gravity_world)
-    print(gravity_b)
 
     obs[3:6] = gravity_b
 

@@ -27,7 +27,7 @@ from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
 from huro_py.get_obs import get_obs_lidar, get_obs
-from huro_py.utils import Mapper, MockController, MockCmdVel,process_height_map, process_height_map2
+from huro_py.utils import Mapper, MockCmdVel,process_height_map, select_vel
 from sensor_msgs.msg import Joy, PointCloud2
 
 
@@ -62,7 +62,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] use_sim_time: {use_sim_time}")
 
         self.step_dt = 1 / 50  # policy freq = 50Hz
-        self.run_policy = True # set to false to rely on joy buttons to lauch the policy
+        self.run_policy = False # set to false to rely on joy buttons to lauch the policy
         if vx is not None or vy is not None or wz is not None:
             self.run_policy = True
 
@@ -72,7 +72,8 @@ class Go2PolicyController(Node):
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
-        self.stand_start_pos = None
+        self.standing_down = False
+        self.standing_up = False
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"[INFO] Using device: {self.device}")
@@ -136,7 +137,11 @@ class Go2PolicyController(Node):
                 ], dtype=torch.float32
             )
         # Standing position (default joint positions but coud be different)
-        self.stand_pos = self.default_pos_sdk
+        self.stand_up_pos = self.default_pos_sdk
+        self.stand_down_pos = torch.tensor(
+            [-0.35, 1.36, -2.65, 0.35, 1.36, -2.65,
+            -0.5, 1.36, -2.65, 0.5, 1.36, -2.65]
+        )
             
         self.mapper = Mapper(
             mapping_yaml_path=mapping_path, default_pos_sdk=self.default_pos_sdk
@@ -259,8 +264,7 @@ class Go2PolicyController(Node):
 
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
-
-    def stand_control(self):
+    def stand_control2(self):
         """PD control to standing position."""
         if self.low_state is None:
             return
@@ -289,15 +293,44 @@ class Go2PolicyController(Node):
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
+        
+    def stand_control(self, dir_):
+        """PD control to standing position."""        
+        if self.low_state is None:
+            return
+        if dir_ == "up":
+            ratio = min((self.curr_time - self.start_stand_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
+            self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_up_pos[i].item() for i in range(12)]
+        elif dir_ == "down":
+            ratio = min((self.curr_time - self.start_stand_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
+            self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_down_pos[i].item() for i in range(12)]
+        cmd = LowCmd()
+        cmd.head[0] = 0xFE
+        cmd.head[1] = 0xEF
+        cmd.gpio = 0
+        for i in range(12):
+            motorcmd = cmd.motor_cmd[i]
+            motorcmd.mode = 1
+            motorcmd.q = self.last_commanded_positions[i]
+            motorcmd.dq = 0.0
+            motorcmd.tau = 0.0
+            motorcmd.kp = self.kp
+            motorcmd.kd = self.kd
+
+        # Calculate CRC and publish
+        cmd.crc = Crc(cmd)
+        self.low_cmd_pub.publish(cmd)
+        if ratio >= 1.0:
+            print("Stand complete!")
+            self.standing_down = False
+            self.standing_up = False
 
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
         # Convert current action from policy order to SDK order
         actions_sdk_order = self.mapper.actions_policy_to_sdk(self.current_action)
 
-        self.last_commanded_positions = (
-            self.mapper.default_pos_sdk
-        ) + actions_sdk_order * self.action_scale
+        self.last_commanded_positions = (self.mapper.default_pos_sdk + actions_sdk_order * self.action_scale).tolist()
 
         cmd = LowCmd()
         cmd.head[0] = 0xFE
@@ -307,7 +340,7 @@ class Go2PolicyController(Node):
 
         for i in range(12):
             cmd.motor_cmd[i].mode = 0x01  # PMSM mode
-            cmd.motor_cmd[i].q = self.last_commanded_positions[i].item()
+            cmd.motor_cmd[i].q = self.last_commanded_positions[i]
             cmd.motor_cmd[i].kp = self.kp_p
             cmd.motor_cmd[i].dq = 0.0
             cmd.motor_cmd[i].kd = self.kd_p
@@ -330,11 +363,10 @@ class Go2PolicyController(Node):
             # Start stand control immediately once joint state is available.
             if self.tick_count == 0:
                 self.start_time = self.get_clock().now()
-                self.stand_start_pos = None
 
             self.process_control_step()
-            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            print(self.height_map[0])
+            # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+            # print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)
@@ -352,6 +384,8 @@ class Go2PolicyController(Node):
         """Process one control step (called at control_freq Hz)."""
         emergency_cond = False
         policy_run_cond = False
+        stand_down_cond = False
+        stand_up_cond = False
         if self.controller_state is not None:
             emergency_cond = (
                 self.controller_state.buttons[8]
@@ -359,33 +393,48 @@ class Go2PolicyController(Node):
                 or self.emergency_mode
             )
             policy_run_cond = (
-                self.controller_state.buttons[0] or self.controller_state.buttons[1]
+                self.controller_state.buttons[9]
+            )
+            stand_down_cond = (
+                self.controller_state.buttons[0]
+            )
+            stand_up_cond = (
+                self.controller_state.buttons[4]
             )
         self.tick_count += 1
         self.curr_time = self.get_clock().now()
 
-        if emergency_cond or self.emergency_mode:
-            if not self.emergency_mode:
-                self.emergency_mode_start_time = self.get_clock().now()
-            self.emergency_mode = True
+        if emergency_cond :
+            print("Emergency mode activated. Kill the process to restart.")
+            self.emergency_mode = True            
+            self.emergency_mode_start_time = self.get_clock().now()
+        elif stand_down_cond:
+            print("Standing down...")
+            self.standing_down = True
+            self.start_stand_time = self.get_clock().now()
+        elif stand_up_cond:
+            print("Standing up...")            
+            self.standing_up = True
+            self.start_stand_time = self.get_clock().now()
+        elif policy_run_cond:
+            print("Policy runing...")
+            self.run_policy = True
+        
+        if self.emergency_mode:
             self.run_policy = False
             self.emergency_mode_control()
-        elif (self.curr_time - self.start_time).nanoseconds * 1e-9 <= self.time_to_stand:
-            self.stand_control()
-        elif policy_run_cond:
-            self.run_policy = True
-        if (
-            self.curr_time - self.start_time
-        ).nanoseconds * 1e-9 >= self.time_to_stand and self.run_policy:
+        elif self.standing_down:
+            self.run_policy = False
+            self.stand_control("down")
+        elif self.standing_up:
+            self.run_policy = False
+            self.stand_control("up")
+        elif self.run_policy:
             self.policy_control()
             
-    def select_vel(self):
-        if self.controller_state is not None:
-            self.vel = [self.controller_state.axes[1], self.controller_state.axes[0], self.controller_state.axes[2]]
-        else:
-            self.vel = [self.cmd_vel_state.linear.x, self.cmd_vel_state.linear.y, self.cmd_vel_state.linear.z]
+    
     def policy_control(self):
-        self.select_vel()
+        self.vel = select_vel(self.controller_state, self.cmd_vel_state)
         if self.vel[0]>=0.0: # uses the lidar policy for positive velocities
             obs = get_obs_lidar(
                 self.low_state,
