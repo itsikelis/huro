@@ -387,7 +387,6 @@ def _launch_setup(context, *args, **kwargs):
         TimerAction(period=6.0, actions=[nav2_launch]),
         TimerAction(period=8.0, actions=[rviz_node]),
         # TimerAction(period=8.0, actions=[elevation_map]),
-
     ]
 
 

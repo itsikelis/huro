@@ -12,7 +12,7 @@ from huro_py.utils import Mapper, quat_rotate_inverse
 
 def get_obs(
     lowstate_msg: LowState,
-    cmd_vel_msg,
+    vel,
     height: float,
     prev_actions: torch.tensor,
     mapper: Mapper,
@@ -89,9 +89,9 @@ def get_obs(
     obs[3:6] = gravity_b
 
     obs[6:9] = torch.tensor([
-        cmd_vel_msg.linear.x,  # forward velocity
-        cmd_vel_msg.linear.y,  # lateral velocity (flip for correct direction)
-        cmd_vel_msg.angular.z,  # yaw rate
+        vel[0],  # forward velocity
+        vel[1],  # lateral velocity (flip for correct direction)
+        vel[2],  # yaw rate
     ])
     
     obs[9] = 0.3 # height
@@ -116,7 +116,7 @@ def get_obs(
 def get_obs_lidar(
     lowstate_msg: LowState,
     height_map: torch.tensor,
-    cmd_vel_msg,
+    vel,
     height: float,
     prev_actions: torch.tensor,
     mapper: Mapper,
@@ -196,9 +196,9 @@ def get_obs_lidar(
 
     # print(cmd_vel_msg)
     obs[6:9] = torch.tensor([
-        cmd_vel_msg.linear.x,  # forward velocity
-        cmd_vel_msg.linear.y,  # lateral velocity (flip for correct direction)
-        cmd_vel_msg.angular.z,  # yaw rate
+        vel[0],  # forward velocity
+        vel[1],  # lateral velocity (flip for correct direction)
+        vel[2],  # yaw rate
     ])
 
     # Fill joint positions (obs[13:25]) in policy order

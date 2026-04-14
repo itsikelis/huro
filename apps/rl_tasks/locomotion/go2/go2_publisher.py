@@ -186,7 +186,7 @@ class Go2PolicyController(Node):
         self.cmd_vel_sub = self.create_subscription(
             Twist, "/cmd_vel", self.cmd_vel_callback, 10
         )
-        
+    
         self.x_range = [1.0, -0.5] # height_map x range
         self.y_range = [-0.5, 0.5] # height_map y range
         self.res = 0.1 # height map resolution
@@ -374,19 +374,23 @@ class Go2PolicyController(Node):
             self.stand_control()
         elif policy_run_cond:
             self.run_policy = True
-
-
         if (
             self.curr_time - self.start_time
         ).nanoseconds * 1e-9 >= self.time_to_stand and self.run_policy:
             self.policy_control()
-
+            
+    def select_vel(self):
+        if self.controller_state is not None:
+            self.vel = [self.controller_state.axes[1], self.controller_state.axes[0], self.controller_state.axes[2]]
+        else:
+            self.vel = [self.cmd_vel_state.linear.x, self.cmd_vel_state.linear.y, self.cmd_vel_state.linear.z]
     def policy_control(self):
-        if self.cmd_vel_state.linear.x>=0.0: # uses the lidar policy for positive velocities
+        self.select_vel()
+        if self.vel[0]>=0.0: # uses the lidar policy for positive velocities
             obs = get_obs_lidar(
                 self.low_state,
                 self.height_map,
-                self.cmd_vel_state,
+                self.vel,
                 height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
@@ -399,7 +403,7 @@ class Go2PolicyController(Node):
         else:
             obs = get_obs(
                 self.low_state,
-                self.cmd_vel_state,
+                self.vel,
                 height=0.30,
                 prev_actions=self.current_action,
                 mapper=self.mapper,
