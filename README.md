@@ -104,4 +104,19 @@ ros2 run huro g1_motion_tracking.py \
 Some example motions are available inside `src/huro/resources/motions/accad_subset/`.
 
 The app starts in default-reference mode and keeps running the policy, using a frozen standing pose as the motion-command reference.
-Press `Space` or `Enter` in the terminal to start the motion clip from the beginning, with a smooth transition into the clip start. When  he clip finishes, the command automatically transitions back to the standing reference pose and waits for the next key press. Press `x` in the terminal to disable the motors.
+Press `Space` or `Enter` in the terminal to start the motion clip from the beginning, with a smooth transition into the clip start. When the clip finishes, the command automatically transitions back to the standing reference pose and waits for the next key press. Press `x` in the terminal to disable the motors.
+
+### G1 CLAMP2 Deployment
+
+For G1 CLAMP2-style policies exported to ONNX, use `g1_clamp2.py`. It reads the embedded deployment metadata, reconstructs the exported observation layout, supports the CLAMP2 `history` observation term, and rebuilds the motion command from a reference `.npz`.
+
+Example:
+
+```bash
+ros2 run huro g1_clamp2.py \
+  --onnx-path src/huro/resources/policies/g1/g1_clamp2.onnx \
+  --motion-npz /path/to/reference_motion.npz
+```
+
+The app supports `JointRefAnchorRpMotionCommand` policies, using a command payload of joint position, joint velocity, root linear velocity in base x/y, root yaw rate, root height, root roll, and root pitch.
+The app starts from a fixed default reference: ONNX `default_joint_pos`, zero joint/base velocity, zero roll/pitch, and height `0.78 m`. Press `Space` or `Enter` to transition into the motion reference. When the clip ends, the app transitions back to the fixed default reference and waits for another `Space` or `Enter` press. Press `Space` or `Enter` during playback to transition back early. Press `x` in the terminal to disable the motors.
