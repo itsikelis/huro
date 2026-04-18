@@ -89,23 +89,6 @@ ros2 launch huro ROBOT_rviz.launch.py
 
 If you are connected to a robot, this will open up an RViz window that updates joint and floating base position as these move.
 
-### G1 Motion Tracking Deployment
-
-For G1 motion-tracking policies exported to ONNX, use the dedicated `g1_motion_tracking.py` deploy app. It reads the embedded ONNX deployment metadata, reconstructs the policy observation history online, and tracks a reference motion clip from an `.npz` file.
-
-Example:
-
-```bash
-ros2 run huro g1_motion_tracking.py \
-  --onnx-path src/huro/resources/policies/g1/g1_tracking.onnx \
-  --motion-npz /path/to/reference_motion.npz
-```
-
-Some example motions are available inside `src/huro/resources/motions/accad_subset/`.
-
-The app starts in default-reference mode and keeps running the policy, using a frozen standing pose as the motion-command reference.
-Press `Space` or `Enter` in the terminal to start the motion clip from the beginning, with a smooth transition into the clip start. When the clip finishes, the command automatically transitions back to the standing reference pose and waits for the next key press. Press `x` in the terminal to disable the motors.
-
 ### G1 CLAMP2 Deployment
 
 For G1 CLAMP2-style policies exported to ONNX, use `g1_clamp2.py`. It reads the embedded deployment metadata, reconstructs the exported observation layout, supports the CLAMP2 `history` observation term, and rebuilds the motion command from a reference `.npz`.
