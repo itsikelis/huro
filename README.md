@@ -98,7 +98,7 @@ Example:
 ```bash
 ros2 run huro g1_clamp2.py \
   --onnx-path src/huro/resources/policies/g1/g1_clamp2.onnx \
-  --motion-npz /path/to/reference_motion.npz
+  --motion-npz src/huro/resources/motions/accad_General_A6___Lift_Box.npz 
 ```
 
 The app supports `JointRefAnchorRpMotionCommand` policies, using a command payload of joint position, joint velocity, root linear velocity in base x/y, root yaw rate, root height, root roll, and root pitch.
