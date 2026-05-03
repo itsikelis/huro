@@ -404,5 +404,94 @@ def process_height_map2(height_map: torch.tensor, lidar_msg: PointCloud2, lowsta
         hm_age[valid_cells] = 0.0
 
 
+def process_height_map_raw(height_map: torch.tensor, lidar_msg: PointCloud2, lowstate_msg: LowState, x_range: list, y_range: list, res, delete_count: int = 100, min_x = 0, max_x = 0, min_z = 0, max_z = 0):
+    if lidar_msg is None or lowstate_msg is None:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
-# z_world = sin_roll * y_pitch + cos_roll * z_pitch
+    grid_size_x = int(height_map.shape[1])
+    grid_size_y = int(height_map.shape[2])
+    num_cells = grid_size_x * grid_size_y
+
+    x_min = float(min(x_range))
+    y_min = float(min(y_range))
+    inv_res = 1.0 / float(res)
+
+    hm_height = height_map[0].numpy()
+    hm_age = height_map[1].numpy()
+
+    num_points = int(lidar_msg.width) * int(lidar_msg.height)
+    point_step = int(lidar_msg.point_step)
+    if num_points == 0 or point_step < 12:
+        hm_height[:] = 0.0
+        hm_age[:] = 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    raw = np.frombuffer(lidar_msg.data, dtype=np.uint8)
+    needed = num_points * point_step
+    if raw.size < needed:
+        hm_height[:] = 0.0
+        hm_age[:] = 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    xyz = np.ndarray(
+        shape=(num_points, 3),
+        dtype=np.float32,
+        buffer=raw,
+        offset=0,
+        strides=(point_step, 4),
+    )
+
+    finite_xyz = np.isfinite(xyz).all(axis=1)
+    if not np.any(finite_xyz):
+        hm_height[:] = 0.0
+        hm_age[:] = 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    rays_valid = xyz[finite_xyz]
+
+    x = -rays_valid[:, 0]
+    y = -rays_valid[:, 1]
+    z = rays_valid[:, 2]
+
+    x_rot = x * COS_PITCH_LIDAR - z * SIN_PITCH_LIDAR
+    y_rot = y
+    z_rot = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
+
+    finite_mask = np.isfinite(x_rot) & np.isfinite(y_rot) & np.isfinite(z_rot)
+    if not np.any(finite_mask):
+        hm_height[:] = 0.0
+        hm_age[:] = 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    x_valid = x_rot[finite_mask]
+    y_valid = y_rot[finite_mask]
+    z_valid = z_rot[finite_mask]
+
+    x_idx = np.floor((x_valid - x_min) * inv_res).astype(np.int32)
+    y_idx = np.floor((y_valid - y_min) * inv_res).astype(np.int32)
+    in_bounds = (
+        (x_idx >= 0)
+        & (x_idx < grid_size_x)
+        & (y_idx >= 0)
+        & (y_idx < grid_size_y)
+    )
+
+    if not np.any(in_bounds):
+        hm_height[:] = 0.0
+        hm_age[:] = 0.0
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    x_idx = x_idx[in_bounds]
+    y_idx = y_idx[in_bounds]
+    z_vals = z_valid[in_bounds]
+
+    flat_idx = x_idx * grid_size_y + y_idx
+    max_heightmap = np.full(num_cells, -np.inf, dtype=np.float32)
+    np.maximum.at(max_heightmap, flat_idx, z_vals)
+
+    hm_flat = np.where(np.isfinite(max_heightmap), -max_heightmap, 0.0)
+    hm_flat = hm_flat[::-1]
+    hm_grid = hm_flat.reshape(grid_size_x, grid_size_y)
+
+    hm_height[:, :] = -hm_grid
+    hm_age[:, :] = 0.0

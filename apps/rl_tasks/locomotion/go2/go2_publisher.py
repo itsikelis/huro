@@ -26,8 +26,8 @@ from unitree_go.msg import LowCmd, LowState
 from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_obs_lidar, get_obs
-from huro_py.utils import Mapper, MockCmdVel,process_height_map, select_vel
+from huro_py.get_obs import get_obs_lidar, get_obs_lidar_cnn, get_obs
+from huro_py.utils import Mapper, MockCmdVel,process_height_map, process_height_map_raw, select_vel
 from sensor_msgs.msg import Joy, PointCloud2
 
 
@@ -217,6 +217,7 @@ class Go2PolicyController(Node):
     def lidar_callback(self, msg: PointCloud2):
         """Log spacemouse state"""
         self.lidar_state = msg
+        # process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
         process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
         
         
@@ -365,8 +366,8 @@ class Go2PolicyController(Node):
                 self.start_time = self.get_clock().now()
 
             self.process_control_step()
-            # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            # print(self.height_map[0])
+            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+            print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)
@@ -436,6 +437,14 @@ class Go2PolicyController(Node):
     def policy_control(self):
         self.vel = select_vel(self.controller_state, self.cmd_vel_state)
         if self.vel[0]>=0.0: # uses the lidar policy for positive velocities
+            obs = get_obs_lidar(
+                self.low_state,
+                self.height_map,
+                self.vel,
+                height=0.30,
+                prev_actions=self.current_action,
+                mapper=self.mapper,
+            )
             obs = get_obs_lidar(
                 self.low_state,
                 self.height_map,
