@@ -26,19 +26,19 @@ def select_vel(controller_state, cmd_vel_state):
             if vx >= 0.0:
                 if vx >= 0.2:
                     if vx <= 0.5:
-                        vx = 0.8
+                        vx = 0.5
             else:
                 if vx <= -0.2:
                     if vx >= -0.5:
-                        vx = -0.8
+                        vx = -0.5
             if wz >= 0.0:
                 if wz >= 0.2:
                     if wz <= 0.5:
-                        wz = 0.8
+                        wz = 0.5
             else:
                 if wz <= -0.2:
                     if wz >= -0.5:
-                        wz = -0.8 
+                        wz = -0.5 
                     
             vel = [vx, vy, wz]
         return vel
