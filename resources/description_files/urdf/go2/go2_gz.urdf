@@ -808,7 +808,7 @@
     </collision>
   </link>
   <joint name="radar_joint" type="fixed" dont_collapse="true">
-    <origin xyz="0.28945 0 -0.046825" rpy="0 2.8782 0" />
+    <origin xyz="0.28945 0 -0.049" rpy="0 2.8782 0" />
     <parent link="base" />
     <child link="utlidar_lidar" />
     <axis xyz="0 0 0" />
