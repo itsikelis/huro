@@ -27,7 +27,7 @@ from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
 from huro_py.get_obs import get_obs_lidar, get_obs_lidar_cnn, get_obs
-from huro_py.utils import Mapper, MockCmdVel,process_height_map, process_height_map_raw, select_vel
+from huro_py.utils import Mapper, MockCmdVel,process_height_map_rotated, process_height_map_raw, select_vel
 from sensor_msgs.msg import Joy, PointCloud2
 
 
@@ -218,7 +218,7 @@ class Go2PolicyController(Node):
         """Log spacemouse state"""
         self.lidar_state = msg
         # process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
-        process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
+        process_height_map_rotated(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
         
         
     def joy_callback(self, msg: Joy):

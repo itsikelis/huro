@@ -11,7 +11,7 @@ from unitree_api.msg import Request
 from unitree_go.msg import IMUState, LowCmd, LowState, MotorState
 
 from huro_py.crc_go import Crc
-from huro_py.utils import process_height_map
+from huro_py.utils import process_height_map_rotated
 
 
 torch.set_printoptions(precision=2, sci_mode=False, linewidth=10_000, threshold=1_000_000)
@@ -175,7 +175,7 @@ class Go2ControllerTest(Node):
         if self.lowstate_msg is None:
             return
 
-        process_height_map(
+        process_height_map_rotated(
             self.height_map,
             msg,
             self.lowstate_msg,

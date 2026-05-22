@@ -212,6 +212,88 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     if lidar_msg is None or lowstate_msg is None:
         return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
 
+    grid_size_x = int(height_map.shape[1])
+    grid_size_y = int(height_map.shape[2])
+
+    hm_height = height_map[0].numpy()
+    hm_age = height_map[1].numpy()
+
+    old_cells = hm_age > delete_count
+    hm_height[old_cells] = 0.0
+    hm_age[old_cells] = 0.0
+    hm_age += 1.0
+
+    num_points = int(lidar_msg.width) * int(lidar_msg.height)
+    point_step = int(lidar_msg.point_step)
+    if num_points == 0 or point_step < 12:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    raw = np.frombuffer(lidar_msg.data, dtype=np.uint8)
+    needed = num_points * point_step
+    if raw.size < needed:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    xyz = np.ndarray(
+        shape=(num_points, 3),
+        dtype=np.float32,
+        buffer=raw,
+        offset=0,
+        strides=(point_step, 4),
+    )
+
+    finite_xyz = np.isfinite(xyz).all(axis=1)
+    if not np.any(finite_xyz):
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    xyz = xyz[finite_xyz]
+
+    x = -xyz[:, 0]
+    y = -xyz[:, 1]
+    z = xyz[:, 2]
+    
+
+    x_body = x
+    y_body = y
+    z_body = z
+
+
+    finite_mask = np.isfinite(x_body) & np.isfinite(y_body) & np.isfinite(z_body)
+    if not np.any(finite_mask):
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+    x_valid = x_body[finite_mask]
+    y_valid = y_body[finite_mask]
+    z_valid = z_body[finite_mask]
+
+    grid_x_base = ((x_valid - x_range[1]) / res).astype(np.int32)
+    grid_x = (grid_size_x - 1) - grid_x_base
+    grid_y = ((y_valid - y_range[0]) / res).astype(np.int32)
+
+    in_grid = (
+        (grid_x >= 0)
+        & (grid_x < grid_size_x)
+        & (grid_y >= 0)
+        & (grid_y < grid_size_y)
+    )
+
+    if np.any(in_grid):
+        flat_idx = grid_x[in_grid] * grid_size_y + grid_y[in_grid]
+        z_grid = z_valid[in_grid]
+        max_heightmap = np.full(grid_size_x * grid_size_y, -np.inf, dtype=np.float32)
+        np.maximum.at(max_heightmap, flat_idx, z_grid)
+
+        max_heightmap = max_heightmap.reshape(grid_size_x, grid_size_y)
+        valid_cells = np.isfinite(max_heightmap)
+        # lidar_offset = -0.046825
+        lidar_offset = -0.0
+        hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28 + lidar_offset
+        hm_age[valid_cells] = 0.0
+
+
+def process_height_map_rotated(height_map: torch.tensor, lidar_msg: PointCloud2, lowstate_msg: LowState, x_range: list, y_range: list, res, delete_count: int = 100, min_x = 0, max_x = 0, min_z = 0, max_z = 0):
+    if lidar_msg is None or lowstate_msg is None:
+        return 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+
     qw = float(lowstate_msg.imu_state.quaternion[0])
     qx = float(lowstate_msg.imu_state.quaternion[1])
     qy = float(lowstate_msg.imu_state.quaternion[2])
