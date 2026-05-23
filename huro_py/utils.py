@@ -201,7 +201,6 @@ LIDAR_PITCH_DEG = -15.1
 LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH = np.cos(LIDAR_PITCH_RAD)
 SIN_PITCH = np.sin(LIDAR_PITCH_RAD)
-# replace with https://github.com/anybotics/grid_map
 LIDAR_PITCH_DEG = torch.tensor(-15.09)
 LIDAR_PITCH_RAD = torch.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH_LIDAR = torch.cos(LIDAR_PITCH_RAD).item()
@@ -250,11 +249,13 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     x = -xyz[:, 0]
     y = -xyz[:, 1]
     z = xyz[:, 2]
-    
+    x1 = x * COS_PITCH_LIDAR - z * SIN_PITCH_LIDAR
+    y1 = y
+    z1 = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
 
-    x_body = x
-    y_body = y
-    z_body = z
+    x_body = x1
+    y_body = y1
+    z_body = z1
 
 
     finite_mask = np.isfinite(x_body) & np.isfinite(y_body) & np.isfinite(z_body)
@@ -286,7 +287,7 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
         valid_cells = np.isfinite(max_heightmap)
         # lidar_offset = -0.046825
         lidar_offset = -0.0
-        hm_height[valid_cells] = max_heightmap[valid_cells] - 0.28 + lidar_offset
+        hm_height[valid_cells] = max_heightmap[valid_cells] + lidar_offset
         hm_age[valid_cells] = 0.0
 
 
