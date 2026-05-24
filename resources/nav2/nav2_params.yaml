@@ -13,19 +13,19 @@ controller_server:
     min_y_velocity_threshold: 0.0
     min_theta_velocity_threshold: 0.0
     odom_topic: /odom
-    cmd_vel_topic: /cmd_vel
+    cmd_vel_topic: /cmd_vel_nav
     progress_checker_plugin: "progress_checker"
     goal_checker_plugins: ["general_goal_checker"]
     controller_plugins: ["FollowPath"]
     progress_checker:
       plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.005
-      movement_time_allowance: 120.0
+      required_movement_radius: 0.001
+      movement_time_allowance: 60.0
     general_goal_checker:
       plugin: "nav2_controller::SimpleGoalChecker"
-      stateful: True
-      xy_goal_tolerance: 0.40
-      yaw_goal_tolerance: 0.25
+      stateful: False
+      xy_goal_tolerance: 0.5
+      yaw_goal_tolerance: 0.5
     FollowPath:
       plugin: "nav2_mppi_controller::MPPIController"
       time_steps: 56
@@ -36,16 +36,6 @@ controller_server:
       transform_tolerance: 0.2
       # Use holonomic model so lateral velocity (vy) can be non-zero.
       motion_model: "Omni"
-      # Keep symmetric limits so controller can command around +/-1.0 when safe.
-      vx_max: 1.0
-      vx_min: 0.0
-      vy_max: 0.5
-      vy_min: -0.5
-      wz_max: 1.0
-      wz_min: -1.0
-      vx_std: 0.4
-      vy_std: 0.4
-      wz_std: 0.4
       critics: [
         "ConstraintCritic",
         "CostCritic",
@@ -60,7 +50,7 @@ controller_server:
         cost_weight: 4.0
       CostCritic:
         enabled: true
-        cost_weight: 12.0
+        cost_weight: 8.0
         critical_cost: 300.0
         collision_cost: 1000000.0
         consider_footprint: true
@@ -74,7 +64,7 @@ planner_server:
     planner_plugins: ["GridBased"]
     GridBased:
       plugin: "nav2_smac_planner/SmacPlannerHybrid"
-      tolerance: 2.0
+      tolerance: 0.5
       allow_unknown: true
 
 behavior_server:
@@ -96,23 +86,6 @@ behavior_server:
     wait:
       plugin: "nav2_behaviors/Wait"
 
-velocity_smoother:
-  ros__parameters:
-    use_sim_time: True
-    smoothing_frequency: 20.0
-    scale_velocities: False
-    feedback: "OPEN_LOOP"
-    max_velocity: [1.0, 0.5, 0.5]
-    min_velocity: [-0.5, -0.5, -0.5]
-    max_accel: [1.5, 0.0, 2.0]
-    max_decel: [-1.5, 0.0, -2.0]
-    odom_topic: /odom
-    odom_duration: 0.1
-    deadband_velocity: [0.0, 0.0, 0.0]
-    velocity_timeout: 1.0
-    enable_stamped_cmd_vel: False
-    cmd_vel_in_topic: /cmd_vel
-    cmd_vel_out_topic: /cmd_vel_nav
 
 local_costmap:
   local_costmap:
@@ -154,23 +127,23 @@ local_costmap:
           # Clear free space along rays (prevents stale obstacles).
           clearing: True
           # Marking distance limit from sensor origin (m).
-          obstacle_max_range: 2.0
+          obstacle_max_range: 10.0
           # Clearing ray distance limit (m); usually >= obstacle_max_range.
           raytrace_max_range: 10.0
           # Ignore very near returns for marking (m).
-          obstacle_min_range: 0.0
+          obstacle_min_range: 0.7
           # Ignore very near rays for clearing (m).
-          raytrace_min_range: 0.0
+          raytrace_min_range: 0.7
           # Vertical filter (m in costmap frame): keep low curbs and near-floor points.
-          min_obstacle_height: 0.0
+          min_obstacle_height: 0.1
           max_obstacle_height: 8.0
 
       # InflationLayer: expands obstacle costs around occupied cells.
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
         # Lower decay + larger radius => keep farther from walls.
-        cost_scaling_factor: 1.5
-        inflation_radius: 0.70
+        cost_scaling_factor: 2.0
+        inflation_radius: 0.40
 
 global_costmap:
   global_costmap:
@@ -182,7 +155,7 @@ global_costmap:
       # Same footprint as local costmap for consistent collision checks.
       footprint: "[[0.36, 0.20], [0.36, -0.20], [-0.36, -0.20], [-0.36, 0.20]]"
       footprint_padding: 0.10
-      map_vis_z: -0.5
+      map_vis_z: -0.0
       # Layer order for global planning map.
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
 
@@ -205,12 +178,12 @@ global_costmap:
           marking: True
           clearing: True
           # 0.1m made obstacle marking nearly disabled; restore useful range.
-          obstacle_max_range: 0.5
+          obstacle_max_range: 7.0
           raytrace_max_range: 10.0
-          obstacle_min_range: 0.0
-          raytrace_min_range: 0.0
-          min_obstacle_height: 0.1
-          max_obstacle_height: 8.0
+          obstacle_min_range: 0.7
+          raytrace_min_range: 0.7
+          min_obstacle_height: 0.2
+          max_obstacle_height: 10.0
 
       # Keep global plans away from walls by adding a wider buffer than local map.
       inflation_layer:

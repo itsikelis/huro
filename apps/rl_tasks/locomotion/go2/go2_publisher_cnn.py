@@ -79,7 +79,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_cnn1.pt"
+        policy_lidar_name = "policy_cnn3.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
@@ -189,7 +189,7 @@ class Go2PolicyController(Node):
         
         self.cmd_vel_state = MockCmdVel(vx, vy, wz)
         self.cmd_vel_sub = self.create_subscription(
-            Twist, "/cmd_vel", self.cmd_vel_callback, 10
+            Twist, "/cmd_vel_nav", self.cmd_vel_callback, 10
         )
     
         self.x_range = [1.0, -0.5] # height_map x range
@@ -366,8 +366,8 @@ class Go2PolicyController(Node):
                 self.start_time = self.get_clock().now()
 
             self.process_control_step()
-            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            print(self.height_map[0])
+            # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+            # print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)

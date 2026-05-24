@@ -23,22 +23,30 @@ def select_vel(controller_state, cmd_vel_state):
         vel = [controller_state.axes[1], controller_state.axes[0], controller_state.axes[2]]
         if sum(vel) == 0.0:
             vx, vy, wz = cmd_vel_state.linear.x, cmd_vel_state.linear.y, cmd_vel_state.angular.z
-            if vx >= 0.0:
+            if vx >= 0.001:
                 if vx >= 0.2:
                     if vx <= 0.5:
                         vx = 0.5
-            else:
+                else:
+                    vx = 0.2
+            elif vx <= -0.001:
                 if vx <= -0.2:
                     if vx >= -0.5:
                         vx = -0.5
-            if wz >= 0.0:
+                else:
+                    vx = -0.2
+            if wz >= 0.001:
                 if wz >= 0.2:
                     if wz <= 0.5:
                         wz = 0.5
-            else:
+                else:
+                    wz = 0.2
+            elif wz <= -0.001:
                 if wz <= -0.2:
                     if wz >= -0.5:
                         wz = -0.5 
+                else:
+                    wz = -0.2
                     
             vel = [vx, vy, wz]
         return vel

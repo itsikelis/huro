@@ -15,7 +15,7 @@ DEFAULT_SPAWN_X = -0.0
 DEFAULT_SPAWN_Y = -0.0
 DEFAULT_SPAWN_Z = 0.40
 DEFAULT_SPAWN_YAW = 0.0
-DEFAULT_STAIRS_STEP_HEIGHT = 0.15
+DEFAULT_STAIRS_STEP_HEIGHT = 0.06
 
 _STAIRS_HEIGHT_MULTIPLIERS = [
     0.5,
@@ -319,13 +319,14 @@ def _launch_setup(context, *args, **kwargs):
             'sync_queue_size': 50,
             # Keep SLAM map strictly planar (no roll/pitch/z drift in map frame).
             # 'Reg/Force3DoF': 'true',
-            # 'Optimizer/Slam2D': 'true',
+            'Optimizer/Slam2D': 'true',
             # 'Grid/RayTracing': 'true',
             # 'Grid/3D': 'true',
             # Ne pas marquer escaliers / terrain comme obstacles
-            # 'Grid/MaxObstacleHeight': '1.0',
-            # 'Grid/NormalsSegmentation': 'false',
-            # 'Grid/MaxGroundAngle': '45',       # tolère les pentes
+            'Grid/MaxObstacleHeight': '1.0',
+            'Grid/RangeMin': '0.7',
+            'Grid/NormalsSegmentation': 'true',
+            'Grid/MaxGroundAngle': '45',       # tolère les pentes
         }],
         remappings=[
             ('scan_cloud', '/utlidar/cloud'),
