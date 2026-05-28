@@ -3,6 +3,7 @@ import os
 from launch import LaunchDescription
 from launch_ros.substitutions import FindPackageShare
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
+from launch.conditions import IfCondition, UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
 from launch_ros.actions import Node
@@ -10,10 +11,12 @@ from ament_index_python.packages import get_package_share_directory
 
 urdf = "go2/go2.urdf"
 rviz_config = "go2.rviz"
-nav2 = 'nav2_params.yaml'
+nav2_sim = 'nav2_params.yaml'
+nav2_real = 'nav2_params_real.yaml'
 
 
 def generate_launch_description():
+    use_sim_time = LaunchConfiguration("use_sim_time")
 
     ## Robot State Publisher ##
     # Find and load robot description
@@ -21,7 +24,8 @@ def generate_launch_description():
         get_package_share_directory("huro") + "/resources/description_files/urdf/",
         urdf,
     )
-    nav2_config = os.path.join(get_package_share_directory("huro"), 'resources', 'nav2', nav2)
+    nav2_sim_config = os.path.join(get_package_share_directory("huro"), 'resources', 'nav2', nav2_sim)
+    nav2_real_config = os.path.join(get_package_share_directory("huro"), 'resources', 'nav2', nav2_real)
 
     with open(urdf_path, "r") as infp:
         robot_desc = infp.read()
@@ -32,7 +36,7 @@ def generate_launch_description():
         executable="robot_state_publisher",
         name="robot_state_publisher",
         output="screen",
-        parameters=[{"robot_description": robot_desc}],
+        parameters=[{"robot_description": robot_desc, "use_sim_time": use_sim_time}],
         arguments=[urdf_path],
     )
 
@@ -48,6 +52,7 @@ def generate_launch_description():
         namespace="",
         executable="rviz2",
         name="rviz2",
+        parameters=[{"use_sim_time": use_sim_time}],
         arguments=[
             "-d" + rviz_file_path,
         ],
@@ -67,14 +72,14 @@ def generate_launch_description():
             'odom_frame_id': 'odom',
             # Use odom as the single TF source for odom->base.
             'publish_tf': True,
-            'wait_imu_to_init': True,
+            'wait_imu_to_init': False,
             # Allow a small TF wait to absorb sim timestamp jitter.
             'wait_for_transform': 0.2,
             # Avoid invalid (non-normalized) null quaternions on tracking loss.
             'publish_null_when_lost': False,
             # Keep lidar odometry independent from IMU frame naming issues.
-            'subscribe_imu': True,
-            'use_sim_time': True,
+            'subscribe_imu': False,
+            'use_sim_time': use_sim_time,
             'Icp/PointToPlane': 'true',
             'Icp/Iterations': '30',
             'Icp/VoxelSize': '0.15',
@@ -107,8 +112,8 @@ def generate_launch_description():
             'subscribe_scan': False,
             'subscribe_scan_cloud': True,
             'subscribe_lidar': True,
-            'subscribe_imu': True,
-            'use_sim_time': True,
+            'subscribe_imu': False,
+            'use_sim_time': use_sim_time,
             'wait_for_transform': 0.2,
             'topic_queue_size': 50,
             'sync_queue_size': 50,
@@ -118,17 +123,30 @@ def generate_launch_description():
             ('odom', '/odom'),
         ]
     )
-    nav2_launch = IncludeLaunchDescription(
+    nav2_sim_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             get_package_share_directory('nav2_bringup') + '/launch/navigation_launch.py'
         ),
         launch_arguments={
             'use_sim_time': 'True',
-            'params_file': nav2_config,
+            'params_file': nav2_sim_config,
             'map_subscribe_transient_local': 'True',
             'autostart': 'True',
         }.items(),
-        
+        condition=IfCondition(use_sim_time),
+    )
+
+    nav2_real_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            get_package_share_directory('nav2_bringup') + '/launch/navigation_launch.py'
+        ),
+        launch_arguments={
+            'use_sim_time': 'False',
+            'params_file': nav2_real_config,
+            'map_subscribe_transient_local': 'True',
+            'autostart': 'True',
+        }.items(),
+        condition=UnlessCondition(use_sim_time),
     )
 
     return LaunchDescription(
@@ -143,7 +161,7 @@ def generate_launch_description():
             state_pub_node,
             TimerAction(period=2.0, actions=[odom_node]),
             TimerAction(period=4.0, actions=[slam_node]),
-            TimerAction(period=6.0, actions=[nav2_launch]),
+            TimerAction(period=6.0, actions=[nav2_sim_launch, nav2_real_launch]),
             TimerAction(period=8.0, actions=[rviz_node]),
         ]
     )

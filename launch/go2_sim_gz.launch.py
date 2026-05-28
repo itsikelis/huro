@@ -11,7 +11,7 @@ from ament_index_python.packages import get_package_prefix, get_package_share_di
 
 
 import xml.etree.ElementTree as ET
-DEFAULT_SPAWN_X = -0.0
+DEFAULT_SPAWN_X = -2.0
 DEFAULT_SPAWN_Y = -0.0
 DEFAULT_SPAWN_Z = 0.40
 DEFAULT_SPAWN_YAW = 0.0
