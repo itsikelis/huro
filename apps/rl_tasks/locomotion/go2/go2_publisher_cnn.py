@@ -86,7 +86,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_cnn5.pt"
+        policy_lidar_name = "policy_cnn7.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
@@ -201,25 +201,26 @@ class Go2PolicyController(Node):
         self.y_range = [-0.5, 0.5] # height_map y range
         self.res = 0.1 # height map resolution
         self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32) # height_map init
-        if len(sys.argv)>1:
-            ChannelFactoryInitialize(0, sys.argv[1])
-        else:
+        if not sim:
+            # if len(sys.argv)>1:
+            #     ChannelFactoryInitialize(0, sys.argv[1])
+            # else:
             ChannelFactoryInitialize(0, "enp0s31f6")
-        robot_state = RobotStateClient()
-        robot_state.Init()
+            robot_state = RobotStateClient()
+            robot_state.Init()
 
-        # Get list of running services
-        code, services = robot_state.ServiceList()
+            # Get list of running services
+            code, services = robot_state.ServiceList()
 
-        # Stop the sport mode service (default policy)
-        code = robot_state.ServiceSwitch("sport_mode", False)
-        while code != 0:
-            print(f"Error switching service: {code}")
+            # Stop the sport mode service (default policy)
             code = robot_state.ServiceSwitch("sport_mode", False)
+            while code != 0:
+                print(f"Error switching service: {code}")
+                code = robot_state.ServiceSwitch("sport_mode", False)
+                time.sleep(1)
+            if code == 0:
+                print("Sport mode disabled - low-level control available")
             time.sleep(1)
-        if code == 0:
-            print("Sport mode disabled - low-level control available")
-        time.sleep(1)
 
         self.timer = self.create_timer(self.step_dt, self.run)
 
