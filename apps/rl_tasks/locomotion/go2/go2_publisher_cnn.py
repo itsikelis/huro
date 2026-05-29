@@ -32,9 +32,17 @@ from huro_py.get_obs import get_obs_lidar_cnn, get_obs
 from huro_py.utils import Mapper, MockCmdVel,process_height_map, process_height_map_raw, select_vel
 from sensor_msgs.msg import Joy, PointCloud2
 import sys
+"""
+cd /tmp
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+cd unitree_sdk2_python
+pip3 install -e .
+"""
 sys.path.insert(0, '/tmp/unitree_sdk2_python')
 from unitree_sdk2py.core.channel import ChannelFactory, ChannelFactoryInitialize
+from unitree_sdk2py.go2.sport.sport_client import SportClient
 from unitree_sdk2py.go2.robot_state.robot_state_client import RobotStateClient
+
 
 
 
@@ -86,7 +94,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_cnn7.pt"
+        policy_lidar_name = "policy_cnn8.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
@@ -206,6 +214,16 @@ class Go2PolicyController(Node):
             #     ChannelFactoryInitialize(0, sys.argv[1])
             # else:
             ChannelFactoryInitialize(0, "enp0s31f6")
+            sport = SportClient()
+            sport.SetTimeout(10.0)
+            sport.Init()
+
+            self.get_logger().info("Sitting down...")
+            code = sport.StandDown()  # goes from standing to crouched
+            time.sleep(2)
+            code = sport.Sit()        # full sit
+            time.sleep(2)
+            self.get_logger().info("Robot seated.")
             robot_state = RobotStateClient()
             robot_state.Init()
 
