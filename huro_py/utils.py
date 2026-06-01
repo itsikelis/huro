@@ -35,6 +35,22 @@ def select_vel(controller_state, cmd_vel_state):
                         vx = -0.5
                 else:
                     vx = -0.2
+            else:
+                vx = 0.0
+            if vy >= 0.001:
+                if vy >= 0.2:
+                    if vy <= 0.5:
+                        vy = 0.5
+                else:
+                    vy = 0.2
+            elif vy <= -0.001:
+                if vy <= -0.2:
+                    if vy >= -0.5:
+                        vy = -0.5
+                else:
+                    vy = -0.2
+            else:
+                vx = 0.0
             if wz >= 0.001:
                 if wz >= 0.2:
                     if wz <= 0.5:
@@ -47,8 +63,11 @@ def select_vel(controller_state, cmd_vel_state):
                         wz = -0.5 
                 else:
                     wz = -0.2
+            else:
+                wz = 0.0
                     
             vel = [vx, vy, wz]
+            print(vel)
         return vel
             
 
@@ -205,7 +224,7 @@ Utility functions for processing LiDAR data and creating height maps.
 # np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
 
 
-LIDAR_PITCH_DEG = -15.1
+LIDAR_PITCH_DEG = 0.0
 LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH = np.cos(LIDAR_PITCH_RAD)
 SIN_PITCH = np.sin(LIDAR_PITCH_RAD)

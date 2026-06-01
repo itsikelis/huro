@@ -18,17 +18,31 @@ import rclpy
 from rclpy.node import Node
 from ament_index_python.packages import get_package_share_directory
 import torch
+import json
 import os
 import time
 
 from unitree_api.msg import Request
+
 from unitree_go.msg import LowCmd, LowState
 from geometry_msgs.msg import Twist
 
 from huro_py.crc_go import Crc
-from huro_py.get_obs import get_obs_lidar, get_obs_lidar_cnn, get_obs
-from huro_py.utils import Mapper, MockCmdVel,process_height_map_rotated, process_height_map_raw, select_vel
+from huro_py.get_obs import get_obs_lidar_cnn, get_obs, get_obs_lidar
+from huro_py.utils import Mapper, MockCmdVel,process_height_map, process_height_map_raw, select_vel
 from sensor_msgs.msg import Joy, PointCloud2
+import sys
+"""
+cd /tmp
+git clone https://github.com/unitreerobotics/unitree_sdk2_python.git
+cd unitree_sdk2_python
+pip3 install -e .
+"""
+sys.path.insert(0, '/tmp/unitree_sdk2_python')
+from unitree_sdk2py.core.channel import ChannelFactory, ChannelFactoryInitialize
+from unitree_sdk2py.go2.sport.sport_client import SportClient
+from unitree_sdk2py.go2.robot_state.robot_state_client import RobotStateClient
+
 
 
 
@@ -72,6 +86,7 @@ class Go2PolicyController(Node):
         self.emergency_mode = False
         self.emergency_mode_start_time = None
         self.last_commanded_positions = None
+        self.stand_start_pos = None
         self.standing_down = False
         self.standing_up = False
 
@@ -79,8 +94,8 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_lidar_13.pt"
-        policy_name = "policy_asymmetric_best.pt"
+        policy_lidar_name = "policy_rnn1.pt"
+        policy_name = "policy_rnn1.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         if not os.path.exists(policy_path):
@@ -179,9 +194,7 @@ class Go2PolicyController(Node):
         )
         
 
-        self.motion_pub = self.create_publisher(
-            Request, "/api/motion_switcher/request", 10
-        )
+        
         
         self.lidar_sub = self.create_subscription(
             PointCloud2, "/utlidar/cloud", self.lidar_callback, 10
@@ -189,20 +202,43 @@ class Go2PolicyController(Node):
         
         self.cmd_vel_state = MockCmdVel(vx, vy, wz)
         self.cmd_vel_sub = self.create_subscription(
-            Twist, "/cmd_vel", self.cmd_vel_callback, 10
+            Twist, "/cmd_vel_nav", self.cmd_vel_callback, 10
         )
     
         self.x_range = [1.0, -0.5] # height_map x range
         self.y_range = [-0.5, 0.5] # height_map y range
         self.res = 0.1 # height map resolution
         self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32) # height_map init
-            
-        # ROBOT_MOTION_SWITCHER_API_RELEASEMODE = 1003
-        # req = Request()
-        # req.header.identity.api_id = ROBOT_MOTION_SWITCHER_API_RELEASEMODE
-        # self.motion_pub.publish(req)
+        if not sim:
+            # if len(sys.argv)>1:
+            #     ChannelFactoryInitialize(0, sys.argv[1])
+            # else:
+            ChannelFactoryInitialize(0, "enp0s31f6")
+            sport = SportClient()
+            sport.SetTimeout(10.0)
+            sport.Init()
 
-        # time.sleep(1)
+            self.get_logger().info("Sitting down...")
+            code = sport.StandDown()  # goes from standing to crouched
+            time.sleep(2)
+            # code = sport.Sit()        # full sit
+            # time.sleep(2)
+            self.get_logger().info("Robot seated.")
+            robot_state = RobotStateClient()
+            robot_state.Init()
+
+            # Get list of running services
+            code, services = robot_state.ServiceList()
+
+            # Stop the sport mode service (default policy)
+            code = robot_state.ServiceSwitch("sport_mode", False)
+            while code != 0:
+                print(f"Error switching service: {code}")
+                code = robot_state.ServiceSwitch("sport_mode", False)
+                time.sleep(1)
+            if code == 0:
+                print("Sport mode disabled - low-level control available")
+            time.sleep(1)
 
         self.timer = self.create_timer(self.step_dt, self.run)
 
@@ -210,7 +246,7 @@ class Go2PolicyController(Node):
         print(f"  Policy runs at: {1 / self.step_dt}Hz")
 
     def low_state_callback(self, msg: LowState):
-        """Log low state message."""
+        """Log low state message."""            
         self.low_state = msg
 
         
@@ -218,7 +254,7 @@ class Go2PolicyController(Node):
         """Log spacemouse state"""
         self.lidar_state = msg
         # process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
-        process_height_map_rotated(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
+        process_height_map(self.height_map, self.lidar_state, self.low_state, self.x_range, self.y_range, self.res, delete_count=5)
         
         
     def joy_callback(self, msg: Joy):
@@ -233,6 +269,9 @@ class Go2PolicyController(Node):
         """Smoothly reduce gains and torque to zero over release_duration."""
         if self.low_state is None:
             return
+        if self.last_commanded_positions is None:
+            # Latch posture once; avoid recomputing from live state while robot is falling.
+            self.last_commanded_positions = [self.low_state.motor_state[i].q for i in range(12)]
 
         # Calculate progress (0 to 1)
         release_duration = 5
@@ -279,7 +318,7 @@ class Go2PolicyController(Node):
         cmd.gpio = 0
         ratio = min((self.curr_time - self.start_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
         self.last_commanded_positions = [
-            (1.0 - ratio) * self.stand_start_pos[i] + ratio * self.stand_pos[i].item()
+            (1.0 - ratio) * self.stand_start_pos[i] + ratio * self.stand_up_pos[i].item()
             for i in range(12)
         ]
         for i in range(12):
@@ -299,12 +338,28 @@ class Go2PolicyController(Node):
         """PD control to standing position."""        
         if self.low_state is None:
             return
+        if self.stand_start_pos is None:
+            if self.last_commanded_positions is not None:
+                self.stand_start_pos = list(self.last_commanded_positions)
+            else:
+                self.stand_start_pos = [self.low_state.motor_state[i].q for i in range(12)]
+
+        if dir_ not in {"up", "down"}:
+            return
+
         if dir_ == "up":
             ratio = min((self.curr_time - self.start_stand_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
-            self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_up_pos[i].item() for i in range(12)]
+            commanded_positions = [
+                (1.0 - ratio) * self.stand_start_pos[i] + ratio * self.stand_up_pos[i].item()
+                for i in range(12)
+            ]
         elif dir_ == "down":
             ratio = min((self.curr_time - self.start_stand_time).nanoseconds * 1e-9 / self.time_to_stand, 1.0)
-            self.last_commanded_positions = [(1.0 - ratio) * self.low_state.motor_state[i].q + ratio * self.stand_down_pos[i].item() for i in range(12)]
+            commanded_positions = [
+                (1.0 - ratio) * self.stand_start_pos[i] + ratio * self.stand_down_pos[i].item()
+                for i in range(12)
+            ]
+        self.last_commanded_positions = commanded_positions
         cmd = LowCmd()
         cmd.head[0] = 0xFE
         cmd.head[1] = 0xEF
@@ -322,9 +377,10 @@ class Go2PolicyController(Node):
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
         if ratio >= 1.0:
+            self.last_commanded_positions = [self.low_state.motor_state[i].q for i in range(12)]
+            self.stand_start_pos = None
             print("Stand complete!")
-            self.standing_down = False
-            self.standing_up = False
+        
 
     def send_motor_commands(self):
         """Send motor commands to the robot based on current action."""
@@ -390,35 +446,48 @@ class Go2PolicyController(Node):
         if self.controller_state is not None:
             emergency_cond = (
                 self.controller_state.buttons[8]
-                and self.run_policy
                 or self.emergency_mode
             )
             policy_run_cond = (
                 self.controller_state.buttons[9]
+                and not self.emergency_mode
+                and not self.standing_down
             )
             stand_down_cond = (
                 self.controller_state.buttons[0]
+                and not self.emergency_mode
             )
             stand_up_cond = (
                 self.controller_state.buttons[4]
+                and not self.emergency_mode
             )
+            special_mode_runing = self.emergency_mode
         self.tick_count += 1
         self.curr_time = self.get_clock().now()
 
-        if emergency_cond :
-            print("Emergency mode activated. Kill the process to restart.")
-            self.emergency_mode = True            
-            self.emergency_mode_start_time = self.get_clock().now()
-        elif stand_down_cond:
+        if emergency_cond:
+            if not self.emergency_mode:
+                print("Emergency mode activated. Kill the process to restart.")
+                self.emergency_mode = True
+                self.standing_down = False
+                self.standing_up = False
+                self.emergency_mode_start_time = self.get_clock().now()
+        elif stand_down_cond and not special_mode_runing:
             print("Standing down...")
             self.standing_down = True
+            self.standing_up = False
+            self.stand_start_pos = list(self.last_commanded_positions) if self.last_commanded_positions is not None else None
             self.start_stand_time = self.get_clock().now()
-        elif stand_up_cond:
+        elif stand_up_cond and not special_mode_runing:
             print("Standing up...")            
             self.standing_up = True
+            self.standing_down = False
+            self.stand_start_pos = list(self.last_commanded_positions) if self.last_commanded_positions is not None else None
             self.start_stand_time = self.get_clock().now()
         elif policy_run_cond:
             print("Policy runing...")
+            self.standing_down = False
+            self.standing_up = False
             self.run_policy = True
         
         if self.emergency_mode:
@@ -436,41 +505,17 @@ class Go2PolicyController(Node):
     
     def policy_control(self):
         self.vel = select_vel(self.controller_state, self.cmd_vel_state)
-        if self.vel[0]>=0.0: # uses the lidar policy for positive velocities
-            obs = get_obs_lidar(
-                self.low_state,
-                self.height_map,
-                self.vel,
-                height=0.30,
-                prev_actions=self.current_action,
-                mapper=self.mapper,
-            )
-            obs = get_obs_lidar(
-                self.low_state,
-                self.height_map,
-                self.vel,
-                height=0.30,
-                prev_actions=self.current_action,
-                mapper=self.mapper,
-            )
-            with torch.no_grad():
-                obs_tensor = torch.tensor(
-                    obs, dtype=torch.float32, device=self.device
-                ).unsqueeze(0)
-                actions_tensor = self.policy_lidar(obs_tensor)
-        else:
-            obs = get_obs(
-                self.low_state,
-                self.vel,
-                height=0.30,
-                prev_actions=self.current_action,
-                mapper=self.mapper,
-            )
-            with torch.no_grad():
-                obs_tensor = torch.tensor(
-                    obs, dtype=torch.float32, device=self.device
-                ).unsqueeze(0)
-                actions_tensor = self.policy(obs_tensor)
+        obs = get_obs_lidar(
+            self.low_state,
+            self.height_map,
+            self.vel,
+            height=0.30,
+            prev_actions=self.current_action,
+            mapper=self.mapper,
+        )
+        
+        with torch.no_grad():
+            actions_tensor = self.policy(obs.unsqueeze(0))
         actions_policy_order = actions_tensor.squeeze(0).cpu()
         self.current_action = actions_policy_order.clone()
         self.send_motor_commands()
@@ -493,7 +538,7 @@ def main():
 
 
     parser.add_argument(
-        "--sim", type=str2bool, default=True, help="Whether to use simulation or real robot"
+        "--sim", type=str2bool, default=False, help="Whether to use simulation or real robot"
     )
     
     parser.add_argument(

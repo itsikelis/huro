@@ -206,14 +206,13 @@ def get_obs_lidar(
     obs[21:33] = torch.tensor(current_joint_vel_policy)
     # height_data
     idx = 33+150
-    height_map_copy = height_map[0, :, :].clone().flip(0, 1).reshape(150)
-    obs[33:idx] = height_map_copy
+    height_map_copy = height_map[0, :, :].clone().reshape(150) - 0.28
+    obs[33:33+12] = prev_actions
 
-    obs[idx:idx + 12] = prev_actions
+    obs[33+12:idx + 12] = height_map_copy
     # Previous actions (obs[37:49]) - default to zero
     
     # CHANGE FOR DEBUG !! 
-
     return obs
 
 def get_obs_lidar_cnn(
