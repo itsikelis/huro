@@ -19,6 +19,7 @@ def quat_rotate_inverse(q, v):
     return rotated
 
 
+
 def select_vel(controller_state, cmd_vel_state):
         vel = [controller_state.axes[1], controller_state.axes[0], controller_state.axes[2]]
         if sum(vel) == 0.0:
@@ -27,12 +28,16 @@ def select_vel(controller_state, cmd_vel_state):
                 if vx >= 0.2:
                     if vx <= 0.5:
                         vx = 0.5
+                    if vx >= 0.5:
+                        vx = 0.7
                 else:
                     vx = 0.2
             elif vx <= -0.001:
                 if vx <= -0.2:
                     if vx >= -0.5:
                         vx = -0.5
+                    if vx <= -0.5:
+                        vx = -0.7
                 else:
                     vx = -0.2
             else:
@@ -41,12 +46,16 @@ def select_vel(controller_state, cmd_vel_state):
                 if vy >= 0.2:
                     if vy <= 0.5:
                         vy = 0.5
+                    if vy >= 0.5:
+                        vy = 0.7
                 else:
                     vy = 0.2
             elif vy <= -0.001:
                 if vy <= -0.2:
                     if vy >= -0.5:
                         vy = -0.5
+                    if vy <= -0.5:
+                        vy = -0.7
                 else:
                     vy = -0.2
             else:
@@ -67,7 +76,7 @@ def select_vel(controller_state, cmd_vel_state):
                 wz = 0.0
                     
             vel = [vx, vy, wz]
-            print(vel)
+            # print(vel)
         return vel
             
 
