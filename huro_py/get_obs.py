@@ -164,7 +164,8 @@ def get_obs_lidar(
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    obs = torch.zeros(195)
+    heightmap_size = height_map.shape[1] * height_map.shape[2]
+    obs = torch.zeros(45 + heightmap_size)
     
     # Base linear velocity (obs[0:3])
 
@@ -205,8 +206,10 @@ def get_obs_lidar(
     # Fill joint velocities (obs[25:37]) in policy order
     obs[21:33] = torch.tensor(current_joint_vel_policy)
     # height_data
-    idx = 33+150
-    height_map_copy = height_map[0, :, :].clone().reshape(150) - 0.28
+    idx = 33+heightmap_size
+    height_map_copy = height_map[0, :, :].clone().reshape(heightmap_size) - 0.28
+    torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+    print(height_map_copy.view(13, 10))
     obs[33:33+12] = prev_actions
 
     obs[33+12:idx + 12] = height_map_copy
@@ -308,8 +311,8 @@ def get_obs_lidar_cnn(
     obs[21:33] = torch.tensor(current_joint_vel_policy)
     obs[33:45] = prev_actions
     # height_data
-    height_map_copy = [height_map[0, :, :].clone().reshape(1,1,15,10) - 0.28]
-    
+    height_map_copy = [height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2])  - 0.28] 
+    # print(height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2]))
     # print(height_map[0, :, :].clone().flip(0, 1).reshape(1,1,15,10))
 
     return obs, height_map_copy

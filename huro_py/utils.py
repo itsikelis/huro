@@ -233,10 +233,7 @@ Utility functions for processing LiDAR data and creating height maps.
 # np.set_printoptions(precision=2, threshold=sys.maxsize, linewidth=np.inf, edgeitems=100, suppress=True)
 
 
-LIDAR_PITCH_DEG = 0.0
-LIDAR_PITCH_RAD = np.deg2rad(LIDAR_PITCH_DEG)
-COS_PITCH = np.cos(LIDAR_PITCH_RAD)
-SIN_PITCH = np.sin(LIDAR_PITCH_RAD)
+
 LIDAR_PITCH_DEG = torch.tensor(-15.09)
 LIDAR_PITCH_RAD = torch.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH_LIDAR = torch.cos(LIDAR_PITCH_RAD).item()

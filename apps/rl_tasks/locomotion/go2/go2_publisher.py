@@ -94,8 +94,8 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_rnn1.pt"
-        policy_name = "policy_rnn1.pt"
+        policy_lidar_name = "policy_rnn_new1.pt"
+        policy_name = "policy_rnn_new1.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         if not os.path.exists(policy_path):
@@ -205,10 +205,10 @@ class Go2PolicyController(Node):
             Twist, "/cmd_vel_nav", self.cmd_vel_callback, 10
         )
     
-        self.x_range = [1.0, -0.5] # height_map x range
+        self.x_range = [0.8, -0.5] # height_map x range
         self.y_range = [-0.5, 0.5] # height_map y range
         self.res = 0.1 # height map resolution
-        self.height_map = torch.zeros((3, 15, 10), dtype = torch.float32) # height_map init
+        self.height_map = torch.zeros((3, 13, 10), dtype = torch.float32) # height_map init
         if not sim:
             # if len(sys.argv)>1:
             #     ChannelFactoryInitialize(0, sys.argv[1])
@@ -422,8 +422,8 @@ class Go2PolicyController(Node):
                 self.start_time = self.get_clock().now()
 
             self.process_control_step()
-            torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            print(self.height_map[0])
+            # torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
+            # print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)
@@ -538,7 +538,7 @@ def main():
 
 
     parser.add_argument(
-        "--sim", type=str2bool, default=False, help="Whether to use simulation or real robot"
+        "--sim", type=str2bool, default=True, help="Whether to use simulation or real robot"
     )
     
     parser.add_argument(
