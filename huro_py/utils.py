@@ -234,7 +234,8 @@ Utility functions for processing LiDAR data and creating height maps.
 
 
 
-LIDAR_PITCH_DEG = torch.tensor(-15.09)
+LIDAR_PITCH_DEG = torch.tensor(-0.00)
+# LIDAR_PITCH_DEG = torch.tensor(-15.09)
 LIDAR_PITCH_RAD = torch.deg2rad(LIDAR_PITCH_DEG)
 COS_PITCH_LIDAR = torch.cos(LIDAR_PITCH_RAD).item()
 SIN_PITCH_LIDAR = torch.sin(LIDAR_PITCH_RAD).item()
@@ -286,9 +287,10 @@ def process_height_map(height_map: torch.tensor, lidar_msg: PointCloud2, lowstat
     y1 = y
     z1 = x * SIN_PITCH_LIDAR + z * COS_PITCH_LIDAR
 
-    lidar_offset_x = 0.29
+    # lidar_offset_x = 0.29
     # lidar_offset_z = 0.046
     lidar_offset_z = 0.0
+    lidar_offset_x = 0.0
 
     x_body = x1
     y_body = y1
