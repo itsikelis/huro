@@ -23,12 +23,27 @@ class LocalCostmapTorchPrinter(Node):
         height = int(msg.info.height)
         width = int(msg.info.width)
 
-        tensor = torch.tensor(msg.data, dtype=torch.int16).reshape(height, width)
+        tensor = torch.tensor(msg.data, dtype=torch.float32).reshape(height, width)
+
+        # Normalize to [0, 1] range, mapping -1 to a neutral value (e.g., 0.5)
+        tensor[tensor == -1] = 50
+        tensor /= 100.0
 
         self.get_logger().info(
             f"Received OccupancyGrid: {height}x{width}, resolution={msg.info.resolution:.3f}"
         )
+        self.get_logger().info(f"Sum of probabilities: {torch.sum(tensor)}")
+
+        # Apply softmax to show a distribution that sums to 1
+        softmax_tensor = torch.nn.functional.softmax(tensor.flatten(), dim=0).reshape(
+            height, width
+        )
+        self.get_logger().info(f"Sum after softmax: {torch.sum(softmax_tensor)}")
+
+        print("Original (normalized):")
         print(tensor)
+        print("Softmax:")
+        print(softmax_tensor)
 
 
 def main(args=None) -> None:
