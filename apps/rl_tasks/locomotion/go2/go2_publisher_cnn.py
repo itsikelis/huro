@@ -94,7 +94,7 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_cnn_lidar_frame3.pt"
+        policy_lidar_name = "policy_cnn_lidar_frame4.pt"
         policy_name = "policy_asymmetric_best.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
@@ -539,7 +539,7 @@ def main():
 
 
     parser.add_argument(
-        "--sim", type=str2bool, default=True, help="Whether to use simulation or real robot"
+        "--sim", type=str2bool, default=False, help="Whether to use simulation or real robot"
     )
     
     parser.add_argument(
