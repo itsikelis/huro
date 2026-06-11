@@ -176,8 +176,15 @@ class Go2PolicyController(Node):
         self.kp_p = 25.0  # Position gain
         self.kd_p = 0.5  # Velocity gain
         self.action_scale = 0.25  # Scale policy output
+        self.action_smoothing = 1.0
 
         self.time_to_stand = 5.0  # Time to reach the standing position
+
+        self.publish_count = 0
+        self.publish_start_wall = time.perf_counter()
+        self.last_publish_log_wall = self.publish_start_wall
+        self.last_publish_log_count = 0
+        self.publish_log_period = 5.0
 
         # Statistics - initialize BEFORE callbacks
         self.tick_count = 0
@@ -306,6 +313,8 @@ class Go2PolicyController(Node):
 
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
+        self._log_publish_rate()
+
     def stand_control2(self):
         """PD control to standing position."""
         if self.low_state is None:
@@ -335,6 +344,7 @@ class Go2PolicyController(Node):
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
+        self._log_publish_rate()
         
     def stand_control(self, dir_):
         """PD control to standing position."""        
@@ -378,10 +388,11 @@ class Go2PolicyController(Node):
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
+        self._log_publish_rate()
         if ratio >= 1.0:
             self.last_commanded_positions = [self.low_state.motor_state[i].q for i in range(12)]
             self.stand_start_pos = None
-            print("Stand complete!")
+            # print("Stand complete!")print("Stand com
         
 
     def send_motor_commands(self):
@@ -408,6 +419,24 @@ class Go2PolicyController(Node):
         # Calculate CRC and publish
         cmd.crc = Crc(cmd)
         self.low_cmd_pub.publish(cmd)
+        self._log_publish_rate()
+
+    def _log_publish_rate(self):
+        self.publish_count += 1
+        now = time.perf_counter()
+        interval = now - self.last_publish_log_wall
+        if interval < self.publish_log_period:
+            return
+
+        elapsed = now - self.publish_start_wall
+        interval_count = self.publish_count - self.last_publish_log_count
+        avg_rate = self.publish_count / elapsed if elapsed > 0.0 else 0.0
+        interval_rate = interval_count / interval if interval > 0.0 else 0.0
+        self.get_logger().info(
+            f"lowcmd publish rate: avg={avg_rate:.1f} Hz, interval={interval_rate:.1f} Hz, count={self.publish_count}"
+        )
+        self.last_publish_log_wall = now
+        self.last_publish_log_count = self.publish_count
 
     def run(self):
         """Main control loop running at control_freq Hz."""
@@ -519,6 +548,10 @@ class Go2PolicyController(Node):
             actions_tensor = self.policy_lidar(proprio, lidar)
         actions_policy_order = actions_tensor.squeeze(0).cpu()
         self.current_action = actions_policy_order.clone()
+        self.current_action = (
+            (1.0 - self.action_smoothing) * self.current_action
+            + self.action_smoothing * actions_policy_order
+        )
         self.send_motor_commands()
 
 
