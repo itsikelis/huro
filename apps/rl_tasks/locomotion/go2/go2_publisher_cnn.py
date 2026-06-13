@@ -157,6 +157,9 @@ class Go2PolicyController(Node):
             [-0.35, 1.36, -2.65, 0.35, 1.36, -2.65,
             -0.5, 1.36, -2.65, 0.5, 1.36, -2.65]
         )
+
+        self._phase_signal = torch.tensor([0.0, 0.5, 0.5, 0.0])
+        self._step_freq  = 1.4
             
         self.mapper = Mapper(
             mapping_yaml_path=mapping_path, default_pos_sdk=self.default_pos_sdk
@@ -542,6 +545,7 @@ class Go2PolicyController(Node):
             self.vel,
             height=0.30,
             prev_actions=self.current_action,
+            self._phase_signal,
             mapper=self.mapper,
         )
         with torch.no_grad():
@@ -553,6 +557,8 @@ class Go2PolicyController(Node):
             + self.action_smoothing * actions_policy_order
         )
         self.send_motor_commands()
+        self._phase_signal += self.step_dt * self._step_freq
+        self._phase_signal = self._phase_signal % 1.0
 
 
 def main():

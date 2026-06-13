@@ -224,6 +224,7 @@ def get_obs_lidar_cnn(
     vel,
     height: float,
     prev_actions: torch.tensor,
+    phase_signal: torch.tensor,
     mapper: Mapper,
 ):
     """
@@ -269,7 +270,7 @@ def get_obs_lidar_cnn(
     default_pos_policy = mapper.default_pos_policy
 
     # FILLING OBS VECTOR
-    obs = torch.zeros(45)
+    obs = torch.zeros(49)
     
     # Base linear velocity (obs[0:3])
 
@@ -310,6 +311,11 @@ def get_obs_lidar_cnn(
     # Fill joint velocities (obs[25:37]) in policy order
     obs[21:33] = torch.tensor(current_joint_vel_policy)
     obs[33:45] = prev_actions
+
+    # clock data
+    obs[45:49] = phase_signal
+    should_move = (torch.linalg.norm(obs[6:9]) > 0.01).float()
+    obs[45:49] = should_move * obs[45:49] - 1.0 * should_move.expand(-1, 4)
     # height_data
     height_map_copy = [height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2])  - 0.28] 
     # print(height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2]))
