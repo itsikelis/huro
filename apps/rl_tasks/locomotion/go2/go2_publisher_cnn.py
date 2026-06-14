@@ -457,7 +457,7 @@ class Go2PolicyController(Node):
 
             self.process_control_step()
             torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-            print(self.height_map[0])
+            # print(self.height_map[0])
 
         except KeyboardInterrupt:
             print("\n\n" + "=" * 60)
@@ -545,7 +545,7 @@ class Go2PolicyController(Node):
             self.vel,
             height=0.30,
             prev_actions=self.current_action,
-            self._phase_signal,
+            phase_signal=self._phase_signal,
             mapper=self.mapper,
         )
         with torch.no_grad():
@@ -557,7 +557,7 @@ class Go2PolicyController(Node):
             + self.action_smoothing * actions_policy_order
         )
         self.send_motor_commands()
-        self._phase_signal += self.step_dt * self._step_freq
+        self._phase_signal += 0.0 * self._step_freq
         self._phase_signal = self._phase_signal % 1.0
 
 
@@ -578,7 +578,7 @@ def main():
 
 
     parser.add_argument(
-        "--sim", type=str2bool, default=False, help="Whether to use simulation or real robot"
+        "--sim", type=str2bool, default=True, help="Whether to use simulation or real robot"
     )
     
     parser.add_argument(
