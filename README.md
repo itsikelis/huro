@@ -112,3 +112,13 @@ ros2 run huro g1_motion_imitation.py \
 ```
 
 The runner starts from the same fixed default reference, prints the available motion list, and waits. Type a motion number then `Enter` to transition into that clip. When the clip ends, it transitions back to the default reference and waits for another selection. Press `Space` or empty `Enter` to replay the selected clip, `l` to reprint the list, `r` to rescan the motions folder, and `x` to disable the motors.
+
+For hardcoded stationary stance references, use:
+
+```bash
+ros2 run huro g1_predefined_stance.py \
+  --onnx-path src/huro/resources/policies/g1/g1_clamp2.onnx \
+  --pose bent_forearms
+```
+
+Available poses are `bent_forearms` and `arms_forward`. The runner transitions from the ONNX default stance into the selected pose at startup. Press `1` or `2` to switch pose, `Space` or `Enter` to toggle default/selected stance, and `x` to disable the motors.

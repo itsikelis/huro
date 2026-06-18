@@ -501,13 +501,11 @@ class G1Clamp2Runner(Node):
         self._validate_policy_against_hardware()
 
         self.control_dt = self.spec.control_dt
-        self.motion_clip = MotionClip(args.motion_npz, spec=self.spec)
-        self.play_motion = False
-        self.transition: ReferenceTransition | None = None
         self.idle_reference_frame = MotionFrame.stationary(
             self.spec.default_joint_pos,
             height_m=IDLE_REFERENCE_HEIGHT_M,
         )
+        self._init_reference(args)
 
         self._policy_joint_hw_indices = self._hardware_indices(self.spec.joint_names)
         self._target_hw_indices = self._hardware_indices(self.spec.action_target_names)
@@ -540,18 +538,29 @@ class G1Clamp2Runner(Node):
 
         self.get_logger().info(
             "Loaded G1 CLAMP2 policy: "
-            f"{args.onnx_path} | motion: {args.motion_npz} | "
+            f"{args.onnx_path} | {self._reference_description(args)} | "
             f"command={self.spec.motion_command_class} | "
             f"control_dt={self.control_dt:.4f}s | obs_dim={self.spec.observation_dim} | "
             f"action_dim={self.spec.action_dim}"
         )
         if self._keyboard_enabled:
-            self.get_logger().info(
-                "Starting from the fixed default reference. Press SPACE or ENTER "
-                "to toggle motion playback, and `x` to disable the motors."
-            )
+            self.get_logger().info(self._keyboard_help())
         else:
             self.get_logger().warn("Keyboard control is disabled because stdin is not a TTY.")
+
+    def _init_reference(self, args: argparse.Namespace) -> None:
+        self.motion_clip = MotionClip(args.motion_npz, spec=self.spec)
+        self.play_motion = False
+        self.transition: ReferenceTransition | None = None
+
+    def _reference_description(self, args: argparse.Namespace) -> str:
+        return f"motion: {args.motion_npz}"
+
+    def _keyboard_help(self) -> str:
+        return (
+            "Starting from the fixed default reference. Press SPACE or ENTER "
+            "to toggle motion playback, and `x` to disable the motors."
+        )
 
     def _validate_policy_against_hardware(self) -> None:
         if len(self.spec.joint_names) != G1_NUM_MOTOR:

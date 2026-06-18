@@ -143,6 +143,10 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
+  PROGRAMS apps/deploy_rl/g1_predefined_stance.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
   PROGRAMS apps/deploy_rl/go2.py
   DESTINATION lib/${PROJECT_NAME}
 )
