@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -11,6 +12,31 @@ from ament_index_python.packages import PackageNotFoundError, get_package_share_
 from rclpy.utilities import remove_ros_args
 
 from g1_clamp2 import G1Clamp2Runner, MotionClip
+
+ANSI_STYLES = {
+    "reset": "\033[0m",
+    "bold": "\033[1m",
+    "dim": "\033[2m",
+    "cyan": "\033[36m",
+    "green": "\033[32m",
+    "yellow": "\033[33m",
+    "magenta": "\033[35m",
+}
+
+
+def _colors_enabled(mode: str) -> bool:
+    if mode == "always":
+        return True
+    if mode == "never":
+        return False
+    return sys.stdout.isatty() and "NO_COLOR" not in os.environ
+
+
+def _style(text: str, *styles: str, enabled: bool) -> str:
+    if not enabled:
+        return text
+    prefix = "".join(ANSI_STYLES[name] for name in styles)
+    return f"{prefix}{text}{ANSI_STYLES['reset']}"
 
 
 def _package_resource_path(*parts: str) -> Path | None:
@@ -88,26 +114,48 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         self.selected_motion_path = args.motion_npz
         self.selected_motion_index = self.motion_paths.index(args.motion_npz)
         self._command_buffer = ""
+        self._colors_enabled = _colors_enabled(args.color)
         args.node_name = "g1_motion_imitation_runner"
 
         super().__init__(args)
 
         self.get_logger().info(
-            f"Loaded {len(self.motion_paths)} motions from {self.motions_dir}."
+            self._paint(
+                f"Loaded {len(self.motion_paths)} motions from {self.motions_dir}.",
+                "cyan",
+            )
         )
         self._print_motion_menu()
         self.get_logger().info(
-            "Type a motion number then ENTER to transition into it. "
-            "SPACE or empty ENTER repeats the selected motion; `l` lists motions; "
-            "`r` reloads the motion folder; `x` disables the motors."
+            self._paint("Controls: ", "bold")
+            + "type "
+            + self._paint("motion number + ENTER", "yellow", "bold")
+            + " to play, "
+            + self._paint("SPACE", "yellow")
+            + " or empty "
+            + self._paint("ENTER", "yellow")
+            + " to replay, "
+            + self._paint("l", "yellow")
+            + " to list, "
+            + self._paint("r", "yellow")
+            + " to rescan, "
+            + self._paint("x", "yellow")
+            + " to disable motors."
         )
 
+    def _paint(self, text: str, *styles: str) -> str:
+        return _style(text, *styles, enabled=self._colors_enabled)
+
     def _print_motion_menu(self) -> None:
-        lines = ["Available motions:"]
+        lines = [self._paint("Available motions:", "cyan", "bold")]
         for idx, path in enumerate(self.motion_paths, start=1):
-            marker = "*" if path == self.selected_motion_path else " "
+            selected = path == self.selected_motion_path
+            marker = self._paint("*", "green", "bold") if selected else " "
+            number = self._paint(f"{idx:2d}", "yellow", "bold" if selected else "dim")
             rel_path = path.relative_to(self.motions_dir).as_posix()
-            lines.append(f"  {marker} {idx:2d}. {rel_path}")
+            if selected:
+                rel_path = self._paint(rel_path, "green", "bold")
+            lines.append(f"  {marker} {number}. {rel_path}")
         self.get_logger().info("\n".join(lines))
 
     def _reload_motion_library(self) -> None:
@@ -130,8 +178,17 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         self.motion_time_s = 0.0
         rel_path = motion_path.relative_to(self.motions_dir).as_posix()
         self.get_logger().info(
-            f"Selected motion {self.selected_motion_index + 1}: {rel_path} "
-            f"({self.motion_clip.length_s:.2f}s, {self.motion_clip.num_frames} frames)."
+            self._paint(
+                f"Selected motion {self.selected_motion_index + 1}:",
+                "green",
+                "bold",
+            )
+            + f" {self._paint(rel_path, 'green')} "
+            + self._paint(
+                f"({self.motion_clip.length_s:.2f}s, "
+                f"{self.motion_clip.num_frames} frames).",
+                "dim",
+            )
         )
 
     def _select_motion_number(self, text: str) -> None:
@@ -154,7 +211,9 @@ class G1MotionImitationRunner(G1Clamp2Runner):
                 current_frame,
                 self.idle_reference_frame,
                 target_mode="idle",
-                message="Stopping current motion before switching selection.",
+                message=self._paint(
+                    "Stopping current motion before switching selection.", "magenta"
+                ),
             )
             self._load_selected_motion(motion_path)
             return
@@ -164,7 +223,7 @@ class G1MotionImitationRunner(G1Clamp2Runner):
             current_frame,
             self.motion_clip.sample(0.0),
             target_mode="motion",
-            message="Transitioning into selected motion playback.",
+            message=self._paint("Transitioning into selected motion playback.", "magenta"),
         )
 
     def _poll_keyboard(self) -> None:
@@ -236,6 +295,12 @@ def _build_argparser() -> argparse.ArgumentParser:
             "Optional initial motion file, filename, stem, or path relative to "
             "--motions-dir. The robot still starts from the default stance."
         ),
+    )
+    parser.add_argument(
+        "--color",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Colorize terminal log output.",
     )
     return parser
 
