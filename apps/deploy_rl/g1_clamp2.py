@@ -475,7 +475,7 @@ class G1Clamp2Runner(Node):
     """Run a G1 CLAMP/CLAMP2 ONNX policy through HURo."""
 
     def __init__(self, args: argparse.Namespace):
-        super().__init__("g1_clamp2_runner")
+        super().__init__(getattr(args, "node_name", "g1_clamp2_runner"))
 
         self.mode_machine = 0
         self.motors_on = 1

@@ -103,3 +103,12 @@ ros2 run huro g1_clamp2.py \
 
 The app supports `JointRefAnchorRpMotionCommand` policies, using a command payload of joint position, joint velocity, root linear velocity in base x/y, root yaw rate, root height, root roll, and root pitch.
 The app starts from a fixed default reference: ONNX `default_joint_pos`, zero joint/base velocity, zero roll/pitch, and height `0.78 m`. Press `Space` or `Enter` to transition into the motion reference. When the clip ends, the app transitions back to the fixed default reference and waits for another `Space` or `Enter` press. Press `Space` or `Enter` during playback to transition back early. Press `x` in the terminal to disable the motors.
+
+To choose from every `.npz` clip under `resources/motions`, use the motion imitation runner:
+
+```bash
+ros2 run huro g1_motion_imitation.py \
+  --onnx-path src/huro/resources/policies/g1/g1_clamp2.onnx
+```
+
+The runner starts from the same fixed default reference, prints the available motion list, and waits. Type a motion number then `Enter` to transition into that clip. When the clip ends, it transitions back to the default reference and waits for another selection. Press `Space` or empty `Enter` to replay the selected clip, `l` to reprint the list, `r` to rescan the motions folder, and `x` to disable the motors.
