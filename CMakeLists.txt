@@ -135,6 +135,10 @@ install(
   DESTINATION lib/${PROJECT_NAME}
 )
 install(
+  PROGRAMS apps/deploy_rl/g1_multi_task.py
+  DESTINATION lib/${PROJECT_NAME}
+)
+install(
   PROGRAMS apps/deploy_rl/g1_clamp2.py
   DESTINATION lib/${PROJECT_NAME}
 )
