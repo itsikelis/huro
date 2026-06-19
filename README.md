@@ -91,19 +91,20 @@ If you are connected to a robot, this will open up an RViz window that updates j
 
 ### G1 Multi-Task Locomotion Deployment
 
-For G1 multi-task locomotion policies exported to ONNX, use `g1_multi_task.py`. By default, it loads `resources/policies/g1/multi_task/upper_posture=0_2.onnx` and runs the low-level PD reference loop at the policy inference rate.
+For G1 multi-task locomotion policies exported to ONNX, use `g1_multi_task.py` and pass the policy path with `--onnx-path`. By default, the low-level PD reference loop runs at the policy inference rate.
 
 Example:
 
 ```bash
-ros2 run huro g1_multi_task.py
+ros2 run huro g1_multi_task.py \
+  --onnx-path src/huro/resources/policies/g1/multi_task/upper_posture=0_2.onnx
 ```
 
 To select the other bundled posture policy or run the PD reference loop 4x faster with linear interpolation between policy references:
 
 ```bash
 ros2 run huro g1_multi_task.py \
-  --policy-name upper_posture=0_4.onnx \
+  --onnx-path src/huro/resources/policies/g1/multi_task/upper_posture=0_4.onnx \
   --ratio 4
 ```
 

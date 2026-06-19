@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import onnxruntime as ort
 import rclpy
-from ament_index_python.packages import get_package_share_directory
 from rclpy.node import Node
 from rclpy.utilities import remove_ros_args
 from sensor_msgs.msg import Joy
@@ -20,7 +19,6 @@ from unitree_hg.msg import IMUState, LowCmd, LowState
 from huro_py.crc_hg import Crc
 
 G1_NUM_MOTOR = 29
-DEFAULT_POLICY_NAME = "upper_posture=0_2.onnx"
 WORLD_GRAVITY = np.array([0.0, 0.0, -1.0], dtype=np.float64)
 
 HARDWARE_JOINT_NAMES = (
@@ -597,21 +595,6 @@ class G1MultiTaskRunner(Node):
         self.get_logger().warn("Waiting for `/lowstate` before sending commands.")
 
 
-def _resolve_policy_path(args: argparse.Namespace) -> Path:
-    if args.onnx_path is not None:
-        return args.onnx_path.expanduser().resolve()
-
-    share = get_package_share_directory("huro")
-    return (
-        Path(share)
-        / "resources"
-        / "policies"
-        / "g1"
-        / "multi_task"
-        / args.policy_name
-    ).resolve()
-
-
 def _build_argparser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Deploy a G1 multi-task locomotion ONNX policy through HURo."
@@ -619,13 +602,8 @@ def _build_argparser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--onnx-path",
         type=Path,
-        default=None,
-        help="Full path to a multi-task ONNX policy. Overrides --policy-name.",
-    )
-    parser.add_argument(
-        "--policy-name",
-        default=DEFAULT_POLICY_NAME,
-        help="Policy filename under resources/policies/g1/multi_task.",
+        required=True,
+        help="Path to the multi-task ONNX policy.",
     )
     parser.add_argument("--max-vx-forward", type=float, default=1.5)
     parser.add_argument("--max-vx-backward", type=float, default=0.7)
@@ -653,7 +631,7 @@ def _build_argparser() -> argparse.ArgumentParser:
 def main(args=None) -> None:
     parser = _build_argparser()
     cli_args = parser.parse_args(remove_ros_args(args=sys.argv if args is None else args)[1:])
-    cli_args.onnx_path = _resolve_policy_path(cli_args)
+    cli_args.onnx_path = cli_args.onnx_path.expanduser().resolve()
     if not cli_args.onnx_path.exists():
         raise FileNotFoundError(f"ONNX policy not found: {cli_args.onnx_path}")
 
