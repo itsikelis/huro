@@ -111,9 +111,9 @@ ros2 run huro g1_motion_imitation.py \
   --onnx-path src/huro/resources/policies/g1/g1_clamp2.onnx
 ```
 
-The runner starts from the same fixed default reference, prints the available motion list, and waits. Type a motion number then `Enter` to transition into that clip. When the clip ends, it transitions back to the default reference and waits for another selection. Press `Space` or empty `Enter` to replay the selected clip, `l` to reprint the list, `r` to rescan the motions folder, and `x` to disable the motors.
+The runner starts from the same fixed default reference, prints the available motion list, and waits. Type a motion number then `Enter` to transition into that clip. When the clip ends, it transitions back to the default reference and waits for another selection. Press `Space` or empty `Enter` to replay the selected clip, `s` to pause/resume motion playback with the reference held constant, `l` to reprint the list, `r` to rescan the motions folder, and `x` to disable the motors.
 
-By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_motion_imitation/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed. Each `.npz` file contains transition-in, motion, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
+By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_motion_imitation/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed, or add `--log-label my_test` to use `<run_timestamp>_my_test/`. Each `.npz` file contains transition-in, motion, optional paused-motion, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
 
 For hardcoded stationary stance references, use:
 
@@ -125,7 +125,7 @@ ros2 run huro g1_predefined_stance.py \
 
 Available poses are `bent_forearms` and `arms_forward`. The runner transitions from the ONNX default stance into the selected pose at startup. Press `1` or `2` to switch pose, `Space` or `Enter` to toggle default/selected stance, and `x` to disable the motors.
 
-By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_predefined_stance/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed. Each `.npz` file contains transition-in, hold, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
+By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_predefined_stance/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed, or add `--log-label my_test` to use `<run_timestamp>_my_test/`. Each `.npz` file contains transition-in, hold, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
 
 To compare logged real robot state against the reference and desired commands:
 

@@ -128,6 +128,8 @@ class G1MotionImitationRunner(G1Clamp2Runner):
             )
         self.selected_motion_path = args.motion_npz
         self.selected_motion_index = self.motion_paths.index(args.motion_npz)
+        self.motion_paused = False
+        self.paused_reference_frame = None
         self._command_buffer = ""
         self._colors_enabled = _colors_enabled(args.color)
         args.node_name = "g1_motion_imitation_runner"
@@ -154,6 +156,8 @@ class G1MotionImitationRunner(G1Clamp2Runner):
             + " to list, "
             + self._paint("r", "yellow")
             + " to rescan, "
+            + self._paint("s", "yellow")
+            + " to pause/resume motion, "
             + self._paint("x", "yellow")
             + " to disable motors."
         )
@@ -191,6 +195,8 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         self.selected_motion_path = motion_path
         self.selected_motion_index = self.motion_paths.index(motion_path)
         self.motion_time_s = 0.0
+        self.motion_paused = False
+        self.paused_reference_frame = None
         rel_path = motion_path.relative_to(self.motions_dir).as_posix()
         self.get_logger().info(
             self._paint(
@@ -214,6 +220,8 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         target_mode: str,
         message: str,
     ) -> None:
+        self.motion_paused = False
+        self.paused_reference_frame = None
         if target_mode == "motion":
             self._start_motion_log_episode()
         super()._begin_reference_transition(
@@ -227,7 +235,12 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         rel_path = self.selected_motion_path.relative_to(self.motions_dir).as_posix()
         self._start_log_episode(
             self.selected_motion_path.stem,
-            phase_names=("transition_in", "motion", "transition_out"),
+            phase_names=(
+                "transition_in",
+                "motion",
+                "transition_out",
+                "motion_paused",
+            ),
             metadata={
                 "episode_type": "motion_imitation",
                 "motion_name": self.selected_motion_path.stem,
@@ -241,6 +254,9 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         )
 
     def _advance_reference_state(self) -> None:
+        if self.motion_paused:
+            return
+
         previous_transition = self.transition
         super()._advance_reference_state()
         if (
@@ -250,12 +266,39 @@ class G1MotionImitationRunner(G1Clamp2Runner):
         ):
             self._finish_log_episode(completed=True)
 
+    def _current_reference_frame(self):
+        if self.motion_paused and self.paused_reference_frame is not None:
+            return self.paused_reference_frame
+        return super()._current_reference_frame()
+
     def _current_log_phase_id(self) -> int:
+        if self.motion_paused:
+            return 3
         if self.transition is not None:
             return 0 if self.transition.target_mode == "motion" else 2
         if self.play_motion:
             return 1
         return -1
+
+    def _toggle_motion_pause(self) -> None:
+        if self.motion_paused:
+            self.motion_paused = False
+            self.paused_reference_frame = None
+            self.get_logger().info(self._paint("Motion playback resumed.", "green"))
+            return
+
+        if not self.play_motion or self.transition is not None:
+            self.get_logger().warn("Pause is only available during motion playback.")
+            return
+
+        self.paused_reference_frame = self.motion_clip.sample(self.motion_time_s).copy()
+        self.motion_paused = True
+        self.get_logger().info(
+            self._paint(
+                f"Motion playback paused at t={self.motion_time_s:.2f}s.",
+                "yellow",
+            )
+        )
 
     def _select_motion_number(self, text: str) -> None:
         try:
@@ -317,6 +360,9 @@ class G1MotionImitationRunner(G1Clamp2Runner):
             if key in {"r", "R"} and not self._command_buffer:
                 self._reload_motion_library()
                 continue
+            if key in {"s", "S"} and not self._command_buffer:
+                self._toggle_motion_pause()
+                continue
             if key in {"x", "X"} and not self._command_buffer:
                 self.motors_on = 0
                 self.get_logger().warn("Motor disable requested from keyboard.")
@@ -373,6 +419,13 @@ def _build_argparser() -> argparse.ArgumentParser:
         type=Path,
         default=_default_log_path("g1_motion_imitation"),
         help="Directory where per-motion NPZ log episodes are saved.",
+    )
+    parser.add_argument(
+        "--log-label",
+        help=(
+            "Optional label appended to the timestamped log run folder and saved "
+            "as NPZ metadata."
+        ),
     )
     return parser
 

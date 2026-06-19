@@ -309,6 +309,13 @@ def _build_argparser() -> argparse.ArgumentParser:
         default=_default_log_path("g1_predefined_stance"),
         help="Directory where per-stance NPZ log episodes are saved.",
     )
+    parser.add_argument(
+        "--log-label",
+        help=(
+            "Optional label appended to the timestamped log run folder and saved "
+            "as NPZ metadata."
+        ),
+    )
     return parser
 
 

@@ -392,9 +392,12 @@ class ReferenceTransition:
 
 
 class NpzEpisodeLogger:
-    def __init__(self, log_dir: Path, ros_logger):
+    def __init__(self, log_dir: Path, ros_logger, *, log_label: str | None = None):
         self.root_log_dir = log_dir
-        self.run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.log_label = (log_label or "").strip()
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        safe_label = self._safe_name(self.log_label)
+        self.run_id = f"{timestamp}_{safe_label}" if safe_label else timestamp
         self.log_dir = log_dir / self.run_id
         self.ros_logger = ros_logger
         self.episode_index = 0
@@ -450,6 +453,7 @@ class NpzEpisodeLogger:
         all_metadata["completed"] = bool(completed)
         all_metadata["episode_index"] = int(self.episode_index)
         all_metadata["run_id"] = self.run_id
+        all_metadata["log_label"] = self.log_label
 
         arrays = {
             key: np.asarray(values)
@@ -477,9 +481,13 @@ class NpzEpisodeLogger:
         self.saved_active_episode = False
 
     def _episode_filename(self, name: str, *, suffix: str | None) -> str:
-        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_") or "episode"
+        safe_name = self._safe_name(name) or "episode"
         suffix_text = f"_{suffix}" if suffix else ""
         return f"{self.episode_index:04d}_{safe_name}{suffix_text}.npz"
+
+    @staticmethod
+    def _safe_name(name: str) -> str:
+        return re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_")
 
     @staticmethod
     def _metadata_value(value: object) -> np.ndarray:
@@ -608,7 +616,11 @@ class G1Clamp2Runner(Node):
         )
         self.imu = IMUState()
         self.episode_logger = (
-            NpzEpisodeLogger(args.log_dir, self.get_logger())
+            NpzEpisodeLogger(
+                args.log_dir,
+                self.get_logger(),
+                log_label=getattr(args, "log_label", None),
+            )
             if getattr(args, "log_dir", None) is not None
             else None
         )
