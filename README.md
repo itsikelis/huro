@@ -113,6 +113,8 @@ ros2 run huro g1_motion_imitation.py \
 
 The runner starts from the same fixed default reference, prints the available motion list, and waits. Type a motion number then `Enter` to transition into that clip. When the clip ends, it transitions back to the default reference and waits for another selection. Press `Space` or empty `Enter` to replay the selected clip, `l` to reprint the list, `r` to rescan the motions folder, and `x` to disable the motors.
 
+By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_motion_imitation/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed. Each `.npz` file contains transition-in, motion, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
+
 For hardcoded stationary stance references, use:
 
 ```bash
@@ -122,3 +124,13 @@ ros2 run huro g1_predefined_stance.py \
 ```
 
 Available poses are `bent_forearms` and `arms_forward`. The runner transitions from the ONNX default stance into the selected pose at startup. Press `1` or `2` to switch pose, `Space` or `Enter` to toggle default/selected stance, and `x` to disable the motors.
+
+By default in Docker, logs are saved under `/huro_ws/src/huro/resources/log/g1_predefined_stance/<run_timestamp>/`. Override the parent folder with `--log-dir ...` if needed. Each `.npz` file contains transition-in, hold, and transition-out samples, with `phase_id` values matching `meta_phase_names`.
+
+To compare logged real robot state against the reference and desired commands:
+
+```bash
+python3 scripts/plot_deploy_npz.py resources/log/g1_motion_imitation/2026-06-19_07-53-06
+```
+
+The script writes PNG overlays and RMSE summaries to a `plots/` folder next to each `.npz` by default. New logs also include low-level actuator fields such as `joint_torques_hw`, `joint_accelerations_hw`, `motor_temperature_ch0_hw`, `motor_temperature_ch1_hw`, `motor_voltage_hw`, `motor_state_flags_hw`, and `motor_mode_hw`.

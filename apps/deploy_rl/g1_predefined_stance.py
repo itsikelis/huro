@@ -38,6 +38,21 @@ def _default_resource_path(*parts: str) -> Path:
     return _source_resource_path(*parts)
 
 
+def _default_log_path(*parts: str) -> Path:
+    docker_source_resources = Path("/huro_ws/src/huro/resources")
+    if docker_source_resources.exists():
+        return docker_source_resources / "log" / Path(*parts)
+
+    local_source_resources = Path(__file__).resolve().parents[2] / "resources"
+    if local_source_resources.exists():
+        return local_source_resources / "log" / Path(*parts)
+
+    installed = _package_resource_path("resources", "log", *parts)
+    if installed is not None:
+        return installed
+    return local_source_resources / "log" / Path(*parts)
+
+
 @dataclass(frozen=True)
 class StanceSpec:
     label: str
@@ -141,6 +156,36 @@ class G1PredefinedStanceRunner(G1Clamp2Runner):
             lines.append(f"       {stance.description}")
         self.get_logger().info("\n".join(lines))
 
+    def _begin_reference_transition(
+        self,
+        start_frame,
+        end_frame,
+        *,
+        target_mode: str,
+        message: str,
+    ) -> None:
+        if target_mode == "stance":
+            self._start_stance_log_episode()
+        super()._begin_reference_transition(
+            start_frame,
+            end_frame,
+            target_mode=target_mode,
+            message=message,
+        )
+
+    def _start_stance_log_episode(self) -> None:
+        stance = PREDEFINED_STANCES[self.selected_stance_name]
+        self._start_log_episode(
+            self.selected_stance_name,
+            phase_names=("transition_in", "hold", "transition_out"),
+            metadata={
+                "episode_type": "predefined_stance",
+                "pose_name": self.selected_stance_name,
+                "pose_label": stance.label,
+                "pose_description": stance.description,
+            },
+        )
+
     def _current_reference_frame(self) -> MotionFrame:
         if self.transition is not None:
             return self.transition.frame()
@@ -149,6 +194,7 @@ class G1PredefinedStanceRunner(G1Clamp2Runner):
         return self.hold_reference_frame
 
     def _advance_reference_state(self) -> None:
+        previous_transition = self.transition
         if self.transition is None:
             return
         if not self.transition.advance(self.control_dt):
@@ -161,6 +207,15 @@ class G1PredefinedStanceRunner(G1Clamp2Runner):
             self.get_logger().info(f"Holding `{self.selected_stance_name}` stance.")
         else:
             self.get_logger().info("Returned to fixed default reference.")
+        if previous_transition is not None and previous_transition.target_mode == "idle":
+            self._finish_log_episode(completed=True)
+
+    def _current_log_phase_id(self) -> int:
+        if self.transition is not None:
+            return 0 if self.transition.target_mode == "stance" else 2
+        if self._is_targeting_or_holding_stance():
+            return 1
+        return -1
 
     def _toggle_stance_reference(self) -> None:
         current_frame = self._current_reference_frame()
@@ -248,6 +303,12 @@ def _build_argparser() -> argparse.ArgumentParser:
         default="bent_forearms",
         help="Predefined stance reference to hold.",
     )
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        default=_default_log_path("g1_predefined_stance"),
+        help="Directory where per-stance NPZ log episodes are saved.",
+    )
     return parser
 
 
@@ -255,6 +316,7 @@ def main(args=None) -> None:
     parser = _build_argparser()
     cli_args = parser.parse_args(remove_ros_args(args=sys.argv if args is None else args)[1:])
     cli_args.onnx_path = cli_args.onnx_path.expanduser().resolve()
+    cli_args.log_dir = cli_args.log_dir.expanduser().resolve()
 
     rclpy.init(args=args)
     node = None

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+from datetime import datetime
 import json
+import re
 import select
 import sys
 import termios
@@ -389,6 +391,105 @@ class ReferenceTransition:
         return self.elapsed_s >= self.duration_s
 
 
+class NpzEpisodeLogger:
+    def __init__(self, log_dir: Path, ros_logger):
+        self.root_log_dir = log_dir
+        self.run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.log_dir = log_dir / self.run_id
+        self.ros_logger = ros_logger
+        self.episode_index = 0
+        self.active_name: str | None = None
+        self.active_metadata: dict[str, object] = {}
+        self.samples: dict[str, list[np.ndarray | float | int]] = {}
+        self.start_time_ns: int | None = None
+        self.saved_active_episode = False
+
+    @property
+    def active(self) -> bool:
+        return self.active_name is not None
+
+    def start_episode(self, name: str, metadata: dict[str, object]) -> None:
+        if self.active:
+            self.finish_episode(completed=False, suffix="interrupted")
+        self.episode_index += 1
+        self.active_name = name
+        self.active_metadata = dict(metadata)
+        self.samples = {}
+        self.start_time_ns = None
+        self.saved_active_episode = False
+
+    def record(self, now_ns: int, sample: dict[str, np.ndarray | float | int]) -> None:
+        if not self.active:
+            return
+        if self.start_time_ns is None:
+            self.start_time_ns = now_ns
+        sample = dict(sample)
+        sample["time_s"] = (now_ns - self.start_time_ns) * 1.0e-9
+        for key, value in sample.items():
+            self.samples.setdefault(key, []).append(value)
+
+    def finish_episode(
+        self,
+        *,
+        completed: bool,
+        suffix: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> Path | None:
+        if not self.active:
+            return None
+        if self.saved_active_episode:
+            return None
+
+        if not self.samples:
+            self._clear_episode()
+            return None
+
+        all_metadata = dict(self.active_metadata)
+        if metadata:
+            all_metadata.update(metadata)
+        all_metadata["completed"] = bool(completed)
+        all_metadata["episode_index"] = int(self.episode_index)
+        all_metadata["run_id"] = self.run_id
+
+        arrays = {
+            key: np.asarray(values)
+            for key, values in self.samples.items()
+        }
+        if "control_dt" in all_metadata:
+            arrays["control_dt"] = np.asarray(float(all_metadata["control_dt"]))
+        for key, value in all_metadata.items():
+            arrays[f"meta_{key}"] = self._metadata_value(value)
+
+        self.log_dir.mkdir(parents=True, exist_ok=True)
+        filename = self._episode_filename(self.active_name or "episode", suffix=suffix)
+        path = self.log_dir / filename
+        np.savez_compressed(path, **arrays)
+        self.saved_active_episode = True
+        self.ros_logger.info(f"Saved log episode to {path}.")
+        self._clear_episode()
+        return path
+
+    def _clear_episode(self) -> None:
+        self.active_name = None
+        self.active_metadata = {}
+        self.samples = {}
+        self.start_time_ns = None
+        self.saved_active_episode = False
+
+    def _episode_filename(self, name: str, *, suffix: str | None) -> str:
+        safe_name = re.sub(r"[^A-Za-z0-9_.-]+", "_", name).strip("_") or "episode"
+        suffix_text = f"_{suffix}" if suffix else ""
+        return f"{self.episode_index:04d}_{safe_name}{suffix_text}.npz"
+
+    @staticmethod
+    def _metadata_value(value: object) -> np.ndarray:
+        if isinstance(value, Path):
+            return np.asarray(str(value))
+        if isinstance(value, (list, tuple)):
+            return np.asarray(value)
+        return np.asarray(value)
+
+
 class MotionClip:
     def __init__(self, npz_path: Path, *, spec: PolicySpec):
         with np.load(npz_path, allow_pickle=False) as data:
@@ -505,6 +606,13 @@ class G1Clamp2Runner(Node):
             self.spec.default_joint_pos,
             height_m=IDLE_REFERENCE_HEIGHT_M,
         )
+        self.imu = IMUState()
+        self.episode_logger = (
+            NpzEpisodeLogger(args.log_dir, self.get_logger())
+            if getattr(args, "log_dir", None) is not None
+            else None
+        )
+        self.onnx_path = args.onnx_path
         self._init_reference(args)
 
         self._policy_joint_hw_indices = self._hardware_indices(self.spec.joint_names)
@@ -516,6 +624,13 @@ class G1Clamp2Runner(Node):
 
         self.joint_positions_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
         self.joint_velocities_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.joint_accelerations_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.joint_torques_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.motor_temperature_ch0_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.motor_temperature_ch1_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.motor_voltage_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
+        self.motor_state_flags_hw = np.zeros(G1_NUM_MOTOR, dtype=np.int64)
+        self.motor_mode_hw = np.zeros(G1_NUM_MOTOR, dtype=np.int64)
         self.default_joint_pos_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
         self.joint_stiffness_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
         self.joint_damping_hw = np.zeros(G1_NUM_MOTOR, dtype=np.float64)
@@ -523,7 +638,6 @@ class G1Clamp2Runner(Node):
         self.joint_stiffness_hw[self._policy_joint_hw_indices] = self.spec.joint_stiffness
         self.joint_damping_hw[self._policy_joint_hw_indices] = self.spec.joint_damping
 
-        self.imu = IMUState()
         self.lowstate_received = False
 
         self.actions = np.zeros(self.spec.action_dim, dtype=np.float32)
@@ -562,6 +676,108 @@ class G1Clamp2Runner(Node):
             "to toggle motion playback, and `x` to disable the motors."
         )
 
+    def _start_log_episode(
+        self,
+        name: str,
+        *,
+        phase_names: tuple[str, ...],
+        metadata: dict[str, object],
+    ) -> None:
+        if self.episode_logger is None:
+            return
+        common_metadata = {
+            "control_dt": float(self.control_dt),
+            "phase_names": phase_names,
+            "hardware_joint_names": HARDWARE_JOINT_NAMES,
+            "policy_joint_names": self.spec.joint_names,
+            "onnx_name": self.onnx_path.name,
+            "onnx_path": self.onnx_path,
+            "action_target_names": self.spec.action_target_names,
+            "action_semantics": self.spec.action_semantics,
+            "imu_accelerometer_available": self._imu_accelerometer_available(),
+        }
+        common_metadata.update(metadata)
+        self.episode_logger.start_episode(name, common_metadata)
+
+    def _finish_log_episode(
+        self,
+        *,
+        completed: bool,
+        suffix: str | None = None,
+        metadata: dict[str, object] | None = None,
+    ) -> None:
+        if self.episode_logger is None:
+            return
+        self.episode_logger.finish_episode(
+            completed=completed,
+            suffix=suffix,
+            metadata=metadata,
+        )
+
+    def _record_log_sample(
+        self,
+        frame: MotionFrame,
+        raw_action: np.ndarray,
+        desired_q_hw: np.ndarray,
+    ) -> None:
+        if self.episode_logger is None or not self.episode_logger.active:
+            return
+        now_ns = self.get_clock().now().nanoseconds
+        self.episode_logger.record(
+            now_ns,
+            {
+                "phase_id": int(self._current_log_phase_id()),
+                "joint_positions_hw": self.joint_positions_hw.copy(),
+                "joint_velocities_hw": self.joint_velocities_hw.copy(),
+                "joint_accelerations_hw": self.joint_accelerations_hw.copy(),
+                "joint_torques_hw": self.joint_torques_hw.copy(),
+                "motor_temperature_ch0_hw": self.motor_temperature_ch0_hw.copy(),
+                "motor_temperature_ch1_hw": self.motor_temperature_ch1_hw.copy(),
+                "motor_voltage_hw": self.motor_voltage_hw.copy(),
+                "motor_state_flags_hw": self.motor_state_flags_hw.copy(),
+                "motor_mode_hw": self.motor_mode_hw.copy(),
+                "imu_quaternion": self._imu_vector("quaternion", 4),
+                "imu_gyroscope": self._imu_vector("gyroscope", 3),
+                "imu_accelerometer": self._imu_accelerometer_vector(),
+                "reference_joint_pos": frame.joint_pos.copy(),
+                "reference_joint_vel": frame.joint_vel.copy(),
+                "reference_root_pos_w": frame.root_pos_w.copy(),
+                "reference_root_quat_wxyz": frame.root_quat_wxyz.copy(),
+                "reference_root_lin_vel_w": frame.root_lin_vel_w.copy(),
+                "reference_root_ang_vel_w": frame.root_ang_vel_w.copy(),
+                "raw_action": raw_action.copy(),
+                "desired_q_hw": desired_q_hw.copy(),
+                "motors_on": int(self.motors_on),
+                "lowstate_mode_machine": int(self.mode_machine),
+            },
+        )
+
+    def _current_log_phase_id(self) -> int:
+        return -1
+
+    def _imu_vector(self, attr_name: str, size: int) -> np.ndarray:
+        value = getattr(self.imu, attr_name, None)
+        if value is None:
+            return np.zeros(size, dtype=np.float64)
+        vector = np.asarray(value, dtype=np.float64).reshape(-1)
+        if vector.size < size:
+            padded = np.zeros(size, dtype=np.float64)
+            padded[: vector.size] = vector
+            return padded
+        return vector[:size].copy()
+
+    def _imu_accelerometer_available(self) -> bool:
+        return any(
+            hasattr(self.imu, attr_name)
+            for attr_name in ("accelerometer", "accelerometer_body", "accel")
+        )
+
+    def _imu_accelerometer_vector(self) -> np.ndarray:
+        for attr_name in ("accelerometer", "accelerometer_body", "accel"):
+            if hasattr(self.imu, attr_name):
+                return self._imu_vector(attr_name, 3)
+        return np.zeros(3, dtype=np.float64)
+
     def _validate_policy_against_hardware(self) -> None:
         if len(self.spec.joint_names) != G1_NUM_MOTOR:
             raise ValueError(
@@ -599,6 +815,7 @@ class G1Clamp2Runner(Node):
         raw_action = self._get_raw_action(obs)
         desired_q_hw = self._desired_positions_from_action(raw_action, frame)
         self.actions = raw_action.astype(np.float32, copy=True)
+        self._record_log_sample(frame, raw_action, desired_q_hw)
 
         low_cmd = LowCmd()
         low_cmd.mode_pr = 0
@@ -770,8 +987,19 @@ class G1Clamp2Runner(Node):
         self.mode_machine = msg.mode_machine
         self.imu = msg.imu_state
         for idx in range(G1_NUM_MOTOR):
-            self.joint_positions_hw[idx] = msg.motor_state[idx].q
-            self.joint_velocities_hw[idx] = msg.motor_state[idx].dq
+            motor_state = msg.motor_state[idx]
+            self.joint_positions_hw[idx] = motor_state.q
+            self.joint_velocities_hw[idx] = motor_state.dq
+            self.joint_accelerations_hw[idx] = getattr(motor_state, "ddq", 0.0)
+            self.joint_torques_hw[idx] = getattr(motor_state, "tau_est", 0.0)
+            temperature = getattr(motor_state, "temperature", ())
+            if len(temperature) > 0:
+                self.motor_temperature_ch0_hw[idx] = temperature[0]
+            if len(temperature) > 1:
+                self.motor_temperature_ch1_hw[idx] = temperature[1]
+            self.motor_voltage_hw[idx] = getattr(motor_state, "vol", 0.0)
+            self.motor_state_flags_hw[idx] = getattr(motor_state, "motorstate", 0)
+            self.motor_mode_hw[idx] = getattr(motor_state, "mode", 0)
 
     def _current_reference_frame(self) -> MotionFrame:
         if self.transition is not None:
@@ -888,6 +1116,7 @@ class G1Clamp2Runner(Node):
                 self.get_logger().warn("Motor disable requested from keyboard.")
 
     def destroy_node(self) -> bool:
+        self._finish_log_episode(completed=False, suffix="interrupted")
         self._restore_keyboard()
         return super().destroy_node()
 

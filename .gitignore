@@ -5,3 +5,4 @@ __pycache__/
 install/
 build/
 log/
+resources/log/

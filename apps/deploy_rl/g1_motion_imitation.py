@@ -57,6 +57,21 @@ def _default_resource_path(*parts: str) -> Path:
     return _source_resource_path(*parts)
 
 
+def _default_log_path(*parts: str) -> Path:
+    docker_source_resources = Path("/huro_ws/src/huro/resources")
+    if docker_source_resources.exists():
+        return docker_source_resources / "log" / Path(*parts)
+
+    local_source_resources = Path(__file__).resolve().parents[2] / "resources"
+    if local_source_resources.exists():
+        return local_source_resources / "log" / Path(*parts)
+
+    installed = _package_resource_path("resources", "log", *parts)
+    if installed is not None:
+        return installed
+    return local_source_resources / "log" / Path(*parts)
+
+
 def _discover_motion_paths(motions_dir: Path) -> list[Path]:
     return sorted(
         (path for path in motions_dir.rglob("*.npz") if path.is_file()),
@@ -191,6 +206,57 @@ class G1MotionImitationRunner(G1Clamp2Runner):
             )
         )
 
+    def _begin_reference_transition(
+        self,
+        start_frame,
+        end_frame,
+        *,
+        target_mode: str,
+        message: str,
+    ) -> None:
+        if target_mode == "motion":
+            self._start_motion_log_episode()
+        super()._begin_reference_transition(
+            start_frame,
+            end_frame,
+            target_mode=target_mode,
+            message=message,
+        )
+
+    def _start_motion_log_episode(self) -> None:
+        rel_path = self.selected_motion_path.relative_to(self.motions_dir).as_posix()
+        self._start_log_episode(
+            self.selected_motion_path.stem,
+            phase_names=("transition_in", "motion", "transition_out"),
+            metadata={
+                "episode_type": "motion_imitation",
+                "motion_name": self.selected_motion_path.stem,
+                "motion_path": self.selected_motion_path,
+                "motion_relative_path": rel_path,
+                "motion_index": int(self.selected_motion_index),
+                "motion_num_frames": int(self.motion_clip.num_frames),
+                "motion_length_s": float(self.motion_clip.length_s),
+                "motion_fps": float(self.motion_clip.fps),
+            },
+        )
+
+    def _advance_reference_state(self) -> None:
+        previous_transition = self.transition
+        super()._advance_reference_state()
+        if (
+            previous_transition is not None
+            and previous_transition.target_mode == "idle"
+            and self.transition is None
+        ):
+            self._finish_log_episode(completed=True)
+
+    def _current_log_phase_id(self) -> int:
+        if self.transition is not None:
+            return 0 if self.transition.target_mode == "motion" else 2
+        if self.play_motion:
+            return 1
+        return -1
+
     def _select_motion_number(self, text: str) -> None:
         try:
             selected = int(text)
@@ -302,6 +368,12 @@ def _build_argparser() -> argparse.ArgumentParser:
         default="auto",
         help="Colorize terminal log output.",
     )
+    parser.add_argument(
+        "--log-dir",
+        type=Path,
+        default=_default_log_path("g1_motion_imitation"),
+        help="Directory where per-motion NPZ log episodes are saved.",
+    )
     return parser
 
 
@@ -310,6 +382,7 @@ def main(args=None) -> None:
     cli_args = parser.parse_args(remove_ros_args(args=sys.argv if args is None else args)[1:])
     cli_args.onnx_path = cli_args.onnx_path.expanduser().resolve()
     cli_args.motions_dir = cli_args.motions_dir.expanduser().resolve()
+    cli_args.log_dir = cli_args.log_dir.expanduser().resolve()
 
     rclpy.init(args=args)
     node = None
