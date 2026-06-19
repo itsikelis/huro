@@ -89,6 +89,26 @@ ros2 launch huro ROBOT_rviz.launch.py
 
 If you are connected to a robot, this will open up an RViz window that updates joint and floating base position as these move.
 
+### G1 Multi-Task Locomotion Deployment
+
+For G1 multi-task locomotion policies exported to ONNX, use `g1_multi_task.py`. By default, it loads `resources/policies/g1/multi_task/upper_posture=0_2.onnx` and runs the low-level PD reference loop 4x faster than the policy inference loop, linearly interpolating between policy references.
+
+Example:
+
+```bash
+ros2 run huro g1_multi_task.py
+```
+
+To select the other bundled posture policy or change the control/policy ratio:
+
+```bash
+ros2 run huro g1_multi_task.py \
+  --policy-name upper_posture=0_4.onnx \
+  --ratio 4
+```
+
+Press joystick button `1` to start the policy and button `0` to disable motor commands. The default joystick axes are `3` for forward/backward velocity, `2` for lateral velocity, and `0` for yaw rate.
+
 ### G1 CLAMP2 Deployment
 
 For G1 CLAMP2-style policies exported to ONNX, use `g1_clamp2.py`. It reads the embedded deployment metadata, reconstructs the exported observation layout, supports the CLAMP2 `history` observation term, and rebuilds the motion command from a reference `.npz`.
