@@ -641,7 +641,7 @@ def _build_argparser() -> argparse.ArgumentParser:
         "--ratio",
         dest="control_policy_ratio",
         type=int,
-        default=4,
+        default=1,
         help=(
             "Number of high-frequency PD command updates per ONNX policy inference. "
             "The policy still runs at the exported control_dt."
