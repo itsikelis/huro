@@ -94,8 +94,8 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_cnn_lidar_frame4.pt"
-        policy_name = "policy_asymmetric_best.pt"
+        policy_lidar_name = "policy_cnn_rnn_seq5.pt"
+        policy_name = "policy_cnn_rnn_seq5.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         if not os.path.exists(policy_path):
