@@ -321,5 +321,5 @@ def get_obs_lidar_cnn(
     height_map_copy = [height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2])  - 0.28] 
     # print(height_map[0, :, :].clone().reshape(1,1,height_map.shape[1],height_map.shape[2]))
     # print(height_map[0, :, :].clone().flip(0, 1).reshape(1,1,15,10))
-
+    
     return obs, height_map_copy
