@@ -94,8 +94,8 @@ class Go2PolicyController(Node):
         print(f"[INFO] Using device: {self.device}")
         
         # Load policy model        
-        policy_lidar_name = "policy_rnn_new1.pt"
-        policy_name = "policy_rnn_new1.pt"
+        policy_lidar_name = "policy_rnn_small.pt"
+        policy_name = "policy_rnn_small.pt"
         policy_lidar_path = os.path.join(share, "resources", "models", "go2", policy_lidar_name)
         policy_path = os.path.join(share, "resources", "models", "go2", policy_name)
         if not os.path.exists(policy_path):
@@ -205,7 +205,7 @@ class Go2PolicyController(Node):
             Twist, "/cmd_vel_nav", self.cmd_vel_callback, 10
         )
     
-        self.x_range = [0.8, -0.5] # height_map x range
+        self.x_range = [0.5, 0.0] # height_map x range
         self.y_range = [-0.5, 0.5] # height_map y range
         self.res = 0.1 # height map resolution
         self.height_map = torch.zeros((3, 

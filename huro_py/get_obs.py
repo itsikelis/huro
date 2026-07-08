@@ -209,7 +209,7 @@ def get_obs_lidar(
     idx = 33+heightmap_size
     height_map_copy = height_map[0, :, :].clone().reshape(heightmap_size) - 0.28
     torch.set_printoptions(precision=2, sci_mode=False, linewidth=120, threshold=300, edgeitems=2)
-    print(height_map_copy.view(13, 10))
+    print(height_map_copy.view(5, 10))
     obs[33:33+12] = prev_actions
 
     obs[33+12:idx + 12] = height_map_copy
