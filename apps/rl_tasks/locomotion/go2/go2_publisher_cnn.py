@@ -578,7 +578,7 @@ def main():
 
 
     parser.add_argument(
-        "--sim", type=str2bool, default=True, help="Whether to use simulation or real robot"
+        "--sim", type=str2bool, default=False, help="Whether to use simulation or real robot"
     )
     
     parser.add_argument(
